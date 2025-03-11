@@ -65,6 +65,8 @@ A `data/BIDS` has been provided for demonstration purposes. For those interested
 
 ![Screenshot from 2025-03-11 22-40-35](https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180)
 
+## License
+This project is licensed under the terms described in [LICENSE](./LICENSE).
 
 
 
