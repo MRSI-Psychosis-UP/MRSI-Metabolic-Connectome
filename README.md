@@ -10,7 +10,7 @@ This repository contains all the necessary files to construct a within-subject m
 - **Conda or Miniconda**: Optionally, use Conda/Miniconda for environment management and package installation.
 
 ### Datasets
-A ´data/BIDS´ has been provided for demonstration purposes. [Write a note here to ask the itnerest people to reach out to the authors of the paper for a well motoivated data request]
+A `data/BIDS` has been provided for demonstration purposes. For those interested in obtaining access to the full MRSI dataset beyond demonstration purposes, please reach out to the authors of this paper with a well-motivated request detailing your research aims and how the data will be used. 
 
 ### Installation
 
