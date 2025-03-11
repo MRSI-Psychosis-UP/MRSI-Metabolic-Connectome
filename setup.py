@@ -7,7 +7,7 @@ def read(fname):
 
 setup(
     name = "mrsitoolbox",
-    version = "3.0.0",
+    version = "1.0.0",
     description = ("Analysis toolbox for MRSI data"),
     license = "BSD",
     keywords = "example documentation tutorial",
@@ -17,7 +17,6 @@ setup(
     # long_description=read('README.md'),
     classifiers=[
         "Development Status :: 3 - Beta",
-        "Topic :: DataUtils",
-        "License :: OSI Approved :: BSD License",
+        "License :: Other/Proprietary License"
     ],
 )
