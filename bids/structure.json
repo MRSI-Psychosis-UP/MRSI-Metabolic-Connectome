@@ -1,0 +1,550 @@
+{   "parcels":
+            {"LFIIHIFIF-1":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFIIHIFIF-2":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFIIHIFIF-3":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFIIHIFIF-4":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFIIHIFIF-5":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-1":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-2":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-3":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-4":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-5":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-1-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-2-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-3-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-4-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-5-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-1":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-2":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-3":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-4":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIHIFIF-5":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-1-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-2-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-3-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-4-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "LFMIIIFIF-5-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "aal"        :{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "aal-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "mist-197"      :{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "schaefer-200":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "cerebellum" :{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "destrieux"  :{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "jhu_icbm_wm":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "wm_cubeK15mm":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "wm_cubeK18mm":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "geometric_cubeK18mm":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "geometric_cubeK18mm-cer-wmgeom18":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}},
+             "geometric_cubeK23mm":{"orig":{"nifti":0,"path":0,"labelpath":0},
+                            "mni":{"nifti":0,"path":0,"labelpath":0},
+                            "dwi":{"nifti":0,"path":0,"labelpath":0},
+                            "spectroscopy":{"nifti":0,"path":0,"labelpath":0}}
+            },
+    "homotopy":
+            {"LFIIHIFIF-1":{"nifti":0,"path":0},
+             "LFIIHIFIF-2":{"nifti":0,"path":0},
+             "LFIIHIFIF-3":{"nifti":0,"path":0},
+             "LFIIHIFIF-4":{"nifti":0,"path":0},
+             "LFIIHIFIF-5":{"nifti":0,"path":0},
+             "LFMIIIFIF-1":{"nifti":0,"path":0},
+             "LFMIIIFIF-2":{"nifti":0,"path":0},
+             "LFMIIIFIF-3":{"nifti":0,"path":0},
+             "LFMIIIFIF-4":{"nifti":0,"path":0},
+             "LFMIIIFIF-5":{"nifti":0,"path":0},
+             "LFMIHIFIF-1":{"nifti":0,"path":0},
+             "LFMIHIFIF-2":{"nifti":0,"path":0},
+             "LFMIHIFIF-3":{"nifti":0,"path":0},
+             "LFMIHIFIF-4":{"nifti":0,"path":0},
+             "LFMIHIFIF-5":{"nifti":0,"path":0},
+             "LFMIHIFIF-1-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-2-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-3-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-4-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-5-cer-wmgeom18":{"nifti":0,"path":0},
+             "cerebellum":{"nifti":0,"path":0},
+             "aal":{"nifti":0,"path":0},
+             "aal-cer-wmgeom18":{"nifti":0,"path":0},
+             "wm_cubeK15mm":{"nifti":0,"path":0},
+             "wm_cubeK18mm":{"nifti":0,"path":0},
+             "geometric_cubeK23mm":{"nifti":0,"path":0},
+             "geometric_cubeK18mm":{"nifti":0,"path":0},
+             "geometric_cubeK23mm-cer-wmgeom18":{"nifti":0,"path":0},
+             "geometric_cubeK18mm-cer-wmgeom18":{"nifti":0,"path":0}
+            },
+    "featured4d":
+            {"LFIIHIFIF-1":{"nifti":0,"path":0},
+             "LFIIHIFIF-2":{"nifti":0,"path":0},
+             "LFIIHIFIF-3":{"nifti":0,"path":0},
+             "LFIIHIFIF-4":{"nifti":0,"path":0},
+             "LFIIHIFIF-5":{"nifti":0,"path":0},
+             "LFMIHIFIF-1":{"nifti":0,"path":0},
+             "LFMIHIFIF-2":{"nifti":0,"path":0},
+             "LFMIHIFIF-3":{"nifti":0,"path":0},
+             "LFMIHIFIF-4":{"nifti":0,"path":0},
+             "LFMIHIFIF-5":{"nifti":0,"path":0},
+             "LFMIHIFIF-1-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-2-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-3-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-4-cer-wmgeom18":{"nifti":0,"path":0},
+             "LFMIHIFIF-5-cer-wmgeom18":{"nifti":0,"path":0},
+             "cerebellum":{"nifti":0,"path":0},
+             "aal":{"nifti":0,"path":0},
+             "wm_cubeK15mm":{"nifti":0,"path":0},
+             "wm_cubeK18mm":{"nifti":0,"path":0},
+             "aal-cer-wmgeom18":{"nifti":0,"path":0},
+             "wm_cubeK15mm-cer-wmgeom18":{"nifti":0,"path":0},
+             "wm_cubeK18mm-cer-wmgeom18":{"nifti":0,"path":0},
+             "geometric_cubeK23mm":{"nifti":0,"path":0},
+             "geometric_cubeK18mm":{"nifti":0,"path":0}
+            },
+      "connectivity":
+            {"spectroscopy":{
+                          "geometric_cubeK23mm":{"path":0,"image":0},
+                          "geometric_cubeK18mm":{"path":0,"image":0},
+                          "aal"        :{"path":0,"image":0},
+                          "destrieux"  :{"path":0,"image":0},
+                          "jhu_icbm_wm":{"path":0,"image":0},
+                          "cerebellum":{"path":0,"image":0},
+                          "wm_cubeK15mm":{"nifti":0,"path":0},
+                          "wm_cubeK18mm":{"nifti":0,"path":0},
+                          "LFIIHIFIF-1":{"path":0,"image":0},
+                          "LFIIHIFIF-2":{"path":0,"image":0},
+                          "LFIIHIFIF-3":{"path":0,"image":0},
+                          "LFIIHIFIF-4":{"path":0,"image":0},
+                          "LFIIHIFIF-5":{"path":0,"image":0},
+                          "LFMIHIFIF-1":{"path":0,"image":0},
+                          "LFMIHIFIF-2":{"path":0,"image":0},
+                          "LFMIHIFIF-3":{"path":0,"image":0},
+                          "LFMIHIFIF-4":{"path":0,"image":0},
+                          "LFMIHIFIF-5":{"path":0,"image":0},
+                          "LFMIIIFIF-1":{"path":0,"image":0},
+                          "LFMIIIFIF-2":{"path":0,"image":0},
+                          "LFMIIIFIF-3":{"path":0,"image":0},
+                          "LFMIIIFIF-4":{"path":0,"image":0},
+                          "LFMIIIFIF-5":{"path":0,"image":0},
+                          "LFMIHIFIF-1-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIHIFIF-2-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIHIFIF-3-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIHIFIF-4-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIHIFIF-5-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIIIFIF-1-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIIIFIF-2-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIIIFIF-3-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIIIFIF-4-cer-wmgeom18":{"path":0,"image":0},
+                          "LFMIIIFIF-5-cer-wmgeom18":{"path":0,"image":0}
+                        },
+            "dwi":{
+                          "geometric_cubeK23mm":{"path":0,"image":0},
+                          "geometric_cubeK18mm":{"path":0,"image":0},
+                          "wm_cubeK18mm":{"path":0,"image":0},
+                          "aal"        :{"path":0,"image":0},
+                          "destrieux"  :{"path":0,"image":0},
+                          "jhu_icbm_wm":{"path":0,"image":0},
+                          "cerebellum" :{"path":0,"image":0},
+                          "LFIIHIFIF-1":{"path":0,"image":0},
+                          "LFIIHIFIF-2":{"path":0,"image":0},
+                          "LFIIHIFIF-3":{"path":0,"image":0},
+                          "LFIIHIFIF-4":{"path":0,"image":0},
+                          "LFIIHIFIF-5":{"path":0,"image":0},
+                          "LFMIHIFIF-1":{"path":0,"image":0},
+                          "LFMIHIFIF-2":{"path":0,"image":0},
+                          "LFMIHIFIF-3":{"path":0,"image":0},
+                          "LFMIHIFIF-4":{"path":0,"image":0},
+                          "LFMIHIFIF-5":{"path":0,"image":0},
+                          "LFMIIIFIF-1":{"path":0,"image":0},
+                          "LFMIIIFIF-2":{"path":0,"image":0},
+                          "LFMIIIFIF-3":{"path":0,"image":0},
+                          "LFMIIIFIF-4":{"path":0,"image":0},
+                          "LFMIIIFIF-5":{"path":0,"image":0}
+              }
+            },
+    "t1w": {
+      "brain": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mrsi": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "head": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mrsi": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "mask": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mrsi": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      }
+    },
+    "mrsi": {
+      "CrPCr-crlb": {
+          "orig": {
+            "nifti": 0,
+            "path": 0
+          },
+          "origfilt": {
+            "nifti": 0,
+            "path": 0
+          },
+          "t1w": {
+            "nifti": 0,
+            "path": 0
+          },
+          "mni": {
+            "nifti": 0,
+            "path": 0
+          }
+        },
+        "GluGln-crlb": {
+          "orig": {
+            "nifti": 0,
+            "path": 0
+          },
+          "origfilt": {
+            "nifti": 0,
+            "path": 0
+          },
+          "t1w": {
+            "nifti": 0,
+            "path": 0
+          },
+          "mni": {
+            "nifti": 0,
+            "path": 0
+          }
+        },
+        "GPCPCh-crlb": {
+          "orig": {
+            "nifti": 0,
+            "path": 0
+          },
+          "origfilt": {
+            "nifti": 0,
+            "path": 0
+          },
+          "t1w": {
+            "nifti": 0,
+            "path": 0
+          },
+          "mni": {
+            "nifti": 0,
+            "path": 0
+          }
+        },
+        "NAANAAG-crlb": {
+          "orig": {
+            "nifti": 0,
+            "path": 0
+          },
+          "origfilt": {
+            "nifti": 0,
+            "path": 0
+          },
+          "t1w": {
+            "nifti": 0,
+            "path": 0
+          },
+          "mni": {
+            "nifti": 0,
+            "path": 0
+          }
+        },
+        "Ins-crlb": {
+          "orig": {
+            "nifti": 0,
+            "path": 0
+          },
+          "origfilt": {
+            "nifti": 0,
+            "path": 0
+          },
+          "t1w": {
+            "nifti": 0,
+            "path": 0
+          },
+          "mni": {
+            "nifti": 0,
+            "path": 0
+          }
+        },
+      "CrPCr": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "GluGln": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "GPCPCh": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "NAANAAG": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "Ins": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "mask": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "snr": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      },
+      "fwhm": {
+        "orig": {
+          "nifti": 0,
+          "path": 0
+        },
+        "origfilt": {
+          "nifti": 0,
+          "path": 0
+        },
+        "t1w": {
+          "nifti": 0,
+          "path": 0
+        },
+        "mni": {
+          "nifti": 0,
+          "path": 0
+        }
+      }
+    },
+    "dwi":{"bval":0,"bvec":0,"nifti":0,"mif":0}
+  }

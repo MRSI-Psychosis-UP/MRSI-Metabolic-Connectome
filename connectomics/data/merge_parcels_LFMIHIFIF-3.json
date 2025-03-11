@@ -1,0 +1,130 @@
+{
+  "28": {
+    "label": [
+      "ctx",
+      "rh",
+      "caudalmiddlefrontal_12"
+    ],
+    "merge": [
+      28,
+      29
+    ]
+  },
+  "74": {
+    "label": [
+      "ctx",
+      "rh",
+      "pericalcarine"
+    ],
+    "merge": [
+      74,
+      75
+    ]
+  },
+  "91": {
+    "label": [
+      "ctx",
+      "rh",
+      "inferiortemporal_12"
+    ],
+    "merge": [
+      91,
+      92
+    ]
+  },
+  "111": {
+    "label": [
+      "subc",
+      "rh",
+      "pallidum_accumbens"
+    ],
+    "merge": [
+      111,
+      112
+    ]
+  },
+  "120": {
+    "label": [
+      "amygd",
+      "rh"
+    ],
+    "merge": [
+      120,
+      128
+    ]
+  },
+  "129": {
+    "label": [
+      "hipp",
+      "rh"
+    ],
+    "merge": [
+      129,
+      132
+    ]
+  },
+  "166": {
+    "label": [
+      "ctx",
+      "lh",
+      "caudalmiddlefrontal_12"
+    ],
+    "merge": [
+      166,
+      167
+    ]
+  },
+  "212": {
+    "label": [
+      "ctx",
+      "lh",
+      "pericalcarine"
+    ],
+    "merge": [
+      212,
+      213
+    ]
+  },
+  "229": {
+    "label": [
+      "ctx",
+      "lh",
+      "inferiortemporal_12"
+    ],
+    "merge": [
+      229,
+      230
+    ]
+  },
+  "249": {
+    "label": [
+      "subc",
+      "lh",
+      "pallidum_accumbens"
+    ],
+    "merge": [
+      249,
+      250
+    ]
+  },
+  "258": {
+    "label": [
+      "amygd",
+      "lh"
+    ],
+    "merge": [
+      258,
+      266
+    ]
+  },
+  "267": {
+    "label": [
+      "hipp",
+      "lh"
+    ],
+    "merge": [
+      267,
+      270
+    ]
+  }
+}

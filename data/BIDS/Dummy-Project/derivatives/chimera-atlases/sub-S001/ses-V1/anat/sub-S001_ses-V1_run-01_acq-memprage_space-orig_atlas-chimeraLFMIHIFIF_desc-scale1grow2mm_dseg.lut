@@ -1,0 +1,271 @@
+# $Id: /data/hagmann_group/yaleman/Mindfulness/derivatives/chimera-atlases/sub-S002/ses-V3/anat/sub-S002_ses-V3_run-01_acq-memprage_space-orig_atlas-chimeraLFMIHIFIF_desc-scale1grow2mm_dseg.lut 07/31/2023, 15:18:59 
+
+# Corresponding parcellation: 
+# /data/hagmann_group/yaleman/Mindfulness/derivatives/chimera-atlases/sub-S002/ses-V3/anat/sub-S002_ses-V3_run-01_acq-memprage_space-orig_atlas-chimeraLFMIHIFIF_desc-scale1grow2mm_dseg.nii.gz
+
+# Parcellation code: LFMIHIFIF
+# 1. Cortical parcellation (L): Lausanne multi-scale cortical parcellation. (Symmetric version of Cammoun et al, 2012)
+# 2. Subcortical parcellation (F): Aseg subcortical parcellation. (Fischl et al, 2002)
+# 3. Thalamic parcellation (M): Thalamic parcellation. (Najdenovska and Aleman-Gomez et al, 2018)
+# 4. Amygdala parcellation (I): Amygdala nuclei parcellation. (Saygin et al, 2017)
+# 5. Hippocampus parcellation (H): Head body and tail of the hippocampus. (Iglesias et al, 2015)
+# 6. Hypothalamus parcellation (I): Hypothalamus parcellation. (Billot et al, 2020)
+# 7. Cerebellum parcellation (F): Cerebellum parcellation. (Fischl et al, 2002)
+# 8. Brainstem parcellation (I): Brainstem parcellation. (Iglesias et al, 2015)
+# 9. GyralWM parcellation (F): Gyral white matter parcellation based on the cortical parcellation. (Flechsig, 1920)
+
+
+#No. Label Name:                                R   G   B   A
+# Right Hemisphere. Cortical Structures
+1    ctx-rh-lateralorbitofrontal               35  75  50   0
+2    ctx-rh-parsorbitalis                      20 100  50   0
+3    ctx-rh-frontalpole                       100   0 100   0
+4    ctx-rh-medialorbitofrontal               200  35  75   0
+5    ctx-rh-parstriangularis                  220  60  20   0
+6    ctx-rh-parsopercularis                   220 180 140   0
+7    ctx-rh-rostralmiddlefrontal               75  50 125   0
+8    ctx-rh-superiorfrontal                    20 220 160   0
+9    ctx-rh-caudalmiddlefrontal               100  25   0   0
+10   ctx-rh-precentral                         60  20 220   0
+11   ctx-rh-paracentral                        60 220  60   0
+12   ctx-rh-rostralanteriorcingulate           80  20 140   0
+13   ctx-rh-caudalanteriorcingulate           125 100 160   0
+14   ctx-rh-posteriorcingulate                220 180 220   0
+15   ctx-rh-isthmuscingulate                  140  20 140   0
+16   ctx-rh-postcentral                       220  20  20   0
+17   ctx-rh-supramarginal                      80 160  20   0
+18   ctx-rh-superiorparietal                   20 180 140   0
+19   ctx-rh-inferiorparietal                  220  60 220   0
+20   ctx-rh-precuneus                         160 140 180   0
+21   ctx-rh-cuneus                            220  20 100   0
+22   ctx-rh-pericalcarine                     120 100  60   0
+23   ctx-rh-lateraloccipital                   20  30 140   0
+24   ctx-rh-lingual                           225 140 140   0
+25   ctx-rh-fusiform                          180 220 140   0
+26   ctx-rh-parahippocampal                    20 220  60   0
+27   ctx-rh-entorhinal                        220  20  10   0
+28   ctx-rh-temporalpole                       70  70  70   0
+29   ctx-rh-inferiortemporal                  180  40 120   0
+30   ctx-rh-middletemporal                    160 100  50   0
+31   ctx-rh-bankssts                           25 100  40   0
+32   ctx-rh-superiortemporal                  140 220 220   0
+33   ctx-rh-transversetemporal                150 150 200   0
+34   ctx-rh-insula                            255 192  32   0
+
+
+# Right Hemisphere. Subcortical Structures
+35   subc-rh-caudate                          122 186 220   0
+36   subc-rh-putamen                          236  13 176   0
+37   subc-rh-pallidum                          13  48 255   0
+38   subc-rh-accumbens-area                   255 165   0   0
+
+
+# Right Hemisphere. Thalamic Structures
+39   thal-rh-pulvinar                                   255   0   0   0
+40   thal-rh-ventral-anterior                             0 255   0   0
+41   thal-rh-mediodorsal                                255 255   0   0
+42   thal-rh-lateral-posterior-ventral-posterior-group  255 123   0   0
+43   thal-rh-pulvinar-medial-centrolateral-group          0 255 255   0
+44   thal-rh-ventrolateral                              255   0 255   0
+45   thal-rh-ventral-posterior-ventrolateral-group        0   0 255   0
+
+
+# Right Hemisphere. Amygdala Nuclei
+46   amygd-rh-lateral-nucleus                  72 132 181   0
+47   amygd-rh-basal-nucleus                   207  63  79   0
+48   amygd-rh-central-nucleus                 197  60 248   0
+49   amygd-rh-medial-nucleus                    2 149   2   0
+50   amygd-rh-cortical-nucleus                221 249 166   0
+51   amygd-rh-accessory-basal-nucleus         232 146  35   0
+52   amygd-rh-corticoamygdaloid-transitio      20  60 120   0
+53   amygd-rh-anterior-amygdaloid-area-aaa    250 250   0   0
+54   amygd-rh-paralaminar-nucleus              45 205 165   0
+
+
+# Right Hemisphere. Hippocampus subfields grouped in Head, Body, Tail and Fissure
+55   hipp-rh-hippocampus-head                 255   0   0   0
+56   hipp-rh-hippocampus-body                   0 255   0   0
+57   hipp-rh-hippocampus-tail                 255 255   0   0
+58   hipp-rh-hippocampus-fissure              255 123   0   0
+
+
+# Right Hemisphere. Hypothalamus nuclei
+59   hypo-rh-anterior-inferior                250 255  50   0
+60   hypo-rh-anterior-superior                 80 200 255   0
+61   hypo-rh-posterior                        255 160   0   0
+62   hypo-rh-tubular-inferior                 255 160 200   0
+63   hypo-rh-tubular-superior                  20 180 130   0
+
+
+# Right Hemisphere. Cerebellum
+64   cer-rh-cerebellum                        230 148  34   0
+
+
+# Left Hemisphere. Cortical Structures
+65   ctx-lh-lateralorbitofrontal               35  75  50   0
+66   ctx-lh-parsorbitalis                      20 100  50   0
+67   ctx-lh-frontalpole                       100   0 100   0
+68   ctx-lh-medialorbitofrontal               200  35  75   0
+69   ctx-lh-parstriangularis                  220  60  20   0
+70   ctx-lh-parsopercularis                   220 180 140   0
+71   ctx-lh-rostralmiddlefrontal               75  50 125   0
+72   ctx-lh-superiorfrontal                    20 220 160   0
+73   ctx-lh-caudalmiddlefrontal               100  25   0   0
+74   ctx-lh-precentral                         60  20 220   0
+75   ctx-lh-paracentral                        60 220  60   0
+76   ctx-lh-rostralanteriorcingulate           80  20 140   0
+77   ctx-lh-caudalanteriorcingulate           125 100 160   0
+78   ctx-lh-posteriorcingulate                220 180 220   0
+79   ctx-lh-isthmuscingulate                  140  20 140   0
+80   ctx-lh-postcentral                       220  20  20   0
+81   ctx-lh-supramarginal                      80 160  20   0
+82   ctx-lh-superiorparietal                   20 180 140   0
+83   ctx-lh-inferiorparietal                  220  60 220   0
+84   ctx-lh-precuneus                         160 140 180   0
+85   ctx-lh-cuneus                            220  20 100   0
+86   ctx-lh-pericalcarine                     120 100  60   0
+87   ctx-lh-lateraloccipital                   20  30 140   0
+88   ctx-lh-lingual                           225 140 140   0
+89   ctx-lh-fusiform                          180 220 140   0
+90   ctx-lh-parahippocampal                    20 220  60   0
+91   ctx-lh-entorhinal                        220  20  10   0
+92   ctx-lh-temporalpole                       70  70  70   0
+93   ctx-lh-inferiortemporal                  180  40 120   0
+94   ctx-lh-middletemporal                    160 100  50   0
+95   ctx-lh-bankssts                           25 100  40   0
+96   ctx-lh-superiortemporal                  140 220 220   0
+97   ctx-lh-transversetemporal                150 150 200   0
+98   ctx-lh-insula                            255 192  32   0
+
+
+# Left Hemisphere. Subcortical Structures
+99   subc-lh-caudate                          122 186 220   0
+100  subc-lh-putamen                          236  13 176   0
+101  subc-lh-pallidum                          12  48 255   0
+102  subc-lh-accumbens-area                   255 165   0   0
+
+
+# Left Hemisphere. Thalamic Structures
+103  thal-lh-pulvinar                                   255   0   0   0
+104  thal-lh-ventral-anterior                             0 255   0   0
+105  thal-lh-mediodorsal                                255 255   0   0
+106  thal-lh-lateral-posterior-ventral-posterior-group  255 123   0   0
+107  thal-lh-pulvinar-medial-centrolateral-group          0 255 255   0
+108  thal-lh-ventrolateral                              255   0 255   0
+109  thal-lh-ventral-posterior-ventrolateral-group        0   0 255   0
+
+
+# Left Hemisphere. Amygdala Nuclei
+110  amygd-lh-lateral-nucleus                  72 132 181   0
+111  amygd-lh-basal-nucleus                   207  63  79   0
+112  amygd-lh-central-nucleus                 197  60 248   0
+113  amygd-lh-medial-nucleus                    2 149   2   0
+114  amygd-lh-cortical-nucleus                221 249 166   0
+115  amygd-lh-accessory-basal-nucleus         232 146  35   0
+116  amygd-lh-corticoamygdaloid-transitio      20  60 120   0
+117  amygd-lh-anterior-amygdaloid-area-aaa    250 250   0   0
+118  amygd-lh-paralaminar-nucleus              45 205 165   0
+
+
+# Left Hemisphere. Hippocampus subfields grouped in Head, Body, Tail and Fissure
+119  hipp-lh-hippocampus-head                 255   0   0   0
+120  hipp-lh-hippocampus-body                   0 255   0   0
+121  hipp-lh-hippocampus-tail                 255 255   0   0
+122  hipp-lh-hippocampus-fissure              255 123   0   0
+
+
+# Left Hemisphere. Hypothalamus nuclei
+123  hypo-lh-anterior-inferior                250 255  50   0
+124  hypo-lh-anterior-superior                 80 200 255   0
+125  hypo-lh-posterior                        255 160   0   0
+126  hypo-lh-tubular-inferior                 255 160 200   0
+127  hypo-lh-tubular-superior                  20 180 130   0
+
+
+# Left Hemisphere. Cerebellum
+128  cer-lh-cerebellum                        230 148  34   0
+
+
+# Left Hemisphere. BrainStem parcellation
+129  brain-stem-midbrain                      242 104  76   0
+130  brain-stem-pons                          206 195  58   0
+131  brain-stem-medulla                       119 159 176   0
+132  brain-stem-scp                           142 182   0   0
+
+
+# Global White Matter
+3000 wm-brain-white_matter                    255 255 255   0
+
+
+# Right Hemisphere. Gyral White Matter Structures
+3001 wm-rh-lateralorbitofrontal               220 180 205   0
+3002 wm-rh-parsorbitalis                      235 155 205   0
+3003 wm-rh-frontalpole                        155 255 155   0
+3004 wm-rh-medialorbitofrontal                 55 220 180   0
+3005 wm-rh-parstriangularis                    35 195 235   0
+3006 wm-rh-parsopercularis                     35  75 115   0
+3007 wm-rh-rostralmiddlefrontal               180 205 130   0
+3008 wm-rh-superiorfrontal                    235  35  95   0
+3009 wm-rh-caudalmiddlefrontal                155 230 255   0
+3010 wm-rh-precentral                         195 235  35   0
+3011 wm-rh-paracentral                        195  35 195   0
+3012 wm-rh-rostralanteriorcingulate           175 235 115   0
+3013 wm-rh-caudalanteriorcingulate            130 155  95   0
+3014 wm-rh-posteriorcingulate                  35  75  35   0
+3015 wm-rh-isthmuscingulate                   115 235 115   0
+3016 wm-rh-postcentral                         35 235 235   0
+3017 wm-rh-supramarginal                      175  95 235   0
+3018 wm-rh-superiorparietal                   235  75 115   0
+3019 wm-rh-inferiorparietal                    35 195  35   0
+3020 wm-rh-precuneus                           95 115  75   0
+3021 wm-rh-cuneus                              35 235 155   0
+3022 wm-rh-pericalcarine                      135 155 195   0
+3023 wm-rh-lateraloccipital                   235 225 115   0
+3024 wm-rh-lingual                             30 115 115   0
+3025 wm-rh-fusiform                            75  35 115   0
+3026 wm-rh-parahippocampal                    235  35 195   0
+3027 wm-rh-entorhinal                          35 235 245   0
+3028 wm-rh-temporalpole                       185 185 185   0
+3029 wm-rh-inferiortemporal                    75 215 135   0
+3030 wm-rh-middletemporal                      95 155 205   0
+3031 wm-rh-bankssts                           230 155 215   0
+3032 wm-rh-superiortemporal                   115  35  35   0
+3033 wm-rh-transversetemporal                 105 105  55   0
+3034 wm-rh-insula                               0  63 223   0
+
+
+# Left Hemisphere. Gyral White Matter Structures
+3065 wm-lh-lateralorbitofrontal               220 180 205   0
+3066 wm-lh-parsorbitalis                      235 155 205   0
+3067 wm-lh-frontalpole                        155 255 155   0
+3068 wm-lh-medialorbitofrontal                 55 220 180   0
+3069 wm-lh-parstriangularis                    35 195 235   0
+3070 wm-lh-parsopercularis                     35  75 115   0
+3071 wm-lh-rostralmiddlefrontal               180 205 130   0
+3072 wm-lh-superiorfrontal                    235  35  95   0
+3073 wm-lh-caudalmiddlefrontal                155 230 255   0
+3074 wm-lh-precentral                         195 235  35   0
+3075 wm-lh-paracentral                        195  35 195   0
+3076 wm-lh-rostralanteriorcingulate           175 235 115   0
+3077 wm-lh-caudalanteriorcingulate            130 155  95   0
+3078 wm-lh-posteriorcingulate                  35  75  35   0
+3079 wm-lh-isthmuscingulate                   115 235 115   0
+3080 wm-lh-postcentral                         35 235 235   0
+3081 wm-lh-supramarginal                      175  95 235   0
+3082 wm-lh-superiorparietal                   235  75 115   0
+3083 wm-lh-inferiorparietal                    35 195  35   0
+3084 wm-lh-precuneus                           95 115  75   0
+3085 wm-lh-cuneus                              35 235 155   0
+3086 wm-lh-pericalcarine                      135 155 195   0
+3087 wm-lh-lateraloccipital                   235 225 115   0
+3088 wm-lh-lingual                             30 115 115   0
+3089 wm-lh-fusiform                            75  35 115   0
+3090 wm-lh-parahippocampal                    235  35 195   0
+3091 wm-lh-entorhinal                          35 235 245   0
+3092 wm-lh-temporalpole                       185 185 185   0
+3093 wm-lh-inferiortemporal                    75 215 135   0
+3094 wm-lh-middletemporal                      95 155 205   0
+3095 wm-lh-bankssts                           230 155 215   0
+3096 wm-lh-superiortemporal                   115  35  35   0
+3097 wm-lh-transversetemporal                 105 105  55   0
+3098 wm-lh-insula                               0  63 223   0

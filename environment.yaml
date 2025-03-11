@@ -1,0 +1,51 @@
+name: mrsitooldemo_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - numpy
+  - statsmodels
+  - matplotlib
+  - scikit-image
+  - tensorflow=2.15.0  # Installed from Conda
+  - pip
+  - pip:
+      - .
+      - scipy
+      - rich
+      - nibabel
+      - tqdm
+      - nilearn
+      - networkx
+      - mne
+      - vispy
+      - statsmodels
+      - PyOpenGL
+      - PyQt5
+      - pyqtgraph 
+      - opencv-python
+      - SimpleITK
+      - scikit-image
+      - antspyx
+      - dipy
+      - fury
+      - pyemd
+      - PyQt6
+      - scikit-tda
+      - python-louvain
+      - umap-learn
+      - scikit-learn
+      - community
+      - cupy-cuda12x
+      - cucim
+      - seaborn
+      - natsort
+      - numba
+      - bioservices
+      - gudhi
+      - dotenv
+      - goatools
+      - plotly
+      - bctpy
+      - tk
