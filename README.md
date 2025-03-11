@@ -63,13 +63,8 @@ A `data/BIDS` has been provided for demonstration purposes. For those interested
 | `--nthreads`   | Number of parallel CPU threads for processing.          | integer   | 4           |
 | `--npert`      | Number of metabolic profile perturbations used          | integer   | 50          |
 
-<!DOCTYPE html>
-<html>
-<body>
-  <embed src="figures/Figure1.pdf" type="application/pdf" width="100%" height="600px" />
-</body>
-</html>
+![Screenshot from 2025-03-11 22-40-35](https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180)
 
 
-<iframe src="figures/Figure1.pdf" width="600" height="500" />
+
 
