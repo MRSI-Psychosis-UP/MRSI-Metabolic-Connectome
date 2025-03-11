@@ -37,23 +37,29 @@ A `data/BIDS` has been provided for demonstration purposes. For those interested
 2. **Coregister T1w to MNI sspace**  
    ```python
    experiments/registration_t1_to_MNI.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
-
-3. **Coregister T1w to MNI sspace**  
-   ```python
-   experiments/registration_t1_to_MNI.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
-
-4. **Transform all MRSI metabolites** 
+3. **Transform all MRSI metabolites** 
    ```python
    experiments/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
 
-5. **Parcellate MRSI with Chimera parcel image** 
+4. **Parcellate MRSI with Chimera parcel image** 
    ```python
    experiments/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1
 
-6. **Construct MRMeSiM** 
+5. **Construct MeSiM** 
    ```python
    experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
 
-7. **Construct Metabolic Similarity Map**
+6. **Construct Metabolic Similarity Map**
     ```python
     experiments/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+
+## Description of Arguments
+
+| **Arg Name**   | **Description**                                         | **Type**  | **Default** |
+|----------------|---------------------------------------------------------|-----------|------------:|
+| `--group`      | Name of the BIDS project folder or group to process.    | string    | None        |
+| `--subject_id` | ID of the subject to process. sub-XX                    | string    | None        |
+| `--session`    | Session ID [V1,V2,V3,...]                               | string    | None        |
+| `--nthreads`   | Number of parallel CPU threads for processing.          | integer   | 4           |
+| `--npert`      | Number of metabolic profile perturbations used          | integer   | 50          |
+
