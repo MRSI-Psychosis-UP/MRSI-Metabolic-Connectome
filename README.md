@@ -2,6 +2,9 @@
 
 This repository contains all the necessary files to construct a within-subject metabolic similarity matrix (MeSiM) based on MRSI scans, as detailed in the following publication: [LINK 2ARXIV](http://link2arxiv).
 
+## License
+This project is licensed under the terms described in [LICENSE](./LICENSE).
+
 ## Install Toolbox
 
 ### Prerequisites
@@ -63,10 +66,7 @@ A `data/BIDS` has been provided for demonstration purposes. For those interested
 | `--nthreads`   | Number of parallel CPU threads for processing.          | integer   | 4           |
 | `--npert`      | Number of metabolic profile perturbations used          | integer   | 50          |
 
-![Screenshot from 2025-03-11 22-40-35](https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180)
-
-## License
-This project is licensed under the terms described in [LICENSE](./LICENSE).
+<img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" />
 
 
 
