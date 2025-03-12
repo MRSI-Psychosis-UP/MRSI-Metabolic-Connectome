@@ -4,7 +4,7 @@ build
 
 .env
 
-
+data/BIDS/Dummy-Project/derivatives/freesurfer
 
 data/rename_dummy.py
 data/atlas/aal_SPM12
