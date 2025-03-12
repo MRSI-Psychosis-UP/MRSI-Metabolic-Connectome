@@ -5,6 +5,8 @@ build
 .env
 
 data/BIDS/Dummy-Project/derivatives/freesurfer
+data/BIDS/Dummy-Project/derivatives/connectomes
+data/BIDS/Dummy-Project/derivatives/transforms
 
 data/rename_dummy.py
 data/atlas/aal_SPM12

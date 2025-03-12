@@ -30,6 +30,7 @@ parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads 
 parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
 parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
 parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
+parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_T1w_brain",help="T1w file pattern e.g _run-01_acq-memprage_T1w_brain")
 
 
 args           = parser.parse_args()
@@ -38,13 +39,16 @@ NTHREADS       = args.nthreads
 subject_id     = args.subject_id
 session        = args.session
 overwrite_flag = bool(args.overwrite)
+t1pattern      = args.t1_pattern
+
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(NTHREADS)
 
 #
-mrsiData           = MRIData(subject_id,session,group=GROUP)
+mridata            = MRIData(subject_id, session,GROUP,t1pattern)
 ftools             = FileTools(GROUP)
 BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
 ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
+_,t1w_path         = mridata.get_t1w(pattern=t1pattern)
 
 
 ################################################
@@ -58,7 +62,7 @@ transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 if not exists(transform_dir_prefix_path) or overwrite_flag:
     debug.warning(f"{transform_prefix} to T1w Registration not found or not up to date")
     syn_tx,_          = reg.register(fixed_input  = datasets.load_mni152_template(),
-                                    moving_input  = mrsiData.data["t1w"]["brain"]["orig"]["path"],
+                                    moving_input  = t1w_path,
                                     fixed_mask    = None, 
                                     moving_mask   = None,
                                     transform     = "s",

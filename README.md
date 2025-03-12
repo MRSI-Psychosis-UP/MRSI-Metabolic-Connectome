@@ -45,13 +45,13 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `acq-`         | Type of reconstructed MRSI map           | `conc` (metabolite signal)<br>`crlb` (LCmodel-issued CRLB map)                                          |
 | `desc-`        | Metabolite string                         | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate 
 
-### Steps to Construct within subjectMeSiM
+### Steps to Construct within-subject MeSiM
 
-1. **Create MRSI-to-T1w trasnforms**
+1. **Create MRSI-to-T1w transforms**
    ```python
    python experiments/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
 
-2. **Create T1w-to-MNI trasnforms**  
+2. **Create T1w-to-MNI transforms**  
    ```python
    python experiments/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
 
@@ -75,12 +75,13 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `--group`         | Name of the BIDS project folder or group to process.                                                           | string      | Dummy-Project  |
 | `--subject_id`    | ID of the subject to process.<br>Example: sub-XX                                                                  | string      | S001           |
 | `--session`       | Session ID.<br>Example: V1, V2, V3, ...                                                                           | string      | V1             |
-| `--nthreads`      | Number of parallel CPU threads for processing.                                                                   | integer     | 4              |
 | `--atlas`         | Chimera parcellation string followed by scale parameter.                                                         | string      | 50             |
 | `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | 50             |
 | `--leave_one_out` | Add leave-one-metabolite-out option to MeSiM construction.<br>Accepts values: 0, 1.                                | int [0,1]   | 0              |
 | `--show_plot`     | Display MeSiM and natural network analysis.<br>Accepts values: 0, 1.                                               | int [0,1]   | 0              |
 | `--ref_met`       | Reference MRSI metabolite.<br>Used as the moving image for coregistration.                                         | str         | CrPCr          |
+| `--nthreads`      | Number of parallel CPU threads for processing.                                                                   | integer     | 4              |
+| `--t1_pattern`    | T1w image file pattern used for image registration                                                                 | str     | _run-01_acq-memprage_              |
 
 
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->

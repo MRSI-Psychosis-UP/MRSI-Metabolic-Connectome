@@ -35,10 +35,13 @@ def main():
     parser.add_argument('--group', type=str,default="Dummy-Project") 
     parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
     parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
+    parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
+
     args       = parser.parse_args()
     ATLAS_TYPE = args.atlas
     GROUP      = args.group
     OVERWRITE  = args.overwrite
+    t1pattern  = args.t1_pattern
     ftools     = FileTools(GROUP)
 
 
@@ -64,7 +67,7 @@ def main():
             debug.warning("Exit")
             sys.exit()
         else: debug.warning("Overwriting existing",prefix)
-    mridata = MRIData(subject_id,session,group=GROUP)
+    mridata = MRIData(subject_id,session,group=GROUP,t1_pattern=t1pattern)
     debug.separator()
     t1_path = mridata.data["t1w"]["brain"]["orig"]["path"]
     header_t1 = nib.load(t1_path).header

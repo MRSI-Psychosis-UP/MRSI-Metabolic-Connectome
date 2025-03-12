@@ -22,18 +22,21 @@ reg      = Registration()
 parser = argparse.ArgumentParser(description="Process some input parameters.")
 # Parse arguments
 parser.add_argument('--group', type=str,default="Dummy-Project") 
-parser.add_argument('--subject_id',type=str,default="S002",help="Subject ID [sub-??")
-parser.add_argument('--session',type=str,default="V3",help="Session [ses-??")
+parser.add_argument('--subject_id',type=str,default="S001",help="Subject ID [sub-??")
+parser.add_argument('--session',type=str,default="V1",help="Session [ses-??")
 parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads [default=4]")
+parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
+
 args               = parser.parse_args()
 GROUP              = args.group
+t1pattern          = args.t1_pattern
 
 
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(args.nthreads)
 ftools   = FileTools(GROUP)
 subject_id, session = args.subject_id, args.session
 recording_id = f"sub-{subject_id}_ses-{session}"
- 
+
 BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
 ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
 METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins",
@@ -43,9 +46,10 @@ METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins",
 
 
 debug.title(f"Processing {recording_id}")
-mridata = MRIData(subject_id, session,GROUP)
+mridata = MRIData(subject_id, session,GROUP,t1pattern)
 outpath = mridata.get_path("spectroscopy", "mask", "mni")
 
+mridata.load_t1w(t1pattern)
 for idm, metabolite in enumerate(METABOLITE_LIST):
     # Transform to anat space
     outpath = mridata.get_path("spectroscopy", metabolite, "t1w")

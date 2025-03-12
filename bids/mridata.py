@@ -34,15 +34,14 @@ class DynamicData:
             setattr(self, key, value)
 
 class  MRIData:
-    def __init__(self, subject_id,session,group=None):
+    def __init__(self, subject_id,session,group=None,t1_pattern="_run-01_acq-memprage_"):
         self.ROOT_PATH           = join(dutils.BIDSDATAPATH,group)
         self.PARCEL_PATH         = join(self.ROOT_PATH,"derivatives","chimera-atlases")
         self.CONNECTIVITY_PATH   = join(self.ROOT_PATH,"derivatives","connectomes")
-        self.HOMOTOPY_PATH       = join(self.ROOT_PATH,"derivatives","homotopy")
         self.TCK_PATH            = join(self.ROOT_PATH,"derivatives","tractography")
+        self.t1_pattern          = t1_pattern
         os.makedirs(self.PARCEL_PATH,exist_ok=True)
         os.makedirs(self.CONNECTIVITY_PATH,exist_ok=True)
-        os.makedirs(self.HOMOTOPY_PATH,exist_ok=True)
 
         self.subject_id = subject_id
         self.prefix         =  f"sub-{subject_id}_ses-{session}"
@@ -52,16 +51,12 @@ class  MRIData:
         self.session        = session
 
         self.load_mrsi_all()
-        self.load_t1w()
+        self.load_t1w(t1_pattern)
         self.load_dwi_all()
         self.load_parcels()
         self.load_connectivity("dwi")
         self.load_connectivity("spectroscopy")
-        self.load_homotopy()
-        self.load_featured4d()
-        # debug.success("Loaded MRI data from",subject_id,session)
         self.metabolites = np.array(METABOLITES)
-        # self.data = DynamicData(**self.data)
  
 
     def get_mri_dir_path(self,modality="anat"):
@@ -92,15 +87,6 @@ class  MRIData:
             debug.success("creating connectivity path",path)
             os.makedirs(path,exist_ok=True)
             return path
-        
-    def get_homotopy_dir_path(self):
-        path = join(self.HOMOTOPY_PATH,f"sub-{self.subject_id}",f"ses-{self.session}","spectroscopy")
-        if os.path.exists(path):
-            return path
-        else:
-            debug.warning("homotopy path does not exists")
-            debug.warning(path)
-            return 
         
     def load_dwi_all(self):
         dirpath = self.get_mri_dir_path("dwi")
@@ -220,9 +206,7 @@ class  MRIData:
 
 
     def get_path(self,modality,comp,space):
-        debug.error("1:modality",modality)
         dir_path = self.get_mri_dir_path(modality)
-        debug.error("2:dir_path",dir_path)
         filename = f"sub-{self.subject_id}_ses-{self.session}"
         if modality=="spectroscopy":
             if "crlb" in comp:
@@ -252,14 +236,17 @@ class  MRIData:
             return
         return join(dir_path,filename)
     
-    def load_t1w(self):
+    def load_t1w(self,pattern=""):
         dirpath = self.get_mri_dir_path("anat")
+        debug.info("load_t1w",dirpath)
         if dirpath==None:
             return 
         filenames = os.listdir(dirpath)
         if len(filenames)==0:
             return
         for filename in filenames:
+            debug.info("load_t1w",filename)
+            if pattern not in filename:continue
             path = join(dirpath,filename)
             if "T1w_brain.nii.gz" in filename:
                 # self.data["t1w"]["brain"]["orig"]["nifti"] = nib.load(path)
@@ -277,8 +264,20 @@ class  MRIData:
             ftools.save_nii_file(mask,t1w_brain_nii.header,t1wmask_path)
             self.data["t1w"]["mask"]["orig"]["path"] = t1wmask_path
 
-
-
+    def get_t1w(self,pattern="_run-01_acq-memprage_"):
+        dirpath = self.get_mri_dir_path("anat")
+        if dirpath==None:
+            return 
+        filenames = os.listdir(dirpath)
+        if len(filenames)==0:
+            return
+        for filename in filenames:
+            if pattern in filename:
+                path = join(dirpath,filename)
+                return nib.load(path), path
+        debug.error(f"get_t1w {pattern} not found")
+        return 
+    
     def get_parcel_path(self,space,atlas):
         """""
         atlas : chimera-LFMIHIFIF-N, 
@@ -373,54 +372,7 @@ class  MRIData:
                         parc_scheme = self.extract_parcellation_substring(filename)
                         self.data["connectivity"][mode][parc_scheme]["path"] = path 
 
-    def load_homotopy(self,include_wm=True):
-        include_wm = int(include_wm)
-        dirpath = self.get_homotopy_dir_path()
-        if dirpath==None:
-            return 
-        filenames = os.listdir(dirpath)
-        if len(filenames)==0:
-            return
-        # filename = filenames[0]
-        for filename in filenames:
-            # debug.info("load_parcels:filename",filename)
-            path = join(dirpath,filename)
-            if f"-homotopy_WM_{include_wm}.nii.gz" in path:
-                for atlas in ATLAS_LIST:
-                    if atlas in filename and atlas!="chimera":
-                        self.data["homotopy"][atlas]["path"] = path
-                    elif "LFMIHIFIF-3" in filename:
-                        self.data["homotopy"]["LFMIHIFIF-3"]["path"] = path
-                    elif "LFMIHIFIF-2" in filename:
-                        self.data["homotopy"]["LFMIHIFIF-2"]["path"] = path
-                    elif "LFMIHIFIF-4" in filename:
-                        self.data["homotopy"]["LFMIHIFIF-4"]["path"] = path
-                    
-
-    def load_featured4d(self,include_wm=True):
-        include_wm = int(include_wm)
-        dirpath = self.get_homotopy_dir_path()
-        if dirpath==None:
-            return 
-        filenames = os.listdir(dirpath)
-        if len(filenames)==0:
-            return
-        # filename = filenames[0]
-        for filename in filenames:
-            path = join(dirpath,filename)
-            if f"-featured4D_WM_{include_wm}.npz" in path:
-                debug.info("load_featured4d 2",filename)
-                for atlas in ATLAS_LIST:
-                    if atlas in filename and atlas!="chimera":
-                        self.data["featured4d"][atlas]["path"] = path
-                    elif "LFMIHIFIF-3" in filename:
-                        self.data["featured4d"]["LFMIHIFIF-3"]["path"] = path
-                    elif "LFMIHIFIF-2" in filename:
-                        self.data["featured4d"]["LFMIHIFIF-2"]["path"] = path
-                    elif "LFMIHIFIF-4" in filename:
-                        self.data["featured4d"]["LFMIHIFIF-4"]["path"] = path
-
-
+    
     def extract_suffix(self,filename,suffix):
         # Use a regular expression to search for the pattern matching 'space-{SPACE}'
         match = re.search(rf"_{suffix}-([^_]+)", filename)
@@ -509,5 +461,4 @@ class  MRIData:
 
 
 if __name__=="__main__":
-    mrsiData = MRIData(subject_id="S038",session="V1")
-    print(mrsiData.data["connectivity"])
+    mrsiData = MRIData(subject_id="S001",session="V1")
