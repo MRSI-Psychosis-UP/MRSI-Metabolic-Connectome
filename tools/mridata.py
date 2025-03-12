@@ -43,28 +43,32 @@ class  MRIData:
         os.makedirs(self.PARCEL_PATH,exist_ok=True)
         os.makedirs(self.CONNECTIVITY_PATH,exist_ok=True)
 
-        self.subject_id = subject_id
-        self.prefix         =  f"sub-{subject_id}_ses-{session}"
-        self.data           = json.load(open(STRUCTURE_PATH))
-        self.PARCEL_PATH    = join(self.ROOT_PATH,"derivatives","chimera-atlases")
-        self.TRANSFORM_PATH = join(self.ROOT_PATH,"derivatives","transforms","ants")
-        self.session        = session
+        self.subject_id      = subject_id
+        self.session         = session
+        self.prefix          = f"sub-{subject_id}_ses-{session}"
+        self.data            = json.load(open(STRUCTURE_PATH))
+        self.DERIVATIVE_PATH = join(self.ROOT_PATH,"derivatives")
+        self.PARCEL_PATH     = join(self.ROOT_PATH,"derivatives","chimera-atlases")
+        self.TRANSFORM_PATH  = join(self.ROOT_PATH,"derivatives","transforms","ants")
 
         self.load_mrsi_all()
         self.load_t1w(t1_pattern)
         self.load_dwi_all()
         self.load_parcels()
         self.load_connectivity("dwi")
-        self.load_connectivity("spectroscopy")
+        self.load_connectivity("mrsi")
         self.metabolites = np.array(METABOLITES)
  
 
-    def get_mri_dir_path(self,modality="anat"):
-        path = join(self.ROOT_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",modality)
+    def __get_mri_dir_path(self,modality="skullstrip"):
+        if "mrsi" in modality:
+            path = join(self.DERIVATIVE_PATH,modality,f"sub-{self.subject_id}",f"ses-{self.session}")
+        else:
+            path = join(self.DERIVATIVE_PATH,modality,f"sub-{self.subject_id}",f"ses-{self.session}")
         if os.path.exists(path):
             return path
         else:
-            debug.warning("get_mri_dir_path: path does not exists")
+            debug.warning("__get_mri_dir_path: path does not exists")
             debug.warning(path)
             return 
         
@@ -89,7 +93,7 @@ class  MRIData:
             return path
         
     def load_dwi_all(self):
-        dirpath = self.get_mri_dir_path("dwi")
+        dirpath = self.__get_mri_dir_path("dwi")
         if dirpath==None:
             return 
         filenames = os.listdir(dirpath)
@@ -105,8 +109,13 @@ class  MRIData:
             elif "dwi.mif" in filename:
                 self.data["dwi"]["mif"] = join(dirpath,filename)     
 
+
     def load_mrsi_all(self):
-        dirpath = self.get_mri_dir_path("spectroscopy")
+        for derivative in ["mrsi-orig","mrsi-origfilt","mrsi-t1w","mrsi-mni"]:
+            self.__load_mrsi_all(derivative)
+             
+    def __load_mrsi_all(self,derivative):
+        dirpath = self.__get_mri_dir_path(derivative)
         if dirpath==None:
             return 
         filenames = os.listdir(dirpath)
@@ -139,7 +148,7 @@ class  MRIData:
         Returns:
             NIFTI image
         """""
-        path = self.get_path("spectroscopy",comp,space)
+        path = self.get_path("mrsi",comp,space)
         try:
             _ = nib.load(path).get_fdata()
             return nib.load(path)
@@ -149,7 +158,7 @@ class  MRIData:
                 return __nifti
             elif space=="t1w":
                 t1w_ref        = self.data["t1w"]["brain"]["orig"]["path"]
-                transform_list = self.get_transform("forward","spectroscopy")
+                transform_list = self.get_transform("forward","mrsi")
                 if "snr" in comp or "fwhm" in comp or "crlb" in comp:
                     _space = "orig"
                 else: _space = "origfilt"
@@ -174,15 +183,20 @@ class  MRIData:
                 header         = mni_ref.header
                 return ftools.numpy_to_nifti( mrsi_mni_np, header)
 
+
     def get_mrsi_mask_image(self):
-        dirpath   = self.get_mri_dir_path("spectroscopy")
+        for derivative in ["mrsi-orig","mrsi-origfilt","mrsi-t1w","mrsi-mni"]:
+            self.__get_mrsi_mask_image(derivative)
+            
+    def __get_mrsi_mask_image(self,derivative):
+        dirpath   = self.__get_mri_dir_path(derivative)
         filenames = os.listdir(dirpath)
         mrsi_mask = None
         if len(filenames)==0:
             return
         for filename in filenames:
             path = join(dirpath,filename)
-            if "WaterSignal_spectroscopy.nii.gz" in filename:
+            if "WaterSignal_mrsi.nii.gz" in filename:
                 water_signal  = nib.load(path).get_fdata().squeeze()
                 header        = nib.load(path).header
                 mrsi_mask     = np.zeros(water_signal.shape)
@@ -190,7 +204,7 @@ class  MRIData:
                 mrsi_mask[water_signal<=0] = 0
                 #
                 space       = self.extract_suffix(filename,"space")
-                outfilename = f"{self.prefix}_space-{space}_acq-conc_desc-brainmask_spectroscopy.nii.gz"
+                outfilename = f"{self.prefix}_space-{space}_acq-conc_desc-brainmask_mrsi.nii.gz"
                 outpath     = join(dirpath,outfilename)
                 #
                 ftools.save_nii_file(mrsi_mask,header,outpath) 
@@ -206,9 +220,19 @@ class  MRIData:
 
 
     def get_path(self,modality,comp,space):
-        dir_path = self.get_mri_dir_path(modality)
+        """""
+        Args:
+            modality: mrsi
+            comp : CrPCr, Ins, GluGln, NAANAAG, GPCPCh, IDEM-clrb, brainmask.
+            space: orig, origfilt, t1w, mni.        
+        Returns:
+            NIFTI path
+        """""
+
         filename = f"sub-{self.subject_id}_ses-{self.session}"
-        if modality=="spectroscopy":
+        if modality=="mrsi":
+            derivative = f"{modality}-{space}"
+            dir_path = self.__get_mri_dir_path(derivative)
             if "crlb" in comp:
                 acq = "crlb"
                 desc = comp.replace("-crlb","")
@@ -222,22 +246,15 @@ class  MRIData:
                 debug.error("MRIData:get_path unrecognized component")
                 return
             filename += f"_space-{space}_acq-{acq}"
-            filename += f"_desc-{desc}_spectroscopy.nii.gz"
-        elif modality=="anat":
-            if space=="orig":
-                filename += f"_run-01_acq-memprage_{comp}.nii.gz"
-            elif space=="mrsi" or space=="mni":
-                filename += f"_run-01_space-{space}_acq-memprage_{comp}.nii.gz"
-            else:
-                debug.error("MRIData:get_path unrecognized component")
-                return
+            filename += f"_desc-{desc}_mrsi.nii.gz"
+
         else:
             debug.error("MRIData:get_path unrecognized modality")
             return
         return join(dir_path,filename)
     
     def load_t1w(self,pattern=""):
-        dirpath = self.get_mri_dir_path("anat")
+        dirpath = self.__get_mri_dir_path("skullstrip")
         debug.info("load_t1w",dirpath)
         if dirpath==None:
             return 
@@ -265,7 +282,7 @@ class  MRIData:
             self.data["t1w"]["mask"]["orig"]["path"] = t1wmask_path
 
     def get_t1w(self,pattern="_run-01_acq-memprage_"):
-        dirpath = self.get_mri_dir_path("anat")
+        dirpath = self.__get_mri_dir_path("skullstrip")
         if dirpath==None:
             return 
         filenames = os.listdir(dirpath)
@@ -299,9 +316,9 @@ class  MRIData:
         prefix_name = f"{self.prefix}_run-01_acq-memprage_atlas-{atlas}_connectivity.npz"
         if mode == "dwi":
             scheme,scale  = atlas[0:9],atlas[-1]
-            prefix_name = f"{self.prefix}_run-01_acq-memprage_space-spectroscopy_atlas-{atlas}-cer_dseg_connectivity.npz"
+            prefix_name = f"{self.prefix}_run-01_acq-memprage_space-mrsi_atlas-{atlas}-cer_dseg_connectivity.npz"
             # prefix_name = f"{self.prefix}_atlas-chimera{scheme}_desc-scale{scale}grow2mm_dseg_connectivity.npz"
-        elif mode=="spectroscopy":
+        elif mode=="mrsi":
             prefix_name = f"{self.prefix}_run-01_acq-memprage_atlas-{atlas}_connectivity.npz"
         return join(dirpath,prefix_name)
  
@@ -441,7 +458,7 @@ class  MRIData:
     def get_transform(self,direction,space):
         transform_dir_path            = join(self.TRANSFORM_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",space)
 
-        if space=="spectroscopy":
+        if space=="mrsi":
             transform_prefix     = f"sub-{self.subject_id}_ses-{self.session}_desc-mrsi_to_t1w"
         elif  space=="anat":
             transform_prefix     = f"sub-{self.subject_id}_ses-{self.session}_desc-t1w_to_mni"

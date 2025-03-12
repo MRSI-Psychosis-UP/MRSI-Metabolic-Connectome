@@ -29,7 +29,7 @@ class DataUtils:
         self.ANARESULTSPATH = join(self.DEVANALYSEPATH, "results")
         self.DEVDATAPATH    = join(self.DEVANALYSEPATH, "data")
         self.ANALOGPATH     = join(self.DEVANALYSEPATH, "logs")
-        self.BIDS_STRUCTURE_PATH = join(self.DEVANALYSEPATH, "bids", "structure.json")
+        self.BIDS_STRUCTURE_PATH = join(self.DEVANALYSEPATH, "data", "structure.json")
 
         # Create necessary directories if they don't exist
         os.makedirs(self.ANALOGPATH, exist_ok=True)

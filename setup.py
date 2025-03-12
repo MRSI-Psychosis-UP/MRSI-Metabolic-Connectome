@@ -18,7 +18,6 @@ setup(
     include_package_data=True,
     keywords='mrsitoolbox',
     url='https://github.com/MRSI-Psychosis-UP/Metabolic-Connectome.git',
-    name='mrsitoolbox',
     packages=find_packages(include=['tools','graphplot','filters',
                                     'registration','connectomics',
                                     'bids']),
