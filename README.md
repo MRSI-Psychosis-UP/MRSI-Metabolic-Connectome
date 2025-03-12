@@ -27,7 +27,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```python
    python set_env_paths.py
 
- and navigate to your BIDS folder containing MRI data.  Choose data/BIDS for demonsration purposes
+ and navigate to your BIDS folder containing MRI data. Choose data/BIDS for demonstration purposes
 
 3. **Install package**
     ```bash
@@ -35,40 +35,54 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 ### Steps to Construct within subjectMeSiM
 
-1. **Coregister MRSI to T1w**
+1. **Create MRSI-to-T1w trasnforms**
    ```python
-   python experiments/registration_mrsi_to_t1.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
+   python experiments/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
 
-2. **Coregister T1w to MNI sspace**  
+2. **Create T1w-to-MNI trasnforms**  
    ```python
-   python experiments/registration_t1_to_MNI.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
-3. **Transform all MRSI metabolites** 
-   ```python
-   python experiments/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
+   python experiments/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
 
-4. **Parcellate MRSI with Chimera parcel image** 
-   ```python
-   python experiments/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1
 
-5. **Construct MeSiM** 
+3. **Parcellate MRSI with Chimera parcel image** 
    ```python
-   python experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+   python experiments/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIF-3
 
-6. **Construct Metabolic Similarity Map**
-    ```python
-    python experiments/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+4. **Construct MeSiM** 
+   ```python
+   python experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --show_plot 1 --nthreads 16
+
+
+- **Outputs**
+    Warp transforms, coregistered Chimera parcellation label images, MeSiMs are save in the ```/derivatives``` folder
 
 ## Description of Arguments
 
-| **Arg Name**   | **Description**                                         | **Type**  | **Default** |
-|----------------|---------------------------------------------------------|-----------|------------:|
-| `--group`      | Name of the BIDS project folder or group to process.    | string    | None        |
-| `--subject_id` | ID of the subject to process. sub-XX                    | string    | None        |
-| `--session`    | Session ID [V1,V2,V3,...]                               | string    | None        |
-| `--nthreads`   | Number of parallel CPU threads for processing.          | integer   | 4           |
-| `--npert`      | Number of metabolic profile perturbations used          | integer   | 50          |
+| **Arg Name**     | **Description**                                           | **Type**  | **Default**    |
+|------------------|-----------------------------------------------------------|-----------|---------------:|
+| `--group`        | Name of the BIDS project folder or group to process.      | string    | Dummy-Project  |
+| `--subject_id`   | ID of the subject to process. sub-XX                      | string    | S001           |
+| `--session`      | Session ID [V1,V2,V3,...]                                 | string    | V1             |
+| `--nthreads`     | Number of parallel CPU threads for processing.            | integer   | 4              |
+| `--atlas`        | Chimera parcellation string followed by scale parameter   | string    | 50             |
+| `--npert`        | Number of metabolic profile perturbations used            | integer   | 50             |
+| `--leave_one_out`| Add leave-one-metabolite-out option to MeSiM construction | int [0,1] | 0              |
+| `--show_plot`    | Display MeSiM and natural network analyis                 | int [0,1] | 0              |
+| `--ref_met`      | Reference MRSI metabolite, used as the moving image for coregistration          | str   | CrPCr             |
 
-<img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" />
+<!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
+![](figures/Figure1.png)
 
+
+### Usefull MRSI preprocessing tools
+
+- **Coregister all MRSI metabolites to T1 & MNI space** 
+   ```python
+    python experiments/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
+
+
+- **Construct Metabolic Similarity Map**
+    ```python
+    python experiments/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
 
 
