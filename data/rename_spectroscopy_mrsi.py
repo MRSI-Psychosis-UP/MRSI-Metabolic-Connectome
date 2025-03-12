@@ -25,7 +25,6 @@ def rename_spectroscopy_to_mrsi(bids_root):
                 old_path = os.path.join(root, filename)
                 # new_filename = filename.replace('_spectroscopy', '_mrsi')
                 new_path = old_path.replace("/spectroscopy/","/mrsi/")
-                
                 print(f"Renaming file:\n  {old_path}\n  => {new_path}\n")
                 # os.rename(old_path, new_path)
 
