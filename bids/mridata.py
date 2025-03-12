@@ -144,8 +144,8 @@ class  MRIData:
             _ = nib.load(path).get_fdata()
             return nib.load(path)
         except Exception as e:
-            if space=="orig":
-                __nifti        = self.data["mrsi"][comp]["orig"]["nifti"]
+            if space=="orig" or space=="origfilt":
+                __nifti        = self.data["mrsi"][comp][space]["nifti"]
                 return __nifti
             elif space=="t1w":
                 t1w_ref        = self.data["t1w"]["brain"]["orig"]["path"]
@@ -272,7 +272,7 @@ class  MRIData:
         if len(filenames)==0:
             return
         for filename in filenames:
-            if pattern in filename:
+            if pattern in filename and "nii.gz" in filename:
                 path = join(dirpath,filename)
                 return nib.load(path), path
         debug.error(f"get_t1w {pattern} not found")

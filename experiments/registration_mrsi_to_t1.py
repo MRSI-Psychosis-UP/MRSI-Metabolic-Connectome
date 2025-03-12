@@ -30,13 +30,13 @@ parc     = Parcellate()
 
 parser = argparse.ArgumentParser(description="Process some input parameters.")
 # Parse arguments
-parser.add_argument('--group'   , type=str, default = "Dummy-Project") 
-parser.add_argument('--nthreads', type=int, default =4,help="Number of CPU threads [default=4]")
-parser.add_argument('--ref_met' , type=str, default = "CrPCr",help="Reference metabolite to be coregistered with T1 [CrPCr]")
+parser.add_argument('--group'     , type=str, default = "Dummy-Project") 
+parser.add_argument('--nthreads'  , type=int, default = 4,help="Number of CPU threads [default=4]")
+parser.add_argument('--ref_met'   , type=str, default = "CrPCr",help="Reference metabolite to be coregistered with T1 [CrPCr]")
 parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
-parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
-parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
-parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
+parser.add_argument('--session'   , type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
+parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
+parser.add_argument('--t1_pattern', type=str, default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
 
 
 args               = parser.parse_args()
@@ -53,7 +53,6 @@ os.makedirs(ANTS_TRANFORM_PATH,exist_ok=True)
 METABOLITE_REF     = args.ref_met
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(args.nthreads)
 ftools             = FileTools(GROUP)
-_,t1w_path         = mridata.get_t1w(pattern=t1pattern)
 ############ OrigResFilter ##################
 origres_filter = dict()
 for metabolite in METABOLITE_LIST:
@@ -94,7 +93,7 @@ transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 warpfilename              = f"sub-{subject_id}_ses-{session}_desc-mrsi_to_t1w.syn.nii.gz"
 if not exists(join(transform_dir_path,warpfilename)) or overwrite_flag:
     debug.warning(f"{METABOLITE_REF} to T1w Registration not found or not up to date")
-    syn_tx,_          = reg.register(fixed_input  = t1w_path,
+    syn_tx,_          = reg.register(fixed_input  = mridata.data["t1w"]["brain"]["orig"]["path"],
                                     moving_input  = mridata.data["mrsi"][METABOLITE_REF]["origfilt"]["path"],
                                     fixed_mask    = None, 
                                     moving_mask   = None,

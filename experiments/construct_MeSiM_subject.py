@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--leave_one_out',type=int,default=0, choices = [1,0],help="Leave-one-metaobolite-out (default: 0)")
     parser.add_argument('--nthreads',type=int,default=4, help="Number of parallel threads (default=4)")
     parser.add_argument('--show_plot',type=int,default=0, choices = [1,0],help="Display similarity matrix plot (default: 0)")
+    parser.add_argument('--t1_pattern', type=str, default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
 
 
 
@@ -76,6 +77,7 @@ def main():
     LEAVE_ONE_OUT = bool(args.leave_one_out)
     NPROC         = args.nthreads
     SHOW_PLOT     = bool(args.show_plot)
+    t1_pattern    = args.t1_pattern
 
     PARC_SCHEME    = args.atlas
     MERGE_PARCEL_PATH = join(dutils.DEVANALYSEPATH,"connectomics","data",f"merge_parcels_{PARC_SCHEME}.json")
@@ -89,7 +91,7 @@ def main():
     prefix = f"sub-{subject_id}_ses-{session}"
     connectome_dir_path = join(dutils.BIDSDATAPATH,GROUP,"derivatives","connectomes",
                             f"sub-{subject_id}",f"ses-{session}","spectroscopy")
-    mridata             = MRIData(subject_id,session,group=GROUP)
+    mridata             = MRIData(subject_id,session,group=GROUP,t1_pattern=t1_pattern)
     outfilepath         = mridata.get_connectivity_path("spectroscopy",PARC_SCHEME)
     outfilepath = outfilepath.replace("_connectivity.npz",f"_npert_{N_PERT}_connectivity.npz")
     connectome_dir_path = split(outfilepath)[0]
@@ -126,15 +128,9 @@ def main():
     # parcel_mrsi_np ,parcel_header_dict = parc.merge_parcels(parcel_mrsi_np,parcel_header_dict, merge_parcels_dict)
     t1mask_orig_path   = mridata.data["t1w"]["mask"]["orig"]["path"]
     transform_list     = mridata.get_transform("inverse","spectroscopy")
-    debug.warning("t1mask_orig_path",t1mask_orig_path)
-    # sys.exit()
     t1mask_mrsi_img    = reg.transform(mrsi_ref_img_path,t1mask_orig_path,transform_list).numpy()
     parcel_header_dict = parc.count_voxels_per_parcel(parcel_mrsi_np,mrsi_orig_mask_np,
                                                                     t1mask_mrsi_img,parcel_header_dict)
-    unique_parcel_ids = np.unique(parcel_mrsi_np).astype(int)
-    # debug.info("unique_parcel_ids",unique_parcel_ids)
-
-    # for k,v in parcel_header_dict.items(): debug.info(k,v)
     # Extracting all label values without filtering on 'mask'
     all_labels_list         = [sub_dict['label'] for sub_dict in parcel_header_dict.values()]
     voxels_outside_mrsi     = {k: v for k, v in parcel_header_dict.items() if v['count'][-1] <= 5}
@@ -147,6 +143,9 @@ def main():
     os.makedirs(connectome_dir_path,exist_ok=True)
     ############ Parcellate and SimMatrix   #############
     ######### get parcel positions for 2d plot #########
+    # for metabolite in METABOLITES:
+    #     mridata.get_mrsi_volume(metabolite,"origfilt")
+
     mrsirand       = Randomize(mridata,"origfilt")
     simmatrix_sp, pvalue_sp,parcel_concentrations   = mesim.compute_simmatrix(mrsirand,parcel_mrsi_np,parcel_header_dict,
                                                                             parcel_label_ids_ignore,N_PERT,

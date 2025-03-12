@@ -79,6 +79,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | 50             |
 | `--leave_one_out` | Add leave-one-metabolite-out option to MeSiM construction.<br>Accepts values: 0, 1.                                | int [0,1]   | 0              |
 | `--show_plot`     | Display MeSiM and natural network analysis.<br>Accepts values: 0, 1.                                               | int [0,1]   | 0              |
+| `--overwrite`     | Overwrite existing                                                                                               | int [0,1]   | 0              |
 | `--ref_met`       | Reference MRSI metabolite.<br>Used as the moving image for coregistration.                                         | str         | CrPCr          |
 | `--nthreads`      | Number of parallel CPU threads for processing.                                                                   | integer     | 4              |
 | `--t1_pattern`    | T1w image file pattern used for image registration                                                                 | str     | _run-01_acq-memprage_              |

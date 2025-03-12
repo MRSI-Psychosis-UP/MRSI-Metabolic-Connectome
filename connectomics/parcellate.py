@@ -170,6 +170,21 @@ class Parcellate:
             new_parcel_image[~self.mni_gm_mask.get_fdata().astype(bool)] = 0
         return new_parcel_image.astype(int), labels, new_indices, header
 
+
+    def parse_atlas_xml(self,file_path,prefix=""):
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+
+        index_numbers = []
+        labels = []
+
+        for label in root.findall('.//label'):
+            index_numbers.append(int(label.get('index')))
+            labels.append(prefix+label.text)
+
+        return index_numbers, labels
+
+
     def generate_random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
 
@@ -273,6 +288,23 @@ class Parcellate:
                 parcel_header_dict[label_idx]["mask"] = 1
 
         return filt_parcel_image,parcel_header_dict
+
+
+    def get_main_parcel_plot_positions(self,sel_parcel_list,label_list_concat):
+        parcel_ids_positions=dict()
+        start_l = 0
+        for sel_parcel in sel_parcel_list:
+            parcel_id_coord_list=list()
+            for idp,parcel_label in enumerate(label_list_concat):
+                if sel_parcel in parcel_label:
+                    parcel_id_coord_list.append(idp)
+            if len(parcel_id_coord_list)!=0:
+                a,b = min(parcel_id_coord_list),max(parcel_id_coord_list)+0.5
+                # debug.info(max(0,a-0.5),b)
+                parcel_ids_positions[sel_parcel] = [max(0,a-0.5),b]
+                start_l = b
+        label_list_concat = np.array(label_list_concat)
+        return parcel_ids_positions, label_list_concat
 
     def merge_parcels(self,parcel_image,parcel_header_dict, merge_parcels_dict):
         # debug.error("parcel_header_dict[28]",parcel_header_dict[28])

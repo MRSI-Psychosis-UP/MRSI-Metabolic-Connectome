@@ -48,7 +48,6 @@ mridata            = MRIData(subject_id, session,GROUP,t1pattern)
 ftools             = FileTools(GROUP)
 BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
 ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
-_,t1w_path         = mridata.get_t1w(pattern=t1pattern)
 
 
 ################################################
@@ -62,7 +61,7 @@ transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 if not exists(transform_dir_prefix_path) or overwrite_flag:
     debug.warning(f"{transform_prefix} to T1w Registration not found or not up to date")
     syn_tx,_          = reg.register(fixed_input  = datasets.load_mni152_template(),
-                                    moving_input  = t1w_path,
+                                    moving_input  = mridata.data["t1w"]["brain"]["orig"]["path"],
                                     fixed_mask    = None, 
                                     moving_mask   = None,
                                     transform     = "s",
