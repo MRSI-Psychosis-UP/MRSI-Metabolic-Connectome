@@ -33,6 +33,18 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
     ```bash
     bash build_env.sh
 
+### MRSI Spectroscopy BIDS format ###
+- Reconstrcuted MRSI files should be place in
+- File naming convention : ```sub-????_ses-??_space-??_acq-??_desc-??_spectroscopy.nii.gz```
+  
+| **BIDS Prefix** | **Description**                           | **Choices**                                                                                           |
+|-----------------|-------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `sub-`         | Subject/Participant ID                    |                                                                                                       |
+| `ses-`         | Session                                   | `[V1, V2, V3, ...]`                                                                                   |
+| `space-`       | MRI Acquisition space                     | `orig` (for original MRSI space), `t1w`, `mni`                                                          |
+| `acq-`         | Type of reconstructed MRSI map           | `conc` (metabolite signal)<br>`crlb` (LCmodel-issued CRLB map)                                          |
+| `desc-`        | Metabolite string                         | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate 
+
 ### Steps to Construct within subjectMeSiM
 
 1. **Create MRSI-to-T1w trasnforms**
@@ -58,17 +70,18 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 ## Description of Arguments
 
-| **Arg Name**     | **Description**                                           | **Type**  | **Default**    |
-|------------------|-----------------------------------------------------------|-----------|---------------:|
-| `--group`        | Name of the BIDS project folder or group to process.      | string    | Dummy-Project  |
-| `--subject_id`   | ID of the subject to process. sub-XX                      | string    | S001           |
-| `--session`      | Session ID [V1,V2,V3,...]                                 | string    | V1             |
-| `--nthreads`     | Number of parallel CPU threads for processing.            | integer   | 4              |
-| `--atlas`        | Chimera parcellation string followed by scale parameter   | string    | 50             |
-| `--npert`        | Number of metabolic profile perturbations used            | integer   | 50             |
-| `--leave_one_out`| Add leave-one-metabolite-out option to MeSiM construction | int [0,1] | 0              |
-| `--show_plot`    | Display MeSiM and natural network analyis                 | int [0,1] | 0              |
-| `--ref_met`      | Reference MRSI metabolite, used as the moving image for coregistration          | str   | CrPCr             |
+| **Arg Name**      | **Description**                                                                                                  | **Type**    | **Default**    |
+|-------------------|------------------------------------------------------------------------------------------------------------------|-------------|---------------:|
+| `--group`         | Name of the BIDS project folder or group to process.                                                           | string      | Dummy-Project  |
+| `--subject_id`    | ID of the subject to process.<br>Example: sub-XX                                                                  | string      | S001           |
+| `--session`       | Session ID.<br>Example: V1, V2, V3, ...                                                                           | string      | V1             |
+| `--nthreads`      | Number of parallel CPU threads for processing.                                                                   | integer     | 4              |
+| `--atlas`         | Chimera parcellation string followed by scale parameter.                                                         | string      | 50             |
+| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | 50             |
+| `--leave_one_out` | Add leave-one-metabolite-out option to MeSiM construction.<br>Accepts values: 0, 1.                                | int [0,1]   | 0              |
+| `--show_plot`     | Display MeSiM and natural network analysis.<br>Accepts values: 0, 1.                                               | int [0,1]   | 0              |
+| `--ref_met`       | Reference MRSI metabolite.<br>Used as the moving image for coregistration.                                         | str         | CrPCr          |
+
 
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
 <img src="figures/Figure1.png" alt="Figure 1" width="400">
