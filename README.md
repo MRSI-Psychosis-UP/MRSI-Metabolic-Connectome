@@ -71,7 +71,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `--ref_met`      | Reference MRSI metabolite, used as the moving image for coregistration          | str   | CrPCr             |
 
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
-![](figures/Figure1.png)
+<img src="figures/Figure1.png" alt="Figure 1" width="400">
 
 
 ### Usefull MRSI preprocessing tools
