@@ -2,7 +2,7 @@
 
 This repository contains all the necessary files to construct a within-subject metabolic similarity matrix (MeSiM) based on MRSI scans, as detailed in the following publication: [LINK 2ARXIV](http://link2arxiv).
 
-<img src="figures/Figure1.png" alt="Figure 1" width="400">
+<img src="figures/Figure1.png" alt="Figure 1">
 
 ## License
 This project is licensed under the terms described in [LICENSE](./LICENSE).
