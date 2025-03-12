@@ -5,6 +5,9 @@ This repository contains all the necessary files to construct a within-subject m
 ## License
 This project is licensed under the terms described in [LICENSE](./LICENSE).
 
+## Datasets
+A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. For those interested in obtaining access to the full MRSI dataset beyond demonstration purposes, please reach out to the authors of this paper with a well-motivated request detailing your research aims and how the data will be used. 
+
 ## Install Toolbox
 
 ### Prerequisites
@@ -12,8 +15,7 @@ This project is licensed under the terms described in [LICENSE](./LICENSE).
 - **Python 3.x**: Ensure you have Python 3 installed on your system.
 - **Conda or Miniconda**: Optionally, use Conda/Miniconda for environment management and package installation.
 
-### Datasets
-A `data/BIDS` has been provided for demonstration purposes. For those interested in obtaining access to the full MRSI dataset beyond demonstration purposes, please reach out to the authors of this paper with a well-motivated request detailing your research aims and how the data will be used. 
+
 
 ### Installation
 
