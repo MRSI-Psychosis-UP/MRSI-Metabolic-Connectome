@@ -1,9 +1,12 @@
 build
 *__pycache__*
 *.xml
+recon_sample.sh
+parcellate_chimera.sh
 
 .env
 
+data/BIDS/Dummy-Project/derivatives/sub-S001
 data/BIDS/Dummy-Project/derivatives/freesurfer
 data/BIDS/Dummy-Project/derivatives/connectomes
 data/BIDS/Dummy-Project/derivatives/transforms

@@ -9,7 +9,7 @@ from tools.filetools import FileTools
 from tools.debug import Debug
 
 from os.path import join, split
-from bids.mridata import MRIData
+from tools.mridata import MRIData
 import json
 
 

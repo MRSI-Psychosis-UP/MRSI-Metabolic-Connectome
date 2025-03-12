@@ -8,7 +8,7 @@ from os.path import split, join
 from tools.filetools import FileTools
 from tools.debug import Debug
 from os.path import join, split, exists
-from bids.mridata import MRIData
+from tools.mridata import MRIData
 import argparse
 from nilearn import datasets  
 

@@ -16,7 +16,7 @@ from connectomics.nettools import NetTools
 from connectomics.mesim import MeSiM
 from registration.registration import Registration
 from randomize.randomize import Randomize
-from bids.mridata import MRIData
+from tools.mridata import MRIData
 import matplotlib.pyplot as plt
 import argparse
 import seaborn as sns

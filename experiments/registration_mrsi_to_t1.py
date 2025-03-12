@@ -15,7 +15,7 @@ from tools.debug import Debug
 import random, argparse
 from os.path import join, split
 from connectomics.parcellate import Parcellate
-from bids.mridata import MRIData
+from tools.mridata import MRIData
 
 METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins"]
 

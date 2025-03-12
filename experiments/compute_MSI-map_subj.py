@@ -6,7 +6,7 @@ import os , math, csv
 import matplotlib.pyplot as plt
 from tools.filetools import FileTools
 from graphplot.simmatrix import SimMatrixPlot
-from bids.mridata import MRIData
+from tools.mridata import MRIData
 import nibabel as nib
 from nilearn import datasets
 from connectomics.netcluster import NetCluster

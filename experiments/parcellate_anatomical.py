@@ -6,7 +6,7 @@ from os.path import split, join, exists
 from tools.filetools import FileTools
 from tools.debug import Debug
 from os.path import join, split
-from bids.mridata import MRIData
+from tools.mridata import MRIData
 from connectomics.parcellate import Parcellate
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '32'
 import nibabel as nib
