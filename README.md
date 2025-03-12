@@ -25,38 +25,38 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    cd Metabolic-Connectome
 2. **Set up ENV paths**
    ```python
-   set_env_paths.py
+   python set_env_paths.py
 
  and navigate to your BIDS folder containing MRI data.  Choose data/BIDS for demonsration purposes
 
 3. **Install package**
     ```bash
-    build_env.sh
+    bash build_env.sh
 
 ### Steps to Construct within subjectMeSiM
 
 1. **Coregister MRSI to T1w**
    ```python
-   experiments/registration_mrsi_to_t1.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
+   python experiments/registration_mrsi_to_t1.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
 
 2. **Coregister T1w to MNI sspace**  
    ```python
-   experiments/registration_t1_to_MNI.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
+   python experiments/registration_t1_to_MNI.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
 3. **Transform all MRSI metabolites** 
    ```python
-   experiments/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
+   python experiments/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
 
 4. **Parcellate MRSI with Chimera parcel image** 
    ```python
-   experiments/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1
+   python experiments/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1
 
 5. **Construct MeSiM** 
    ```python
-   experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+   python experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
 
 6. **Construct Metabolic Similarity Map**
     ```python
-    experiments/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+    python experiments/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
 
 ## Description of Arguments
 
