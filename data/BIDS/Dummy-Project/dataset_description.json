@@ -1,0 +1,18 @@
+{
+    "Name": "Dummy Dataset",
+    "BIDSVersion": "1.8.0",
+    "DatasetType": "raw",
+    "License": "Proprietary",
+    "Authors": [
+      "Fedrico Lucchetti"
+    ],
+    "Acknowledgements": "We thank everyone who supported this study.",
+    "HowToAcknowledge": "Please cite this paper: <your-paper-or-repo-URL-here>",
+    "Funding": [
+      "Grant #1234 from Example Foundation"
+    ],
+    "ReferencesAndLinks": [
+      "https://bids.neuroimaging.io"
+    ]
+  }
+  
