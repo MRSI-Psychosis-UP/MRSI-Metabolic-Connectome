@@ -6,10 +6,20 @@ parcellate_chimera.sh
 
 .env
 
+
+
 data/BIDS/Dummy-Project/derivatives/sub-S001
 data/BIDS/Dummy-Project/derivatives/freesurfer
 data/BIDS/Dummy-Project/derivatives/connectomes
 data/BIDS/Dummy-Project/derivatives/transforms
+
+data/BIDS/Dummy-Project/derivatives/mrsi/space-origfilt
+data/BIDS/Dummy-Project/derivatives/mrsi/space-t1w
+data/BIDS/Dummy-Project/derivatives/mrsi/space-mni
+
+*-metabnorm*
+*T1w.json
+*T1w.nii.gz
 
 data/rename_dummy.py
 data/atlas/aal_SPM12
