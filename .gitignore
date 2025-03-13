@@ -18,8 +18,8 @@ data/BIDS/Dummy-Project/derivatives/mrsi/space-t1w
 data/BIDS/Dummy-Project/derivatives/mrsi/space-mni
 
 *-metabnorm*
-*T1w.json
-*T1w.nii.gz
+# *T1w.json
+# *T1w.nii.gz
 
 data/rename_dummy.py
 data/atlas/aal_SPM12
