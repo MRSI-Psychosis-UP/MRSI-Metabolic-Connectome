@@ -136,11 +136,11 @@ def main():
     # MRSI space
     mrsi_ref_img_path = mridata.data["mrsi"]["Ins"]["orig"]["path"]
     mrsi_header       = nib.load(mrsi_ref_img_path).header
-    transform_list    = mridata.get_transform("inverse","spectroscopy")
+    transform_list    = mridata.get_transform("inverse","mrsi")
     # transform_list    = mridata.get_transform("forward","spectroscopy") # better alignment with forward instead inverse
     parcel_image_mrsi = reg.transform(mrsi_ref_img_path,anat_outpath,transform_list,interpolator_mode="genericLabel")
     #
-    prefix_name       =  prefix_name.replace("orig","spectroscopy")
+    prefix_name       =  prefix_name.replace("orig","mrsi")
     mrsi_outpath      = join(outdir_path,f"{prefix_name}.nii.gz")
     ftools.save_nii_file(parcel_image_mrsi.numpy(),mrsi_header,mrsi_outpath)
     debug.success("Saved parcel image in MRSI space to",mrsi_outpath)

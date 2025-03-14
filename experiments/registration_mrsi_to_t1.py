@@ -85,10 +85,10 @@ if __nifti == 0:
     debug.success("Done")
 
 ############ MRSIto T1w Registration ##################  
-transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","spectroscopy")
+transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","mrsi")
 transform_prefix          = f"sub-{subject_id}_ses-{session}_desc-mrsi_to_t1w"
 
-transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","spectroscopy")
+transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","mrsi")
 transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 warpfilename              = f"sub-{subject_id}_ses-{session}_desc-mrsi_to_t1w.syn.nii.gz"
 if not exists(join(transform_dir_path,warpfilename)) or overwrite_flag:

@@ -90,9 +90,9 @@ def main():
     ############Construct Subject ID ##################
     prefix = f"sub-{subject_id}_ses-{session}"
     connectome_dir_path = join(dutils.BIDSDATAPATH,GROUP,"derivatives","connectomes",
-                            f"sub-{subject_id}",f"ses-{session}","spectroscopy")
+                            f"sub-{subject_id}",f"ses-{session}","mrsi")
     mridata             = MRIData(subject_id,session,group=GROUP,t1_pattern=t1_pattern)
-    outfilepath         = mridata.get_connectivity_path("spectroscopy",PARC_SCHEME)
+    outfilepath         = mridata.get_connectivity_path("mrsi",PARC_SCHEME)
     outfilepath = outfilepath.replace("_connectivity.npz",f"_npert_{N_PERT}_connectivity.npz")
     connectome_dir_path = split(outfilepath)[0]
     #
@@ -117,7 +117,7 @@ def main():
     mrsi_orig_mask_np                                 = np.zeros(mrsi_ref_img_np.shape)
     mrsi_orig_mask_np[mrsi_ref_img_np>0]              = 1
 
-    parcel_mrsi_ni,path = mridata.get_parcel("spectroscopy",PARC_SCHEME)
+    parcel_mrsi_ni,path = mridata.get_parcel("mrsi",PARC_SCHEME)
     parcel_mrsi_np      = parcel_mrsi_ni.get_fdata()
     parcel_mrsi_header  = parcel_mrsi_ni.header
     parcel_header_dict  = parc.get_parcel_header(path.replace(".nii.gz",".tsv"))
@@ -127,7 +127,7 @@ def main():
     # parcel_mrsi_np ,parcel_header_dict = parc.filter_parcel(parcel_mrsi_np,parcel_header_dict ,ignore_list=ignore_list)
     # parcel_mrsi_np ,parcel_header_dict = parc.merge_parcels(parcel_mrsi_np,parcel_header_dict, merge_parcels_dict)
     t1mask_orig_path   = mridata.data["t1w"]["mask"]["orig"]["path"]
-    transform_list     = mridata.get_transform("inverse","spectroscopy")
+    transform_list     = mridata.get_transform("inverse","mrsi")
     t1mask_mrsi_img    = reg.transform(mrsi_ref_img_path,t1mask_orig_path,transform_list).numpy()
     parcel_header_dict = parc.count_voxels_per_parcel(parcel_mrsi_np,mrsi_orig_mask_np,
                                                                     t1mask_mrsi_img,parcel_header_dict)
