@@ -16,6 +16,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 - **Python 3.x**: Ensure you have Python 3 installed on your system.
 - **Conda or Miniconda**: Optionally, use Conda/Miniconda for environment management and package installation.
+- **FreeSurfer**: 
 
 
 
