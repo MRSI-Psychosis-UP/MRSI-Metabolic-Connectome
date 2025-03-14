@@ -1,6 +1,6 @@
 # Metabolic-Connectome
 
-This repository contains all the necessary files to construct a within-subject metabolic similarity matrix (MeSiM) based on MRSI scans, as detailed in the following publication: [LINK 2ARXIV](http://link2arxiv).
+This repository contains all the necessary files to construct a within-subject metabolic similarity matrix (MeSiM) based on MRSI scans, as detailed in the following publication: [LINK 2ARXIV](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
 
 <img src="figures/Figure1.png" alt="Figure 1">
 
