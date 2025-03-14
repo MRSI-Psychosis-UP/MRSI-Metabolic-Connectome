@@ -1,10 +1,13 @@
 build
 *__pycache__*
 *.xml
+*egg-info*
+.env
+
+
 recon_sample.sh
 parcellate_chimera.sh
 
-.env
 
 
 
@@ -18,6 +21,7 @@ data/BIDS/Dummy-Project/derivatives/mrsi/space-t1w
 data/BIDS/Dummy-Project/derivatives/mrsi/space-mni
 
 *-metabnorm*
+*-origfilt*
 # *T1w.json
 # *T1w.nii.gz
 
@@ -36,7 +40,6 @@ data/atlas/vonEcon_500
 filters/neuralnet/deepdenoiser.py
 filters/neuralnet/deepsmoother.py
 
-*egg-info*
 filters/neuralnet/models/autoencoder_all.h5
 filters/neuralnet/models/autoencoder_Glu+Gln.h5
 filters/neuralnet/models/autoencoder_Cr+PCr.h5

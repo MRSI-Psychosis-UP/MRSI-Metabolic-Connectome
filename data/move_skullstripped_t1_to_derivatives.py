@@ -57,7 +57,8 @@ def move_file(old_path, new_filename, derivatives_root):
     sub-XXX / ses-XXX gleaned from either the path or the prefix.
     """
     # Extract sub-XXX and ses-XXX from old_path or from new_filename
-    path_parts = old_path.split(os.sep)
+    # path_parts = old_path.split(os.sep)
+    path_parts = os.path.dirname(old_path).split(os.sep)
 
     sub_label, ses_label = None, None
     # 1) Try to find sub- and ses- in the path
@@ -83,7 +84,7 @@ def move_file(old_path, new_filename, derivatives_root):
         new_dir = os.path.join(new_dir, sub_label)
     if ses_label:
         new_dir = os.path.join(new_dir, ses_label)
-    new_dir = os.path.join(new_dir, "anat")
+    new_dir = os.path.join(new_dir)
 
     os.makedirs(new_dir, exist_ok=True)
     new_path = os.path.join(new_dir, new_filename)
