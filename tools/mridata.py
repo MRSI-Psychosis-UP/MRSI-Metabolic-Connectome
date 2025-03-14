@@ -12,10 +12,10 @@ from nilearn import datasets
 
 
 
-debug  = Debug(verbose=False)
 dutils = DataUtils()
 reg    = Registration()
 ftools = FileTools()
+debug  = Debug(verbose=True)
 
 STRUCTURE_PATH = dutils.BIDS_STRUCTURE_PATH
 subject_id_exc_list = ["CHUVA016","CHUVA028"]
@@ -35,11 +35,13 @@ class DynamicData:
 
 class  MRIData:
     def __init__(self, subject_id,session,group=None,t1_pattern="_run-01_acq-memprage_"):
+        debug.info("dutils.BIDSDATAPATH",dutils.BIDSDATAPATH)
         self.ROOT_PATH           = join(dutils.BIDSDATAPATH,group)
         self.PARCEL_PATH         = join(self.ROOT_PATH,"derivatives","chimera-atlases")
         self.CONNECTIVITY_PATH   = join(self.ROOT_PATH,"derivatives","connectomes")
         self.TCK_PATH            = join(self.ROOT_PATH,"derivatives","tractography")
         self.t1_pattern          = t1_pattern
+        self._mrsi_derivatives   = ["mrsi-orig","mrsi-origfilt","mrsi-t1w","mrsi-mni"]
         os.makedirs(self.PARCEL_PATH,exist_ok=True)
         os.makedirs(self.CONNECTIVITY_PATH,exist_ok=True)
 
@@ -111,7 +113,7 @@ class  MRIData:
 
 
     def load_mrsi_all(self):
-        for derivative in ["mrsi-orig","mrsi-origfilt","mrsi-t1w","mrsi-mni"]:
+        for derivative in self._mrsi_derivatives:
             self.__load_mrsi_all(derivative)
              
     def __load_mrsi_all(self,derivative):
@@ -185,11 +187,12 @@ class  MRIData:
 
 
     def get_mrsi_mask_image(self):
-        for derivative in ["mrsi-orig","mrsi-origfilt","mrsi-t1w","mrsi-mni"]:
+        for derivative in self._mrsi_derivatives:
             self.__get_mrsi_mask_image(derivative)
             
     def __get_mrsi_mask_image(self,derivative):
         dirpath   = self.__get_mri_dir_path(derivative)
+        if dirpath is None :return
         filenames = os.listdir(dirpath)
         mrsi_mask = None
         if len(filenames)==0:
@@ -256,24 +259,25 @@ class  MRIData:
     def load_t1w(self,pattern=""):
         dirpath = self.__get_mri_dir_path("skullstrip")
         debug.info("load_t1w",dirpath)
-        if dirpath==None:
+        if dirpath is None or len(os.listdir(dirpath))==0:
             return 
         filenames = os.listdir(dirpath)
-        if len(filenames)==0:
-            return
         for filename in filenames:
-            debug.info("load_t1w",filename)
-            if pattern not in filename:continue
+            debug.info("load_t1w:filename",filename)
+            if pattern not in filename:
+                continue
             path = join(dirpath,filename)
-            if "T1w_brain.nii.gz" in filename:
+            if "brain" in filename and "mask" not in filename:
+                debug.success("Found T1w_brain",filename)
                 # self.data["t1w"]["brain"]["orig"]["nifti"] = nib.load(path)
                 self.data["t1w"]["brain"]["orig"]["path"]  = path
-            elif "T1w_brainmask.nii.gz" in filename:
+            elif "mask" in filename:
+                debug.success("Found T1w_brainmask",filename)
                 # self.data["t1w"]["mask"]["orig"]["nifti"] = nib.load(path)
                 self.data["t1w"]["mask"]["orig"]["path"] = path
         if self.data["t1w"]["mask"]["orig"]["path"]==0:
             t1wbrain_path = self.data["t1w"]["brain"]["orig"]["path"]
-            t1wmask_path = t1wbrain_path.replace("T1w_brain","T1w_brainmask")
+            t1wmask_path  = t1wbrain_path.replace("T1w_brain","T1w_brainmask")
             t1w_brain_nii = nib.load(t1wbrain_path)
             t1w_brain_np  = t1w_brain_nii.get_fdata()
             mask          =  np.zeros(t1w_brain_np.shape) 
@@ -478,4 +482,4 @@ class  MRIData:
 
 
 if __name__=="__main__":
-    mrsiData = MRIData(subject_id="S001",session="V1")
+    mrsiData = MRIData(subject_id="S001",session="V1",group="Dummy-Project")

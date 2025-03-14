@@ -16,10 +16,11 @@ from nilearn import datasets
 
 
 
-dutils     = DataUtils()
-debug      = Debug()
-regtools   = RegTools()
-reg        = Registration()
+dutils       = DataUtils()
+debug        = Debug()
+regtools     = RegTools()
+reg          = Registration()
+mni_template = datasets.load_mni152_template()
 
 
 
@@ -30,7 +31,7 @@ parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads 
 parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
 parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
 parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
-parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_T1w_brain",help="T1w file pattern e.g _run-01_acq-memprage_T1w_brain")
+parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_desc-brain",help="T1w file pattern e.g _run-01_acq-memprage_T1w_brain")
 
 
 args           = parser.parse_args()
@@ -58,9 +59,10 @@ debug.title(f"Processing {subject_id}-{session} ")
 transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","anat")
 transform_prefix          = f"sub-{subject_id}_ses-{session}_desc-t1w_to_mni"
 transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
+
 if not exists(transform_dir_prefix_path) or overwrite_flag:
     debug.warning(f"{transform_prefix} to T1w Registration not found or not up to date")
-    syn_tx,_          = reg.register(fixed_input  = datasets.load_mni152_template(),
+    syn_tx,_          = reg.register(fixed_input  = mni_template,
                                     moving_input  = mridata.data["t1w"]["brain"]["orig"]["path"],
                                     fixed_mask    = None, 
                                     moving_mask   = None,
