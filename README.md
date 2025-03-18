@@ -1,6 +1,6 @@
 # Metabolic-Connectome
 
-This repository contains all the necessary files to construct a within-subject metabolic similarity matrix (MeSiM) based on MRSI scans, as detailed in the following publication: [Constructing the Human Brain Metabolic Connectome Using MR Spectroscopic Imaging](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
+This repository contains all the necessary files to construct a within-subject metabolic similarity matrix (MeSiM) based on MRSI scans, as detailed in the following preprint: [Constructing the Human Brain Metabolic Connectome Using MR Spectroscopic Imaging](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
 
 <img src="figures/Figure1.png" alt="Figure 1">
 
