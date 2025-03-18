@@ -10,7 +10,7 @@ This project is licensed under the terms described in [LICENSE](./LICENSE).
 ## Datasets
 A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. For those interested in obtaining access to the full MRSI dataset beyond demonstration purposes, please reach out to the authors of this paper with a well-motivated request detailing your research aims and how the data will be used. 
 
-## Install Toolbox
+## Installation
 
 ### Prerequisites
 
@@ -20,7 +20,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 
 
-### Installation
+### Install toolbox
 
 1. **Clone the Repository**
    ```bash
@@ -36,19 +36,42 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
     ```bash
     bash build_env.sh
 
-### MRSI Spectroscopy BIDS format ###
-- Reconstrcuted MRSI files should be place in
-- File naming convention : ```sub-????_ses-??_space-??_acq-??_desc-??_spectroscopy.nii.gz```
-  
+4. **Activate env**
+    ```bash
+    conda activate mrsitooldemo_env
+
+
+## Inputs
+
+### Chimera anatomical parcellation files ###
+- Chimera parcellation are already provided for the ```S0001-V1``` subject but can be replicated with
+   ```sh
+   chimera -b data/BIDS/Dummy-Project/ -d data/BIDS/Dummy-Project/derivatives/ \ 
+           --freesurferdir data/BIDS/Dummy-Project/derivatives/freesurfer/     \
+           -p LFMFIIFIFF -g 2
+   ```
+- Use ```-p LFMFIIFIFF -g 2``` supra-region sequence with 2mm GM grow inside WM in order to replicate the results in the [manuscript](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
+- Chimera outputs are saved  ```PROJECT_NAME/derivatives/chimera-atlases```
+
+### MRSI files ###
+- Reconstrcuted MRSI files should be placed in the following derivatives folder
+   ```sh
+   PROJECT_NAME/derivatives/mrsi-<space>/sub-<subject_id>/ses-<session>/
+   ```
+- File naming convention :
+  ```sh
+  sub-<subject_id>_ses-<session>_space-<space>_acq-<acq>_desc-<metabolite>_mrsi.nii.gz
+  ```
+
 | **BIDS Prefix** | **Description**                           | **Choices**                                                                                           |
 |-----------------|-------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| `sub-`         | Subject/Participant ID                    |                                                                                                       |
-| `ses-`         | Session                                   | `[V1, V2, V3, ...]`                                                                                   |
-| `space-`       | MRI Acquisition space                     | `orig` (for original MRSI space), `t1w`, `mni`                                                          |
-| `acq-`         | Type of reconstructed MRSI map           | `conc` (metabolite signal)<br>`crlb` (LCmodel-issued CRLB map)                                          |
-| `desc-`        | Metabolite string                         | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate 
+| `subject_id`         | Subject/Participant ID                    |                                                                                                       |
+| `session`         | Session                                   | `[V1, V2, V3, ...]`                                                                                   |
+| `space`       | MRI Acquisition space                     | `orig` or `origfilt` (for original MRSI space), `t1w`, `mni`                                                          |
+| `acq`         | Type of reconstructed MRSI map           | `conc` (metabolite signal)<br>`crlb` (LCmodel-issued CRLB map)                                          |
+| `metabolite`        | Metabolite string                         | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate 
 
-### Steps to Construct within-subject MeSiM
+## Steps to Construct a within-subject MeSiM
 
 1. **Create MRSI-to-T1w transforms**
    ```python
@@ -67,11 +90,10 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```python
    python experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --show_plot 1 --nthreads 16
 
-
 - **Outputs**
-    Warp transforms, coregistered Chimera parcellation label images, MeSiMs are save in the ```/derivatives``` folder
+    Warp transforms, coregistered Chimera parcellation label images, MeSiMs are saved in the ```/derivatives``` folder
 
-## Description of Arguments
+### Description of input options
 
 | **Arg Name**      | **Description**                                                                                                  | **Type**    | **Default**    |
 |-------------------|------------------------------------------------------------------------------------------------------------------|-------------|---------------:|
@@ -91,7 +113,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
 
 
-### Usefull MRSI preprocessing tools
+## Usefull MRSI preprocessing tools
 
 - **Coregister all MRSI metabolites to T1 & MNI space** 
    ```python
