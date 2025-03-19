@@ -10,7 +10,7 @@ recon_sample.sh
 parcellate_chimera.sh
 
 data/*.py
-
+data/BIDS/Dummy-Project/sub-P001/
 data/BIDS/Dummy-Project/derivatives/mialabased-thalamicparc/
 data/BIDS/Dummy-Project/derivatives/ants-spattransf/
 data/BIDS/Dummy-Project/derivatives/sub-S001
