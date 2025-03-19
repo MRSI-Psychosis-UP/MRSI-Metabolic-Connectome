@@ -1,1 +1,1 @@
-sub-S001_ses-V1_acq-memprage_run-01_T1w
+sub-P001_ses-V1_run-02_acq-mprage_T1w.nii

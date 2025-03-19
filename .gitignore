@@ -4,13 +4,15 @@ build
 *egg-info*
 .env
 
+t1s.txt
 
 recon_sample.sh
 parcellate_chimera.sh
 
+data/*.py
 
-
-
+data/BIDS/Dummy-Project/derivatives/mialabased-thalamicparc/
+data/BIDS/Dummy-Project/derivatives/ants-spattransf/
 data/BIDS/Dummy-Project/derivatives/sub-S001
 data/BIDS/Dummy-Project/derivatives/freesurfer
 data/BIDS/Dummy-Project/derivatives/connectomes
