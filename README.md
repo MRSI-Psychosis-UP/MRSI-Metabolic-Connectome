@@ -24,8 +24,8 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 1. **Clone the Repository**
    ```bash
-   git clone git@github.com:MRSI-Psychosis-UP/Metabolic-Connectome.git
-   cd Metabolic-Connectome
+   git clone git@github.com:MRSI-Psychosis-UP/MRSI-Metabolic-Connectome.git
+   cd MRSI-Metabolic-Connectome
 2. **Set up ENV paths**
    ```python
    python set_env_paths.py
