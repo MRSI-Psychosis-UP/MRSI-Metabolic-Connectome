@@ -26,19 +26,19 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```bash
    git clone git@github.com:MRSI-Psychosis-UP/MRSI-Metabolic-Connectome.git
    cd MRSI-Metabolic-Connectome
-2. **Set up ENV paths**
-   ```python
-   python set_env_paths.py
-
- and navigate to your BIDS folder containing MRI data. Choose data/BIDS for demonstration purposes
-
-3. **Install package**
+2. **Install package**
     ```bash
     bash build_env.sh
 
-4. **Activate env**
+3. **Activate env**
     ```bash
     conda activate mrsitooldemo_env
+
+4. **Set up ENV paths**
+   ```python
+   python set_env_paths.py
+ and navigate to your BIDS folder containing MRI data. Choose data/BIDS for demonstration purposes
+
 
 
 ## Inputs
