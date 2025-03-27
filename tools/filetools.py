@@ -29,10 +29,9 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class FileTools:
-    def __init__(self,group="Dummy-Project") -> None:
-        self.ROOTDIRPATH       = join(dutils.BIDSDATAPATH,group)
-
-        
+    def __init__(self) -> None:
+       pass
+    
     def save_nii_file(self, tensor3D, header,outpath):
         nifti_img = self.numpy_to_nifti(tensor3D, header)
         nifti_img.to_filename(f"{outpath}")
@@ -73,51 +72,6 @@ class FileTools:
             shutil.copy(transform_file, dest_file_path)
             debug.success(f"Saved: {filename}")
  
-    def save_nii4D_file(self,path_list,outpath):
-        _data = nib.load(path_list[0])
-        image_list=np.zeros([_data.get_fdata().shape+(len(path_list),)])
-        header = _data.header
-        for ids,path in enumerate(path_list):
-            data = nib.load(path)
-            image_list[:,:,:,ids] = data.get_fdata()
-        self.save_nii_file(np.array(image_list),header,f"{outpath}.nii.gz")
-
-    def list_nii_files(self,directory):
-        """
-        Lists the absolute paths of all .nii files within the given directory, including its subdirectories.
-        
-        Parameters:
-        - directory: The root directory to search for .nii files.
-        
-        Returns:
-        - A list of absolute paths to each .nii file found.
-        """
-        nii_files = []
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file.endswith(".nii") and not file.endswith(".nii.gz"):
-                    nii_files.append(os.path.abspath(os.path.join(root, file)))
-        return nii_files
-
-    def list_recordings(self):
-        recording_list = list()
-        subject_list = os.listdir(self.ROOTDIRPATH)
-        for subject_id in subject_list:
-            if "sub-" not in subject_id:continue
-            session_list = os.listdir(join(self.ROOTDIRPATH,subject_id))
-            for session in session_list:
-                if "ses-" in session:
-                    acq_list = os.listdir(join(self.ROOTDIRPATH,subject_id,session))
-                    mrsi_dir_path = join(self.ROOTDIRPATH,subject_id,session,"spectroscopy")
-                    if os.path.exists(mrsi_dir_path):
-                        n_mrsi = len(os.listdir(mrsi_dir_path))
-                        if n_mrsi!=0 and "anat" in acq_list:
-                            recording_list.append([subject_id[4::],session[4::]])
-        recording_list = np.array(recording_list)
-        ids = np.argsort(recording_list[:,0])
-        return recording_list[ids,:]
-
-
 
 
 

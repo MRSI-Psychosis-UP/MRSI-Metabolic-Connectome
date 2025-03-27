@@ -27,6 +27,8 @@ data/BIDS/Dummy-Project/derivatives/mrsi/space-mni
 # *T1w.json
 # *T1w.nii.gz
 
+results/
+
 data/rename_dummy.py
 data/atlas/aal_SPM12
 data/atlas/allen_brain
@@ -59,5 +61,8 @@ data/BIDS/Dummy-Project/sub-S001/ses-V1/spectroscopy/sub-S001_ses-V1_space-origf
 data/BIDS/Dummy-Project/sub-S001/ses-V1/spectroscopy/sub-S001_ses-V1_space-origfilt_acq-conc_desc-GPCPCh_spectroscopy.nii.gz.nii.gz
 data/BIDS/Dummy-Project/sub-S001/ses-V1/spectroscopy/sub-S001_ses-V1_space-origfilt_acq-conc_desc-Ins_spectroscopy.nii.gz.nii.gz
 data/BIDS/Dummy-Project/sub-S001/ses-V1/spectroscopy/sub-S001_ses-V1_space-origfilt_acq-conc_desc-NAANAAG_spectroscopy.nii.gz.nii.gz
-results/MeSiMs/Dummy-Project/sub-S001_ses-V1/sub-S001_ses-V1_npert-50_RichClub.pdf.pdf
-results/MeSiMs/Dummy-Project/sub-S001_ses-V1/sub-S001_ses-V1_run-01_acq-memprage_atlas-LFMIHIFIF-3_npert_50_connectivity_simmatrix.pdf
+
+# Ignore results
+data/BIDS/Geneva-Study/derivatives/group/metabolic-similarity-map/metabolic-similarity-map_space-mni_atlas-LFMIHIFIF-3_proj-pca-tsne_mrsi.nii.gz
+data/BIDS/Dummy-Project/derivatives/msi/
+data/BIDS/Geneva_Study/derivatives/msi/

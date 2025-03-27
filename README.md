@@ -75,20 +75,20 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 1. **Create MRSI-to-T1w transforms**
    ```python
-   python experiments/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
+   python scripts/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
 
 2. **Create T1w-to-MNI transforms**  
    ```python
-   python experiments/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
+   python scripts/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
 
 
 3. **Parcellate MRSI with Chimera parcel image** 
    ```python
-   python experiments/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIF-3
+   python scripts/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIF-3
 
 4. **Construct MeSiM** 
    ```python
-   python experiments/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --show_plot 1 --nthreads 16
+   python scripts/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --show_plot 1 --nthreads 16
 
 - **Outputs**
     Warp transforms, coregistered Chimera parcellation label images, MeSiMs are saved in the ```/derivatives``` folder
@@ -117,11 +117,11 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 - **Coregister all MRSI metabolites to T1 & MNI space** 
    ```python
-    python experiments/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
+    python scripts/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
 
 
 - **Construct Metabolic Similarity Map**
     ```python
-    python experiments/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+    python scripts/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
 
 
