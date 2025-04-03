@@ -15,7 +15,7 @@ from nilearn import datasets
 dutils = DataUtils()
 reg    = Registration()
 ftools = FileTools()
-debug  = Debug(verbose=True)
+debug  = Debug(verbose=False)
 
 STRUCTURE_PATH = dutils.BIDS_STRUCTURE_PATH
 subject_id_exc_list = ["CHUVA016","CHUVA028"]
@@ -125,9 +125,9 @@ class  MRIData:
             return
         for filename in filenames:
             if ".nii" in filename:
-                space = self.extract_suffix(filename,"space")
-                acq   = self.extract_suffix(filename,"acq")
-                desc  = self.extract_suffix(filename,"desc")
+                space = self.__extract_suffix(filename,"space")
+                acq   = self.__extract_suffix(filename,"acq")
+                desc  = self.__extract_suffix(filename,"desc")
                 if desc in METABOLITES and acq=="conc":
                     comp = desc
                 elif desc in METABOLITES and acq=="crlb":
@@ -206,7 +206,7 @@ class  MRIData:
                 mrsi_mask[water_signal>0]  = 1
                 mrsi_mask[water_signal<=0] = 0
                 #
-                space       = self.extract_suffix(filename,"space")
+                space       = self.__extract_suffix(filename,"space")
                 outfilename = f"{self.prefix}_space-{space}_acq-conc_desc-brainmask_mrsi.nii.gz"
                 outpath     = join(dirpath,outfilename)
                 #
@@ -216,6 +216,7 @@ class  MRIData:
                 self.data["mrsi"]["mask"][space]["path"]      = outpath
                 if space=="orig":
                     outpath = outpath.replace("orig","origfilt")
+                    os.makedirs(split(outpath)[0],exist_ok=True)
                     ftools.save_nii_file(mrsi_mask,header,outpath) 
                     self.data["mrsi"]["mask"]["origfilt"]["nifti"] = nifti_img
                     self.data["mrsi"]["mask"]["origfilt"]["path"]  = outpath
@@ -327,12 +328,6 @@ class  MRIData:
         return join(dirpath,prefix_name)
  
 
-    def get_connectivity(self,mode,atlas):
-        path = self.get_connectivity_path(mode,atlas)
-        if exists(path):
-            return np.load(path),path
-        else:
-            return None, 0
 
     def get_tractography_path(self,filtered=True):
         if filtered:
@@ -356,7 +351,7 @@ class  MRIData:
         for filename in filenames:
             path = join(dirpath,filename)
             if ".nii.gz" in filename and "dseg" in filename and "wm_mask" not in filename:
-                space = self.extract_suffix(filename,"space")
+                space = self.__extract_suffix(filename,"space")
                 # debug.info("load_parcels:filename",filename)
                 # if space == "orig":
                 for atlas in ATLAS_PARC_LIST:
@@ -367,7 +362,7 @@ class  MRIData:
                             self.data["parcels"][atlas][space]["labelpath"] = path.replace("nii.gz","tsv")
                         except:pass
                     elif atlas in filename and atlas=="chimera":
-                        scale,scheme  = self.extract_scale_number(filename)
+                        scale,scheme  = self.__extract_scale_number(filename)
                         try:
                             self.data["parcels"][f"{scheme}-{scale}"][space]["path"]      = path
                             self.data["parcels"][f"{scheme}-{scale}"][space]["labelpath"] = path.replace("nii.gz","tsv")
@@ -390,11 +385,11 @@ class  MRIData:
                     if atlas in filename and atlas!="chimera":
                         self.data["connectivity"][mode][atlas]["path"] = path
                     elif atlas in filename and atlas=="chimera":
-                        parc_scheme = self.extract_parcellation_substring(filename)
+                        parc_scheme = self.__extract_parcellation_substring(filename)
                         self.data["connectivity"][mode][parc_scheme]["path"] = path 
 
     
-    def extract_suffix(self,filename,suffix):
+    def __extract_suffix(self,filename,suffix):
         # Use a regular expression to search for the pattern matching 'space-{SPACE}'
         match = re.search(rf"_{suffix}-([^_]+)", filename)
         if match:
@@ -402,9 +397,9 @@ class  MRIData:
         else:
             return None  # Return None if the pattern is not found
 
-    def extract_scale_number(self,filename):
+    def __extract_scale_number(self,filename):
         """
-        Extracts the number following 'scale' in the filename.
+        Extracts the number following 'scale' in the chimera filename.
 
         Args:
         filename (str): The filename from which to extract the scale number.
@@ -415,7 +410,7 @@ class  MRIData:
         # Define the regular expression to find 'scale' followed by any number
         match_scale = re.search(r"scale(\d+)", filename)
         match_scheme = re.search(r"atlas-chimera(\w+)", filename)
-        # debug.info("extract_scale_number:match_scheme",match_scheme)
+        # debug.info("__extract_scale_number:match_scheme",match_scheme)
         # Extract the scale number
         scale_number = int(match_scale.group(1)) if match_scale else None
 
@@ -424,7 +419,7 @@ class  MRIData:
         scheme = scheme.replace("_desc","")
         return scale_number, scheme
 
-    def extract_parcellation_substring(self,input_string):
+    def __extract_parcellation_substring(self,input_string):
         # Define regex patterns for the two types of substrings
         pattern1 = r'geometric_cubeK23mm'
         pattern2 = r'geometric_cubeK18mm'
@@ -451,7 +446,7 @@ class  MRIData:
         if match6:
             return match6.group()
         elif "LFIIHIFIF" in input_string or "chimeraLFMIHIFIF" in input_string:
-            scale,scheme  = self.extract_scale_number(input_string)
+            scale,scheme  = self.__extract_scale_number(input_string)
             return f"{scheme}-{scale}"
         else:
             return None

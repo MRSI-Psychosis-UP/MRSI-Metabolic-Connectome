@@ -66,3 +66,6 @@ data/BIDS/Dummy-Project/sub-S001/ses-V1/spectroscopy/sub-S001_ses-V1_space-origf
 data/BIDS/Geneva-Study/derivatives/group/metabolic-similarity-map/metabolic-similarity-map_space-mni_atlas-LFMIHIFIF-3_proj-pca-tsne_mrsi.nii.gz
 data/BIDS/Dummy-Project/derivatives/msi/
 data/BIDS/Geneva_Study/derivatives/msi/
+data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-LFMIHIFIF-3-cer_dseg.nii.gz
+data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-LFMIHIFIF-3-cer_dseg.tsv
+

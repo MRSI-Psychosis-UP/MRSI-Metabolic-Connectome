@@ -6,9 +6,7 @@ tf.config.set_visible_devices([], 'GPU')
 from registration.registration import Registration
 from registration.tools import RegTools
 from rich.progress import Progress
-from filters.neuralnet.deepsmoother import DeepSmoother
 from tools.datautils import DataUtils
-from tensorflow.keras.models import load_model
 from os.path import split, join, exists
 from tools.filetools import FileTools
 from tools.debug import Debug
@@ -16,15 +14,16 @@ import random, argparse
 from os.path import join, split
 from connectomics.parcellate import Parcellate
 from tools.mridata import MRIData
+from filters.biharmonic import BiHarmonic
 
 METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins"]
 
 dutils   = DataUtils()
-dsnn     = DeepSmoother()
 debug    = Debug()
 regtools = RegTools()
 reg      = Registration()
 parc     = Parcellate()
+bhfilt   = BiHarmonic()
 
 
 
@@ -53,15 +52,10 @@ os.makedirs(ANTS_TRANFORM_PATH,exist_ok=True)
 METABOLITE_REF     = args.ref_met
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(args.nthreads)
 ftools             = FileTools()
-############ OrigResFilter ##################
-origres_filter = dict()
-for metabolite in METABOLITE_LIST:
-    filename  = f"OrigResSmoother_{metabolite}.h5"
-    modelpath = os.path.join(dutils.DEVANALYSEPATH,"filters","neuralnet","models",filename)
-    origres_filter[metabolite] = load_model(modelpath,compile=False)
-
 
 ##########################################################
+
+
 
 debug.separator()
 debug.title(f"Processing {subject_id}-{session}")
@@ -73,15 +67,14 @@ if __nifti == 0:
         # metabolite_key = metabolite.replace("+","")
         __nifti_mask   = mridata.data["mrsi"]["mask"]["orig"]["nifti"]
         __nifti        = mridata.data["mrsi"][metabolite]["orig"]["nifti"]
-        origRes_img    = __nifti.get_fdata().squeeze()
         header_mrsi    = __nifti.header
-        img            = np.expand_dims(origRes_img    ,axis=0)
-        mask           = np.expand_dims(__nifti_mask.get_fdata().squeeze(),axis=0)
-        smoothed_mrsi_ref_img, spike_mask = dsnn.proc(origres_filter[metabolite],origRes_img,mask)
-        mridata.data["mrsi"][metabolite]["origfilt"]["nifti"] = smoothed_mrsi_ref_img
+        brain_mask     = __nifti_mask.get_fdata().squeeze().astype(bool)
+        # Filter        
+        image_filt_nifti = bhfilt.proc(__nifti,brain_mask)
+        mridata.data["mrsi"][metabolite]["origfilt"]["nifti"] = image_filt_nifti
         mrsi_filt_refout_path = mridata.data["mrsi"][metabolite]["orig"]["path"].replace("orig","origfilt")
-        ftools.save_nii_file(smoothed_mrsi_ref_img, header_mrsi  ,f"{mrsi_filt_refout_path}.nii.gz")
-        mridata.data["mrsi"][metabolite]["origfilt"]["path"] = f"{mrsi_filt_refout_path}.nii.gz"
+        ftools.save_nii_file(image_filt_nifti, header_mrsi  ,f"{mrsi_filt_refout_path}")
+        mridata.data["mrsi"][metabolite]["origfilt"]["path"] = f"{mrsi_filt_refout_path}"
     debug.success("Done")
 
 ############ MRSIto T1w Registration ##################  

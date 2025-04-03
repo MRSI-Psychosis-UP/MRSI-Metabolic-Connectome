@@ -32,9 +32,26 @@ class FileTools:
     def __init__(self) -> None:
        pass
     
-    def save_nii_file(self, tensor3D, header,outpath):
-        nifti_img = self.numpy_to_nifti(tensor3D, header)
-        nifti_img.to_filename(f"{outpath}")
+    def save_nii_file(self, image, header, outpath):
+        """
+        Save an image to a NIfTI file.
+
+        Parameters:
+        image: A nibabel Nifti1Image or a numpy array.
+        header: The NIfTI header. Must be provided if image is a numpy array.
+        outpath: The file path to save the image.
+        """
+        if isinstance(image, nib.Nifti1Image):
+            nifti_img = image
+        elif isinstance(image, np.ndarray):
+            if header is not None:
+                nifti_img = self.numpy_to_nifti(image, header)
+            else:
+                raise ValueError("Provide header for saving np.ndarray to NIFTI")
+        else:
+            raise ValueError("Input must be a Nifti1Image or a numpy array")
+        
+        nifti_img.to_filename(outpath)
 
     @staticmethod
     def save_dict(python_dict,outpath):
