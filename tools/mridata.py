@@ -9,6 +9,7 @@ import json
 from registration.registration import Registration
 from tools.filetools import FileTools
 from nilearn import datasets
+import glob
 
 
 
@@ -62,6 +63,120 @@ class  MRIData:
         self.metabolites = np.array(METABOLITES)
  
 
+
+    def get_mri_filepath(self,modality, space, desc, met=None,option=None,acq="memprage",run="01"):
+        """
+        Returns the path of an MRSI file based on BIDS keys.
+        
+        The expected naming pattern is:
+        sub-<sub>_ses-<ses>_space-<space>[_met-<met>]_desc-<desc>_mrsi.nii.gz
+        
+        Args:
+            modality (str): Imaging modality (e.g, "t1w","mrsi","dwi","func")
+            space (str): Image space (e.g., "orig", "t1w", "mni").
+            desc (str): Descriptor of the file (e.g., "signal", "crlb", "brainmask","brain").
+            met (str, optional): Metabolite name (e.g., "CrPCr","GluGln","GPCPCh","NAANAAG","Ins"). Defaults to None.
+            option (str, optional): Preprocessing string (e.g., "filt_neuralnet", "filt_biharmonic"). Defaults to None.
+        Returns:
+            str : The matching file path if found, else None.
+        """
+
+        bids_root = self.ROOT_PATH
+        sub,ses = self.subject_id,self.session
+        if modality=="mrsi":
+            base_dir = os.path.join(bids_root, "derivatives", "mrsi-orig1", f"sub-{sub}", f"ses-{ses}")
+            # Build the filename pattern. If met is provided, include the metabolite key.
+            if met and option:
+                pattern = f"sub-{sub}_ses-{ses}_space-{space}_met-{met}_desc-{desc}_{option}_mrsi.nii.gz"
+            elif met and option is None:
+                pattern = f"sub-{sub}_ses-{ses}_space-{space}_met-{met}_desc-{desc}_mrsi.nii.gz"
+            else:
+                pattern = f"sub-{sub}_ses-{ses}_space-{space}_desc-{desc}_mrsi.nii.gz"
+        if modality=="t1w":
+            base_dir = os.path.join(bids_root, "derivatives", "skullstrip", f"sub-{sub}", f"ses-{ses}")
+            # Build the filename pattern. If met is provided, include the metabolite key.
+            
+            if space=="orig" and acq is not None:
+                pattern = f"sub-{sub}_ses-{ses}_run-{run}_acq-{acq}_desc-{desc}_T1w.nii.gz"
+            else:
+                debug.warning("only orig space available for t1w")
+        
+        search_path = os.path.join(base_dir, pattern)
+        matches = glob.glob(search_path)
+        
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            debug.warning(f"Warning: Multiple files found for pattern {pattern}. Returning the first one.")
+            return matches[0]
+        else:
+            debug.warning(f"No file found for pattern: {pattern}")
+            return search_path
+
+    def get_mri_nifti(self,modality, space, desc, met=None,option=None,acq="memprage",run="01"):
+        """
+        Returns the nibabel Nifti1Image for an MRI file based on BIDS keys.
+        
+        See get_mri_filepath for the expected naming patterns.
+        
+        Args:
+            modality (str): Imaging modality (e.g., "t1w", "mrsi", "dwi", "func").
+            space (str): Image space (e.g., "orig", "t1w", "mni").
+            desc (str): Descriptor of the file (e.g., "signal", "crlb", "brainmask", "brain").
+            met (str, optional): Metabolite name. Defaults to None.
+            option (str, optional): Preprocessing string. Defaults to None.
+            acq (str, optional): Acquisition parameter. Defaults to "memprage".
+            run (str, optional): Run identifier. Defaults to "01".
+            
+        Returns:
+            nibabel.Nifti1Image: The loaded image if found.
+            
+        Raises:
+            FileNotFoundError: If the file does not exist.
+        """
+        path = self.get_mri_filepath(modality, space, desc, met, option, acq, run)
+        if exists(path):
+            return nib.load(path)
+        else:
+            raise FileNotFoundError(f"{split(path)[0]} does not exist")
+
+    def get_parcel_path(self,space,parc_scheme,scale,acq="memprage",run="01",grow=2):
+        """""
+        Returns the path to the Chimera parcellation file.
+        Args:
+            parc_scheme : chimera parcellation scheme: LFMIHIFIF, LFMIHIFIS,
+            scale       : cortical parcellation scale
+            space (str): Image space (e.g., "orig", "t1w", "mni").
+            acq (str, optional): Acquisition parameter. Defaults to "memprage".
+            run (str, optional): Run identifier. Defaults to "01".
+            grow (int): GM growth into WM
+        Returns:
+            str : The matching file path.
+        """""
+        if space=="mni":
+            return join(dutils.DEVDATAPATH,"atlas",f"chimera-{parc_scheme}-{scale}",f"chimera-{parc_scheme}-{scale}.nii.gz")
+        else:
+            dirpath      = self.get_mri_parcel_dir_path("anat")
+            # prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{space}_atlas-{parc_scheme}_dseg.nii.gz"
+            prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"
+        return join(dirpath,prefix_name)     
+
+
+    def get_mri_parcel_dir_path(self,modality="anat"):
+        path = join(self.PARCEL_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",modality)
+        if os.path.exists(path):
+            return path
+        else:
+            debug.warning("path does not exists")
+            debug.warning(path)
+            return 
+
+    def get_parcel(self,space,parc_scheme,scale,acq="memprage",run="01",grow=2):
+        path = self.get_parcel_path(space,parc_scheme,scale,acq,run,grow)
+        return nib.load(path),path 
+    
+
+
     def __get_mri_dir_path(self,modality="skullstrip"):
         if "mrsi" in modality:
             path = join(self.DERIVATIVE_PATH,modality,f"sub-{self.subject_id}",f"ses-{self.session}")
@@ -74,14 +189,7 @@ class  MRIData:
             debug.warning(path)
             return 
         
-    def get_mri_parcel_dir_path(self,modality="anat"):
-        path = join(self.PARCEL_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",modality)
-        if os.path.exists(path):
-            return path
-        else:
-            debug.warning("path does not exists")
-            debug.warning(path)
-            return 
+
         
     def get_connectivity_dir_path(self,modality="dwi"):
         path = join(self.CONNECTIVITY_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",modality)
@@ -300,20 +408,7 @@ class  MRIData:
         debug.error(f"get_t1w {pattern} not found")
         return 
     
-    def get_parcel_path(self,space,atlas):
-        """""
-        atlas : chimera-LFMIHIFIF-N, 
-        """""
-        if space=="mni":
-            label_image_path  = join(dutils.DEVDATAPATH,"atlas",atlas,f"{atlas}.nii.gz")
-        else:
-            dirpath      = self.get_mri_parcel_dir_path("anat")
-            prefix_name  = f"{self.prefix}_run-01_acq-memprage_space-{space}_atlas-{atlas}-cer_dseg.nii.gz"
-        return join(dirpath,prefix_name)     
 
-    def get_parcel(self,space,atlas):
-        path = self.get_parcel_path(space,atlas)
-        return nib.load(path),path 
     
 
     def get_connectivity_path(self,mode,atlas):

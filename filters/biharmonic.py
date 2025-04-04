@@ -4,6 +4,7 @@ import math
 from scipy.ndimage import median_filter
 from skimage.restoration import inpaint_biharmonic
 from nilearn import image as nil_img
+from scipy.ndimage import generic_filter
 
 from tools.filetools import FileTools
 
@@ -17,7 +18,7 @@ class BiHarmonic:
         """
         pass
 
-    def proc(self, image_og, brain_mask, fwhm=8, channel=0,sigma=3.5):
+    def proc(self, image_og, brain_mask, fwhm=8, channel=0,percentile=95):
         """
         Process the input image by detecting spikes, inpainting defects, and applying spatial filtering.
         
@@ -34,20 +35,27 @@ class BiHarmonic:
         # If input is a Nifti image, extract data and header.
         if isinstance(image_og, nib.Nifti1Image):
             image_og_np = image_og.get_fdata()
-            header = image_og.header
+            header      = image_og.header
+        # If input is a NumPy array, use it directly. If 4D, select the specified channel.
         else:
             raise TypeError("image_og must be a nib.Nifti1Image")
         if image_og_np.ndim == 4:
             image_og_np = image_og_np[:, :, :, channel]          
 
+        
         # Detect spikes based on a sigma threshold converted to a percentile.
-        spike_mask = self.get_spike_mask(image_og_np, sigma=3.5, bnd_np=None)
+        spike_mask    = self.get_spike_mask(image_og_np, percentile=percentile, bnd_np=None)
+        image_unspiked_np   = self.inpaint_voxels_with_median(image_og_np, spike_mask)
         # Detect holes (NaNs) in the image.
-        hole_mask = np.isnan(image_og_np)
+        nan_mask = np.isnan(image_unspiked_np)
+        # Detect missing values in image wrt brain mask in the image.
+        missing_mask = np.zeros_like(image_unspiked_np).astype(bool)
+        missing_mask[(image_unspiked_np==0) & (brain_mask==1)]=True
         # Combine masks for inpainting.
-        inpaint_mask = hole_mask | spike_mask
+        inpaint_mask = (nan_mask | spike_mask) | missing_mask
         # Inpaint the detected defects using biharmonic inpainting.
-        image_inpaint_np = self.biharmonic(image_og_np, mask=inpaint_mask)
+        image_inpaint_np = self.biharmonic(image_unspiked_np, mask=missing_mask)
+        image_inpaint_np = self.inpaint_voxels_with_median(image_unspiked_np, missing_mask)
         
         # If fwhm is None and header information is available, compute fwhm based on voxel dimensions.
         if fwhm is None and header is not None:
@@ -56,16 +64,14 @@ class BiHarmonic:
         
         # Apply spatial filtering (e.g., smoothing) to the inpainted image.
         image_inpaint_nifti = ftools.numpy_to_nifti(image_inpaint_np,header)
-        image_filt_np = self.spatial_filter(image_inpaint_nifti, fwhm=fwhm, mask=inpaint_mask)
+        image_smoothed_np = self.spatial_filter(image_inpaint_nifti, fwhm=fwhm, mask=inpaint_mask)
         # Zero out voxels outside the brain mask.
-        image_filt_np[~brain_mask] = 0
-        if isinstance(image_og, nib.Nifti1Image):
-            return ftools.numpy_to_nifti(image_filt_np,header)
-        elif isinstance(image_og, np.ndarray):
-            return image_filt_np
+        image_smoothed_np[~brain_mask] = 0
+        return ftools.numpy_to_nifti(image_smoothed_np,header)
+
 
     @staticmethod
-    def get_spike_mask(data_np, sigma=3.5, bnd_np=None):
+    def get_spike_mask(data_np, percentile=95, bnd_np=None):
         """
         Generate a boolean mask for spike detection based on a sigma threshold converted to a percentile.
         
@@ -79,8 +85,7 @@ class BiHarmonic:
         """
         # Compute the one-sided percentile corresponding to the given sigma value.
         # Multiply by 100 because np.percentile expects a value in the range [0, 100].
-        percentile = 0.5 * (1 + math.erf(sigma / math.sqrt(2))) * 100
-        
+       
         # Default to a mask where data is positive if no boundary mask is provided.
         if bnd_np is None:
             bnd_np = data_np > 0
@@ -108,18 +113,18 @@ class BiHarmonic:
         image_defect = image_orig.copy()
         image_defect[mask] = 0
         # Inpaint the defects using biharmonic inpainting.
-        image_result = inpaint_biharmonic(image_defect, mask, split_into_regions=True)
+        image_result = inpaint_biharmonic(image_defect, mask)
         return image_result
 
     @staticmethod
-    def spatial_filter(image, fwhm=8, mask=None, filter_size=3, channel=0):
+    def spatial_filter(image, fwhm=5, mask=None, filter_size=3, channel=0):
         """
         Apply a spatial filter to the image by replacing defective voxels with local median values,
         followed by smoothing.
         
         Parameters:
             image_np (np.ndarray): The image data (3D NumPy array).
-            fwhm (float, optional): Full width at half maximum for the smoothing filter.
+            fwhm (float, optional): Full width at half maximum for the smoothing filter in mm.
             mask (np.ndarray, optional): Boolean mask indicating voxels to be replaced. If provided,
                                            those voxels will be set to the local median.
             filter_size (int, optional): The size of the neighborhood for the median filter. Default is 3.
@@ -139,19 +144,20 @@ class BiHarmonic:
         else:
             raise TypeError("image_og must be a nib.Nifti1Image or a NumPy array.")
 
-        # Compute the local median using a median filter.
-        local_median = median_filter(image_og_np, size=filter_size)
-        # Replace voxels specified in the mask with the local median values.
-        if mask is not None:
-            image_og_np = image_og_np.copy()
-            image_og_np[mask] = local_median[mask]
+        # # Compute the local median using a median filter.
+        # local_median = median_filter(image_og_np, size=filter_size)
+        # # Replace voxels specified in the mask with the local median values.
+        # if mask is not None:
+        #     image_og_np = image_og_np.copy()
+        #     image_og_np[mask] = local_median[mask]
         
         # Create a Nifti image for smoothing. If no header/affine is provided, assume identity affine.
         nifti_img = ftools.numpy_to_nifti(image_og_np,header)
         # Apply spatial smoothing using nilearn's smooth_img function.
         smoothed_img = nil_img.smooth_img(nifti_img, fwhm=fwhm)
         # Extract the smoothed data as a NumPy array.
-        image_smoothed_np = smoothed_img.get_fdata()
+        image_smoothed_np = smoothed_img.get_fdata()  
+        image_og_np[mask] = image_smoothed_np[mask]    
         return image_smoothed_np
 
     @staticmethod
@@ -191,5 +197,37 @@ class BiHarmonic:
             valid_voxels[1:-1, 1:-1, :-2]    # neighbor in -z
         )
         brain_mask_restored = mask_img | surrounded_holes
-        return brain_mask_restored
+        return brain_mask_restored, surrounded_holes
 
+    @staticmethod
+    def __median_exclude_center(values):
+        """
+        Given a flattened neighborhood (e.g., from a 3x3x3 block),
+        compute the median of the surrounding voxels while excluding the center voxel.
+        """
+        center_index = len(values) // 2  # For a 3x3x3, index 13 in a flattened 27-element array.
+        # Exclude the center element.
+        neighbors = np.concatenate((values[:center_index], values[center_index+1:]))
+        return np.median(neighbors)
+
+    def inpaint_voxels_with_median(self,image, binary_mask, filter_size=3):
+        """
+        For voxels where binary_mask is True, replace the image value with the median
+        of the surrounding voxels (excluding the voxel itself).
+
+        Args:
+            image (numpy.ndarray): A 3D NumPy array representing the brain image.
+            binary_mask (numpy.ndarray): A boolean mask of the same shape as image where True indicates voxels to filter.
+            filter_size (int): Size of the neighborhood to compute the median (default is 3 for a 3x3x3 cube).
+
+        Returns:
+            numpy.ndarray: A new 3D image with the specified voxels replaced.
+        """
+        # Compute a median-filtered image for every voxel using the custom function.
+        # The mode 'mirror' handles border voxels gracefully.
+        median_image = generic_filter(image, self.__median_exclude_center, size=filter_size, mode='mirror')
+        
+        # Copy the original image so that we only update the specified voxels.
+        filtered_image = image.copy()
+        filtered_image[binary_mask] = median_image[binary_mask]
+        return filtered_image

@@ -55,26 +55,24 @@ ftools             = FileTools()
 
 ##########################################################
 
-
+# mridata.get_mri_filepath(modality="t1w",space="orig",desc="brain")
 
 debug.separator()
 debug.title(f"Processing {subject_id}-{session}")
 ############ Denoise PCr+Cr  ##################
-__nifti        = mridata.data["mrsi"][METABOLITE_REF]["origfilt"]["nifti"]
-if __nifti == 0:
+__path   = mridata.get_mri_filepath(modality="mrsi",space="orig", desc="signal", met=METABOLITE_REF,option="filtbiharmonic")
+if not exists(__path) :
+    __nifti_mask   = mridata.get_mri_nifti(modality="mrsi",space="orig",desc="brainmask")
+    brain_mask     = __nifti_mask.get_fdata().squeeze().astype(bool)
+    header_mrsi    = __nifti_mask.header
     for metabolite in METABOLITE_LIST:
         debug.info("Denoise Orig",metabolite)
-        # metabolite_key = metabolite.replace("+","")
-        __nifti_mask   = mridata.data["mrsi"]["mask"]["orig"]["nifti"]
-        __nifti        = mridata.data["mrsi"][metabolite]["orig"]["nifti"]
-        header_mrsi    = __nifti.header
-        brain_mask     = __nifti_mask.get_fdata().squeeze().astype(bool)
+        image_og_nifti        = mridata.get_mri_nifti(modality="mrsi",space="orig",desc="signal",met=metabolite)       
         # Filter        
-        image_filt_nifti = bhfilt.proc(__nifti,brain_mask)
-        mridata.data["mrsi"][metabolite]["origfilt"]["nifti"] = image_filt_nifti
-        mrsi_filt_refout_path = mridata.data["mrsi"][metabolite]["orig"]["path"].replace("orig","origfilt")
+        image_filt_nifti      = bhfilt.proc(image_og_nifti,brain_mask,fwhm=6,percentile=98)
+        mrsi_filt_refout_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="signal",
+                                                         met=metabolite,option="filtbiharmonic")
         ftools.save_nii_file(image_filt_nifti, header_mrsi  ,f"{mrsi_filt_refout_path}")
-        mridata.data["mrsi"][metabolite]["origfilt"]["path"] = f"{mrsi_filt_refout_path}"
     debug.success("Done")
 
 ############ MRSIto T1w Registration ##################  
@@ -86,8 +84,9 @@ transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 warpfilename              = f"sub-{subject_id}_ses-{session}_desc-mrsi_to_t1w.syn.nii.gz"
 if not exists(join(transform_dir_path,warpfilename)) or overwrite_flag:
     debug.warning(f"{METABOLITE_REF} to T1w Registration not found or not up to date")
-    syn_tx,_          = reg.register(fixed_input  = mridata.data["t1w"]["brain"]["orig"]["path"],
-                                    moving_input  = mridata.data["mrsi"][METABOLITE_REF]["origfilt"]["path"],
+    syn_tx,_          = reg.register(fixed_input  = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain"),
+                                     moving_input  = mridata.get_mri_nifti(modality="mrsi",space="orig",desc="signal",
+                                                                          met=METABOLITE_REF, option="filtbiharmonic"), 
                                     fixed_mask    = None, 
                                     moving_mask   = None,
                                     transform     = "sr",

@@ -50,11 +50,11 @@ class Registration():
         if moving_image is None:
             return
         if fixed_mask is None:
-            debug.warning("No fixed mask specified")
+            pass
         else:
             fixed_mask  = self.__load_ants_image(fixed_mask)
         if moving_mask is None:
-            debug.warning("No moving mask specified")
+            pass
         else:
             moving_mask = self.__load_ants_image(moving_mask)
 

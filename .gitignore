@@ -69,3 +69,8 @@ data/BIDS/Geneva_Study/derivatives/msi/
 data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-LFMIHIFIF-3-cer_dseg.nii.gz
 data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-LFMIHIFIF-3-cer_dseg.tsv
 
+scripts/integrate_cerebellum_parcellation.py
+data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mni_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.nii.gz
+data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mni_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.tsv
+data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.nii.gz
+data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.tsv

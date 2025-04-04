@@ -63,7 +63,7 @@ transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 if not exists(transform_dir_prefix_path) or overwrite_flag:
     debug.warning(f"{transform_prefix} to T1w Registration not found or not up to date")
     syn_tx,_          = reg.register(fixed_input  = mni_template,
-                                    moving_input  = mridata.data["t1w"]["brain"]["orig"]["path"],
+                                    moving_input  = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain"),
                                     fixed_mask    = None, 
                                     moving_mask   = None,
                                     transform     = "s",
