@@ -41,28 +41,28 @@ def main():
     parser = argparse.ArgumentParser(description="Process some input parameters.")
 
     # Add arguments
-    parser.add_argument('--atlas', type=str, default="LFMIHIFIF-3", choices=['LFMIHIFIF-2', 'LFMIHIFIF-3', 'LFMIHIFIF-4', 
-                                                                        'LFMIIIFIF-2', 'LFMIIIFIF-3', 'LFMIIIFIF-4',
-                                                                        'geometric_cubeK18mm','geometric_cubeK23mm',
-                                                                        'aal', 'destrieux','mist-197','schaefer-200'], 
-                        help='Atlas choice (must be one of: LFMIHIFIF-2, LFMIHIFIF-3, LFMIHIFIF-4, geometric, aal, destrieux)')
+    parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS', 'LFMIHIFIF'], 
+                        help='Chimera parcellation scheme, choice must be one of: LFMIHIFIS [default], LFMIHIFIF')
+    parser.add_argument('--scale',type=int,default=3,help="Cortical parcellation scale (default: 3)")
+    parser.add_argument('--nthreads',type=int,default=4, help="Number of parallel threads (default=4)")
     parser.add_argument('--group', type=str, default='Dummy-Project', help='Group name (default: "Dummy-Project")')
     parser.add_argument('--npert', type=int, default=50, help='Number of perturbations (default: 50)')
     parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
     parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
     parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--leave_one_out',type=int,default=0, choices = [1,0],help="Leave-one-metaobolite-out (default: 0)")
-    parser.add_argument('--nthreads',type=int,default=4, help="Number of parallel threads (default=4)")
     parser.add_argument('--show_plot',type=int,default=0, choices = [1,0],help="Display similarity matrix plot (default: 0)")
     parser.add_argument('--t1_pattern', type=str, default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
+    parser.add_argument('--preproc', type=str, default="filtbiharmonic",help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
 
+    
 
 
     # Parse the arguments
     args = parser.parse_args()
 
     # Print the values for demonstration purposes
-    debug.info(f"Atlas GM: {args.atlas}")
+    debug.info(f"GM Parcellation: {args.parc}")
     debug.info(f"Group: {args.group}")
     debug.info(f"Number of perturbations: {args.npert}")
     debug.info(f"subject id: {args.subject_id}")
@@ -78,9 +78,9 @@ def main():
     NPROC         = args.nthreads
     SHOW_PLOT     = bool(args.show_plot)
     t1_pattern    = args.t1_pattern
-
-    PARC_SCHEME    = args.atlas
-    MERGE_PARCEL_PATH = join(dutils.DEVANALYSEPATH,"connectomics","data",f"merge_parcels_{PARC_SCHEME}.json")
+    preproc_string = args.preproc
+    scale          = args.scale
+    parc_scheme    = args.parc
     ###############################################################################
     ############ Parcel List + Merge ##################
     sel_parcel_list = ["ctx-rh","subc-rh","thal-rh","cer-rh",
@@ -92,43 +92,42 @@ def main():
     connectome_dir_path = join(dutils.BIDSDATAPATH,GROUP,"derivatives","connectomes",
                             f"sub-{subject_id}",f"ses-{session}","mrsi")
     mridata             = MRIData(subject_id,session,group=GROUP,t1_pattern=t1_pattern)
-    outfilepath         = mridata.get_connectivity_path("mrsi",PARC_SCHEME)
-    outfilepath = outfilepath.replace("_connectivity.npz",f"_npert_{N_PERT}_connectivity.npz")
+    outfilepath         = mridata.get_connectivity_path("mrsi",parc_scheme)
+    outfilepath         = outfilepath.replace("_connectivity.npz",f"_npert_{N_PERT}_connectivity.npz")
     connectome_dir_path = split(outfilepath)[0]
     #
     outDirfigure_path = join(dutils.ANARESULTSPATH,"MeSiMs",GROUP,prefix)
     if exists(outfilepath):
         debug.success(prefix,"Already processed")
-        if not OVERWRITE:
+        if OVERWRITE:
             debug.warning(prefix,"Overwriting existing")
+        else:
             return
     # MRSI Data
     mrsi_ref_img_path = mridata.data["mrsi"]["Ins"]["orig"]["path"]
-    mrsi_ref_img_np   = mridata.data["mrsi"]["Ins"]["orig"]["nifti"].get_fdata().squeeze()
-    header_mrsi       = mridata.data["mrsi"]["Ins"]["orig"]["nifti"].header
-    if mrsi_ref_img_path ==0:
+    mrsi_ref_img_path = mridata.get_mri_filepath(modality="mrsi",space="orig",
+                                                 desc="signal",met="Ins",option=preproc_string)
+    if not exists(mrsi_ref_img_path):
         debug.error("No MRSI data found")
         return
+
     debug.title(f"Compute Metabolic Simmilarity {prefix}")
     ##############################################################################
     ############## Get Parcel image in MRSI space #############
     ##############################################################################
+    mrsi_orig_mask_nifti = mridata.get_mri_nifti(modality="mrsi",space="orig",desc="brainmask")
+    mrsi_orig_mask_np    = mrsi_orig_mask_nifti.get_fdata().squeeze()
 
-    mrsi_orig_mask_np                                 = np.zeros(mrsi_ref_img_np.shape)
-    mrsi_orig_mask_np[mrsi_ref_img_np>0]              = 1
-
-    parcel_mrsi_ni,path = mridata.get_parcel("mrsi",PARC_SCHEME)
+    parcel_mrsi_ni,path = mridata.get_parcel("mrsi",parc_scheme,scale)
     parcel_mrsi_np      = parcel_mrsi_ni.get_fdata()
     parcel_mrsi_header  = parcel_mrsi_ni.header
     parcel_header_dict  = parc.get_parcel_header(path.replace(".nii.gz",".tsv"))
 
     ############ Get parcels and mask outside MRSI region   #############
-
-    # parcel_mrsi_np ,parcel_header_dict = parc.filter_parcel(parcel_mrsi_np,parcel_header_dict ,ignore_list=ignore_list)
-    # parcel_mrsi_np ,parcel_header_dict = parc.merge_parcels(parcel_mrsi_np,parcel_header_dict, merge_parcels_dict)
-    t1mask_orig_path   = mridata.data["t1w"]["mask"]["orig"]["path"]
+    # t1mask_orig_path   = mridata.data["t1w"]["mask"]["orig"]["path"]
+    t1mask_orig_nifti  = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brainmask")
     transform_list     = mridata.get_transform("inverse","mrsi")
-    t1mask_mrsi_img    = reg.transform(mrsi_ref_img_path,t1mask_orig_path,transform_list).numpy()
+    t1mask_mrsi_img    = reg.transform(mrsi_ref_img_path,t1mask_orig_nifti,transform_list).numpy()
     parcel_header_dict = parc.count_voxels_per_parcel(parcel_mrsi_np,mrsi_orig_mask_np,
                                                                     t1mask_mrsi_img,parcel_header_dict)
     # Extracting all label values without filtering on 'mask'
@@ -141,12 +140,8 @@ def main():
     parcel_labels_ignore_concat = ["-".join(sublist) for sublist in parcel_labels_ignore]
     n_parcels               = len(parcel_header_dict)
     os.makedirs(connectome_dir_path,exist_ok=True)
-    ############ Parcellate and SimMatrix   #############
-    ######### get parcel positions for 2d plot #########
-    # for metabolite in METABOLITES:
-    #     mridata.get_mrsi_volume(metabolite,"origfilt")
-
-    mrsirand       = Randomize(mridata,"origfilt")
+    ############ Compute MeSiM   #############
+    mrsirand       = Randomize(mridata,space="orig",option=preproc_string)
     simmatrix_sp, pvalue_sp,parcel_concentrations   = mesim.compute_simmatrix(mrsirand,parcel_mrsi_np,parcel_header_dict,
                                                                             parcel_label_ids_ignore,N_PERT,
                                                                             corr_mode = "spearman",

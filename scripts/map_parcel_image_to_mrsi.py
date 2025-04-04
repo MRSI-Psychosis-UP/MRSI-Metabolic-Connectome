@@ -53,7 +53,7 @@ def main():
     subject_id, session = args.subject_id, args.session
     mridata = MRIData(subject_id,session,group=GROUP,t1_pattern=t1pattern)
     
-
+    parcel_mrsi_path  = mridata.get_parcel_path(parc_scheme=parc_scheme,scale=scale,space="mrsi")
     # Map T1 parcellation to MRSI space
     if exists(parcel_mrsi_path) and not overwrite:
         debug.success("Parcellation image already mapped to MRSI space")
@@ -68,7 +68,7 @@ def main():
         parcel_image_mrsi = reg.transform(mrsi_ref_img_nifti,parcel_anat_path,transform_list,
                                             interpolator_mode="genericLabel")
         #
-        parcel_mrsi_path  = mridata.get_parcel_path(parc_scheme=parc_scheme,scale=scale,space="mrsi")
+        
         ftools.save_nii_file(parcel_image_mrsi.numpy(),mrsi_header,parcel_mrsi_path)
         debug.success("Saved parcel image in MRSI space to",parcel_mrsi_path)
         indices, labels, _  = parc.read_tsv_file(parcel_anat_path.replace(".nii.gz",".tsv"))

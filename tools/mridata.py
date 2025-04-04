@@ -84,7 +84,7 @@ class  MRIData:
         bids_root = self.ROOT_PATH
         sub,ses = self.subject_id,self.session
         if modality=="mrsi":
-            base_dir = os.path.join(bids_root, "derivatives", "mrsi-orig1", f"sub-{sub}", f"ses-{ses}")
+            base_dir = os.path.join(bids_root, "derivatives", "mrsi-orig", f"sub-{sub}", f"ses-{ses}")
             # Build the filename pattern. If met is provided, include the metabolite key.
             if met and option:
                 pattern = f"sub-{sub}_ses-{ses}_space-{space}_met-{met}_desc-{desc}_{option}_mrsi.nii.gz"
@@ -98,10 +98,18 @@ class  MRIData:
             
             if space=="orig" and acq is not None:
                 pattern = f"sub-{sub}_ses-{ses}_run-{run}_acq-{acq}_desc-{desc}_T1w.nii.gz"
+                if not exists(join(base_dir, pattern)):
+                    pattern = f"sub-{sub}_ses-{ses}_run-{run}_acq-{acq}_desc-{desc}.nii.gz"
+                    if not exists(join(base_dir, pattern)) and "mask" in desc:
+                        pattern = f"sub-{sub}_ses-{ses}_run-{run}_acq-{acq}_desc-brain_mask.nii.gz"
+
+
+
+                print("get_mri_filepath",join(base_dir, pattern))
             else:
                 debug.warning("only orig space available for t1w")
         
-        search_path = os.path.join(base_dir, pattern)
+        search_path = join(base_dir, pattern)
         matches = glob.glob(search_path)
         
         if len(matches) == 1:
