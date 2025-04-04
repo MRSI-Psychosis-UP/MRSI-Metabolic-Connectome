@@ -48,7 +48,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```sh
    chimera -b data/BIDS/Dummy-Project/ -d data/BIDS/Dummy-Project/derivatives/ \ 
            --freesurferdir data/BIDS/Dummy-Project/derivatives/freesurfer/     \
-           -p LFMFIIFIFF -g 2
+           -p LFMFIIFIS -g 2
    ```
 - Use ```-p LFMFIIFIFF -g 2``` supra-region sequence with 2mm GM grow inside WM in order to replicate the results in the [manuscript](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
 - Chimera outputs are saved  ```PROJECT_NAME/derivatives/chimera-atlases```
@@ -77,18 +77,13 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```python
    python scripts/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
 
-2. **Create T1w-to-MNI transforms**  
+2. **Map Chimera parcel image to MRSI space** 
    ```python
-   python scripts/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
+   python scripts/map_parcel_image_to_mrsi.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIF --scale 3
 
-
-3. **Parcellate MRSI with Chimera parcel image** 
+3. **Construct MeSiM** 
    ```python
-   python scripts/parcellate_anatomical.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIF-3
-
-4. **Construct MeSiM** 
-   ```python
-   python scripts/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --show_plot 1 --nthreads 16
+   python scripts/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIF --scale 3 --npert 50 --show_plot 1 --nthreads 16
 
 - **Outputs**
     Warp transforms, coregistered Chimera parcellation label images, MeSiMs are saved in the ```/derivatives``` folder
@@ -100,20 +95,26 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `--group`         | Name of the BIDS project folder or group to process.                                                           | string      | Dummy-Project  |
 | `--subject_id`    | ID of the subject to process.<br>Example: sub-XX                                                                  | string      | S001           |
 | `--session`       | Session ID.<br>Example: V1, V2, V3, ...                                                                           | string      | V1             |
-| `--atlas`         | Chimera parcellation string followed by scale parameter.                                                         | string      | 50             |
-| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | 50             |
+| `--parc `         | Chimera parcellation string followed                    .                                                         | string      | 50             |
+| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | LFMIHIFIS       |
 | `--leave_one_out` | Add leave-one-metabolite-out option to MeSiM construction.<br>Accepts values: 0, 1.                                | int [0,1]   | 0              |
 | `--show_plot`     | Display MeSiM and natural network analysis.<br>Accepts values: 0, 1.                                               | int [0,1]   | 0              |
-| `--overwrite`     | Overwrite existing                                                                                               | int [0,1]   | 0              |
+| `--overwrite`     | Overwrite existing                                                                                               | int [0,1]     | 0              |
 | `--ref_met`       | Reference MRSI metabolite.<br>Used as the moving image for coregistration.                                         | str         | CrPCr          |
-| `--nthreads`      | Number of parallel CPU threads for processing.                                                                   | integer     | 4              |
-| `--t1_pattern`    | T1w image file pattern used for image registration                                                                 | str     | _run-01_acq-memprage_              |
+| `--nthreads`      | Number of parallel CPU threads for processing.                                                                   | integer       | 4              |
+| `--t1        `    | T1w image file path                                                                                              | str           |None            |
+| `--t1mask    `    | T1w brain mask image file path                                                                                   | str           |None            |
 
 
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
 
 
-## Usefull MRSI preprocessing tools
+## Usefull MRSI processing tools
+
+-  **Create T1w-to-MNI transforms**  
+   ```python
+   python scripts/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
+
 
 - **Coregister all MRSI metabolites to T1 & MNI space** 
    ```python
