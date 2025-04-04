@@ -31,7 +31,7 @@ parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads 
 parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
 parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
 parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
-parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_desc-brain",help="T1w file pattern e.g _run-01_acq-memprage_T1w_brain")
+parser.add_argument('--t1'        , type=str, default=None,help="Anatomical T1w file path")
 
 
 args           = parser.parse_args()
@@ -40,12 +40,12 @@ NTHREADS       = args.nthreads
 subject_id     = args.subject_id
 session        = args.session
 overwrite_flag = bool(args.overwrite)
-t1pattern      = args.t1_pattern
+t1_path_arg    = args.t1
 
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(NTHREADS)
 
 #
-mridata            = MRIData(subject_id, session,GROUP,t1pattern)
+mridata            = MRIData(subject_id, session,GROUP)
 ftools             = FileTools()
 BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
 ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
@@ -56,6 +56,12 @@ ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
 debug.separator()
 debug.title(f"Processing {subject_id}-{session} ")
 ############ T1w to MNI Registration ##################  
+
+if t1_path_arg:
+    t1_path = t1_path_arg
+else:
+    t1_path = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain")
+
 transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","anat")
 transform_prefix          = f"sub-{subject_id}_ses-{session}_desc-t1w_to_mni"
 transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
@@ -63,7 +69,7 @@ transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 if not exists(transform_dir_prefix_path) or overwrite_flag:
     debug.warning(f"{transform_prefix} to T1w Registration not found or not up to date")
     syn_tx,_          = reg.register(fixed_input  = mni_template,
-                                    moving_input  = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain"),
+                                    moving_input  = t1_path,
                                     fixed_mask    = None, 
                                     moving_mask   = None,
                                     transform     = "s",

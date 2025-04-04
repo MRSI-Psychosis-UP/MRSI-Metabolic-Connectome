@@ -2,9 +2,8 @@ import os, sys, copy,shutil
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from graphplot.simmatrix import SimMatrixPlot
-# from tqdm import tqdm
-import json
 import pandas as pd
+import nibabel as nib
 from tools.datautils import DataUtils
 from os.path import split, join, exists
 from tools.filetools import FileTools
@@ -52,8 +51,8 @@ def main():
     parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--leave_one_out',type=int,default=0, choices = [1,0],help="Leave-one-metaobolite-out (default: 0)")
     parser.add_argument('--show_plot',type=int,default=0, choices = [1,0],help="Display similarity matrix plot (default: 0)")
-    parser.add_argument('--t1_pattern', type=str, default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
     parser.add_argument('--preproc', type=str, default="filtbiharmonic",help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
+    parser.add_argument('--t1mask' , type=str, default=None,help="Anatomical T1w brain mask path")
 
     
 
@@ -68,19 +67,20 @@ def main():
     debug.info(f"subject id: {args.subject_id}")
     debug.info(f"session: {args.session}")
 
-    subject_id    = args.subject_id
-    session       = args.session
-    GROUP         = args.group
-    ftools        = FileTools()
-    N_PERT        = args.npert
-    OVERWRITE     = args.overwrite
-    LEAVE_ONE_OUT = bool(args.leave_one_out)
-    NPROC         = args.nthreads
-    SHOW_PLOT     = bool(args.show_plot)
-    t1_pattern    = args.t1_pattern
+    subject_id     = args.subject_id
+    session        = args.session
+    GROUP          = args.group
+    ftools         = FileTools()
+    npert          = args.npert
+    OVERWRITE      = args.overwrite
+    LEAVE_ONE_OUT  = bool(args.leave_one_out)
+    NPROC          = args.nthreads
+    SHOW_PLOT      = bool(args.show_plot)
     preproc_string = args.preproc
     scale          = args.scale
     parc_scheme    = args.parc
+    t1mask_path_arg = args.t1mask
+
     ###############################################################################
     ############ Parcel List + Merge ##################
     sel_parcel_list = ["ctx-rh","subc-rh","thal-rh","cer-rh",
@@ -89,11 +89,8 @@ def main():
     ################################################################################
     ############Construct Subject ID ##################
     prefix = f"sub-{subject_id}_ses-{session}"
-    connectome_dir_path = join(dutils.BIDSDATAPATH,GROUP,"derivatives","connectomes",
-                            f"sub-{subject_id}",f"ses-{session}","mrsi")
-    mridata             = MRIData(subject_id,session,group=GROUP,t1_pattern=t1_pattern)
-    outfilepath         = mridata.get_connectivity_path("mrsi",parc_scheme)
-    outfilepath         = outfilepath.replace("_connectivity.npz",f"_npert_{N_PERT}_connectivity.npz")
+    mridata             = MRIData(subject_id,session,group=GROUP)
+    outfilepath         = mridata.get_connectivity_path("mrsi",parc_scheme,scale,npert)
     connectome_dir_path = split(outfilepath)[0]
     #
     outDirfigure_path = join(dutils.ANARESULTSPATH,"MeSiMs",GROUP,prefix)
@@ -125,6 +122,11 @@ def main():
 
     ############ Get parcels and mask outside MRSI region   #############
     # t1mask_orig_path   = mridata.data["t1w"]["mask"]["orig"]["path"]
+    if t1mask_path_arg:
+        t1mask_orig_nifti = nib.load(t1mask_path_arg)
+    else:
+        t1mask_orig_nifti = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain")
+
     t1mask_orig_nifti  = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brainmask")
     transform_list     = mridata.get_transform("inverse","mrsi")
     t1mask_mrsi_img    = reg.transform(mrsi_ref_img_path,t1mask_orig_nifti,transform_list).numpy()
@@ -143,14 +145,14 @@ def main():
     ############ Compute MeSiM   #############
     mrsirand       = Randomize(mridata,space="orig",option=preproc_string)
     simmatrix_sp, pvalue_sp,parcel_concentrations   = mesim.compute_simmatrix(mrsirand,parcel_mrsi_np,parcel_header_dict,
-                                                                            parcel_label_ids_ignore,N_PERT,
+                                                                            parcel_label_ids_ignore,npert,
                                                                             corr_mode = "spearman",
                                                                             rescale   = "zscore",n_proc=NPROC)
     simmatrix_sp_leave_out = None
     if LEAVE_ONE_OUT:
         simmatrix_sp_leave_out      = mesim.leave_one_out(simmatrix_sp,mrsirand,
                                                         parcel_mrsi_np,parcel_header_dict,
-                                                        parcel_label_ids_ignore,N_PERT,
+                                                        parcel_label_ids_ignore,npert,
                                                         corr_mode = "spearman",rescale="zscore")
 
     del parcel_header_dict[0] # Remove background
@@ -185,7 +187,7 @@ def main():
     centroids_arr   = [centroids_dict[parcel_id] for parcel_id in parcel_header_dict.keys() if parcel_id not in parcel_label_ids_ignore]
     distance_matrix = nettools.compute_distance_matrix(np.array(centroids_arr))
     try:    
-        alpha    = 0.05/N_PERT
+        alpha    = 0.05/npert
         simmatrix_sp_corr = copy.deepcopy(simmatrix_sp)
         simmatrix_sp_corr[pvalue_sp>alpha] = 0
         fig, axs = plt.subplots(1,2, figsize=(16, 12))  # Adjust size as necessary
@@ -242,7 +244,7 @@ def main():
         upper_rand_rc  = rand_rc_params["upper"]
         ######### SimMatrix + Binarized PLots ########
         # plot_outpath = outfilepath.replace(".npz","_plot_adjacency")
-        plot_outpath = join(outDirfigure_path,f"{prefix}_npert-{N_PERT}_RichClub.pdf")
+        plot_outpath = join(outDirfigure_path,f"{prefix}_npert-{npert}_RichClub.pdf")
         fig, axs = plt.subplots(2,2, figsize=(16, 12))  # Adjust size as necessary
         simplt.plot_simmatrix(simmatrix_adjusted,ax=axs[0,0],titles=f"Weighted MeSiM",
                             scale_factor=0.4,

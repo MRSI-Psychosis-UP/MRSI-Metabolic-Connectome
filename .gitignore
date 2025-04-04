@@ -15,7 +15,7 @@ data/BIDS/Dummy-Project/derivatives/mialabased-thalamicparc/
 data/BIDS/Dummy-Project/derivatives/ants-spattransf/
 data/BIDS/Dummy-Project/derivatives/sub-S001
 data/BIDS/Dummy-Project/derivatives/freesurfer
-data/BIDS/Dummy-Project/derivatives/connectomes
+data/BIDS/Dummy-Project/derivatives/connectivity
 data/BIDS/Dummy-Project/derivatives/transforms
 
 data/BIDS/Dummy-Project/derivatives/mrsi/space-origfilt

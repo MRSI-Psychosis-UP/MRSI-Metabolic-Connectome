@@ -9,6 +9,7 @@ import copy, sys
 from registration.registration import Registration
 from connectomics.network import NetBasedAnalysis
 from connectomics.nettools import NetTools
+from tools.mridata import MRIData
 
 
 import argparse, json
@@ -28,9 +29,9 @@ def main():
     parser = argparse.ArgumentParser(description="Process some input parameters.")
 
     # Add arguments
-    parser.add_argument('--atlas', type=str, default="LFMIHIFIF-3", choices=['LFMIHIFIF-2', 'LFMIHIFIF-3', 'LFMIHIFIF-4', 
-                                                                        'LFMIIIFIF-2', 'LFMIIIFIF-3', 'LFMIIIFIF-4'], 
-                        help='Atlas choice (must be one of: LFMIHIFIF-2, LFMIHIFIF-3, LFMIHIFIF-4)')
+    parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS', 'LFMIHIFIF'], 
+                        help='Chimera parcellation scheme, choice must be one of: LFMIHIFIS [default], LFMIHIFIF')
+    parser.add_argument('--scale',type=int,default=3,help="Cortical parcellation scale (default: 3)")
     parser.add_argument('--group', type=str, default='Dummy-Project', help='Group name (default: "Dummy-Project")')
     parser.add_argument('--proj_comp',type=int, default=1, help='Dim Reduction component (default:1)')
     parser.add_argument('--n_pert', type=int, default=50, help='Number of perturbations (default: 50)')
@@ -41,32 +42,33 @@ def main():
 
 
     args        = parser.parse_args()
-    parc_scheme = args.atlas 
+    parc_scheme = args.parc 
     GROUP       = args.group
     subject_id  = args.subject_id
     session     = args.session
     npert       = args.n_pert
     perplexity  = args.perplexity
-
-
+    scale       = args.scale
     proj_comp   = args.proj_comp
+
+    # OUTDIR PATH
     MSIDIRPATH  = join(dutils.BIDSDATAPATH,GROUP,"derivatives","msi",
-                    f"sub-{subject_id}",f"ses-{session}","mrsi")
-    CONDIRPATH  = join(dutils.BIDSDATAPATH,GROUP,"derivatives","connectomes",
-                    f"sub-{subject_id}",f"ses-{session}","mrsi")
+                    f"sub-{subject_id}",f"ses-{session}")
+
 
     os.makedirs(MSIDIRPATH,exist_ok=True)
-
+    mridata             = MRIData(subject_id,session,group=GROUP)
     # Parcellation in MNI space
-    parcellation_data    = nib.load(join(dutils.DEVDATAPATH,"atlas",f"chimera-{parc_scheme}",f"chimera-{parc_scheme}.nii.gz"))
+    parcellation_data    = nib.load(join(dutils.DEVDATAPATH,"atlas",f"chimera-{parc_scheme}-{scale}",
+                                         f"chimera-{parc_scheme}-{scale}.nii.gz"))
     parcellation_data_np = parcellation_data.get_fdata().astype(int)
     mni_template         = parcellation_data.header
 
 
-    filename       = f"sub-{subject_id}_ses-{session}_run-01_acq-memprage_atlas-{parc_scheme}_npert_{npert}_connectivity.npz"
-    condata        = np.load(join(CONDIRPATH,filename))
-    inputData      = condata["simmatrix_sp"]
-    labels_indices = condata["labels_indices"]
+    connectivity_path = mridata.get_connectivity_path("mrsi",parc_scheme,scale,npert)
+    condata           = np.load(connectivity_path)
+    inputData         = condata["simmatrix_sp"]
+    labels_indices    = condata["labels_indices"]
 
     # Dim-Reduction and project to MNI
 
@@ -77,7 +79,7 @@ def main():
                                                 parcellation_data_np.astype(int),
                                                 labels_indices)
     
-    filename  = f"sub-{subject_id}_ses-{session}_atlas-{parc_scheme}_npert_{npert}_desc-msi3D_mrsi.nii.gz"
+    filename  = f"sub-{subject_id}_ses-{session}_atlas-chimera{parc_scheme}_scale{scale}_npert-{npert}_desc-msi3D_mrsi.nii.gz"
     outpath  = join(MSIDIRPATH,filename)
     ftools.save_nii_file(projected_data_3D,mni_template,outpath)
     np.savez(outpath.replace("msi3D_mrsi.nii.gz","msi-parcel_mrsi.npz"),

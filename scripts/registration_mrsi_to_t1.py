@@ -35,17 +35,17 @@ parser.add_argument('--ref_met'   , type=str, default = "CrPCr",help="Reference 
 parser.add_argument('--subject_id', type=str, help='subject id', default="S001")
 parser.add_argument('--session'   , type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V1")
 parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
-parser.add_argument('--t1_pattern', type=str, default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
+parser.add_argument('--t1'        , type=str, default=None,help="Anatomical T1w file path")
 
 
 args               = parser.parse_args()
 GROUP              = args.group
 subject_id         = args.subject_id
 session            = args.session
-t1pattern          = args.t1_pattern
+t1_path_arg        = args.t1
 overwrite_flag     = bool(args.overwrite)
 # Set arguments
-mridata            = MRIData(subject_id, session,GROUP,t1pattern)
+mridata            = MRIData(subject_id, session,GROUP)
 BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
 ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
 os.makedirs(ANTS_TRANFORM_PATH,exist_ok=True)
@@ -76,15 +76,18 @@ if not exists(__path) :
     debug.success("Done")
 
 ############ MRSIto T1w Registration ##################  
-transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","mrsi")
+if t1_path_arg:
+    t1_path = t1_path_arg
+else:
+    t1_path = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain")
+# Load transform paths
 transform_prefix          = f"sub-{subject_id}_ses-{session}_desc-mrsi_to_t1w"
-
 transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","mrsi")
 transform_dir_prefix_path = join(transform_dir_path,f"{transform_prefix}")
 warpfilename              = f"sub-{subject_id}_ses-{session}_desc-mrsi_to_t1w.syn.nii.gz"
 if not exists(join(transform_dir_path,warpfilename)) or overwrite_flag:
     debug.warning(f"{METABOLITE_REF} to T1w Registration not found or not up to date")
-    syn_tx,_          = reg.register(fixed_input  = mridata.get_mri_nifti(modality="t1w",space="orig",desc="brain"),
+    syn_tx,_          = reg.register(fixed_input   = t1_path,
                                      moving_input  = mridata.get_mri_nifti(modality="mrsi",space="orig",desc="signal",
                                                                           met=METABOLITE_REF, option="filtbiharmonic"), 
                                     fixed_mask    = None, 
