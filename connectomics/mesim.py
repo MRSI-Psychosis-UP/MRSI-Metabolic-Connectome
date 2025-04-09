@@ -6,9 +6,6 @@ from rich.progress import Progress,track
 from tools.debug import Debug
 from sklearn.linear_model import LinearRegression
 
-
-
-
 debug  = Debug()
 
 
