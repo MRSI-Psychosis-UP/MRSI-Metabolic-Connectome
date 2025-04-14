@@ -101,7 +101,6 @@ def main():
         else:
             return
     # MRSI Data
-    mrsi_ref_img_path = mridata.data["mrsi"]["Ins"]["orig"]["path"]
     mrsi_ref_img_path = mridata.get_mri_filepath(modality="mrsi",space="orig",
                                                  desc="signal",met="Ins",option=preproc_string)
     if not exists(mrsi_ref_img_path):
@@ -121,7 +120,6 @@ def main():
     parcel_header_dict  = parc.get_parcel_header(path.replace(".nii.gz",".tsv"))
 
     ############ Get parcels and mask outside MRSI region   #############
-    # t1mask_orig_path   = mridata.data["t1w"]["mask"]["orig"]["path"]
     if t1mask_path_arg:
         t1mask_orig_nifti = nib.load(t1mask_path_arg)
     else:
