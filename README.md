@@ -108,6 +108,20 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
 
+## Batch processing
+
+1. **Create MRSI-to-T1w transforms**
+   ```python
+   python experiments/MeSiM_pipeline/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+
+2. **Construct MeSiM** 
+   ```python
+   python experiments/MeSiM_pipeline/construct_MeSiM_subject_batch.py --group Dummy-Project --atlas LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+
+
+- **Notes**
+     ```--participants``` list all the the participant and session ID  as defined by the standard BIDS ```participants_allsessions.tsv ```. If not specified ```--participants```  is set to ```$BIDSDATAPATH/group``` defined in the environment file ```.env``` created in step ```4. **Set up ENV paths**```
+  
 
 ## Usefull MRSI processing tools
 
