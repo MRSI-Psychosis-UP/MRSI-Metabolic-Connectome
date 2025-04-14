@@ -66,10 +66,10 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | **BIDS Prefix** | **Description**                           | **Choices**                                                                                           |
 |-----------------|-------------------------------------------|-------------------------------------------------------------------------------------------------------|
 | `subject_id`         | Subject/Participant ID                    |                                                                                                       |
-| `session`         | Session                                   | `[V1, V2, V3, ...]`                                                                                   |
+| `session`         | Session ID                                   | `[V1, V2, V3, ...]`                                                                                   |
 | `space`       | MRI Acquisition space                     | `orig` or `origfilt` (for original MRSI space), `t1w`, `mni`                                                          |
-| `metabolite`         | Type of reconstructed MRSI map           | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate    <br>`water` water signal                                       |
-| `description`        | Type of map                          |  `signal` MRSI signal <br> `crlb` (Cramer-Rao LowerBound LC model) <br> `fwhm` (full-width half-maximum LC model)  <br> `snr` (Signal/Noise LC model)  <br> `filtharmonic` (type of preprocessing filter)  <br> `brainmask` brain binary mask 
+| `metabolite`         | MRSI metabolite          | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate    <br>`water` water signal                                       |
+| `description`        | Description of MRSI map                          |  `signal` MRSI signal <br> `crlb` (Cramer-Rao LowerBound LC model) <br> `fwhm` (full-width half-maximum LC model)  <br> `snr` (Signal/Noise LC model)  <br> `filtharmonic` (type of preprocessing filter)  <br> `brainmask` brain binary mask 
 
 ## Steps to Construct a within-subject MeSiM
 
