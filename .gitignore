@@ -74,3 +74,16 @@ data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S00
 data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mni_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.tsv
 data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.nii.gz
 data/BIDS/Dummy-Project/derivatives/chimera-atlases/sub-S001/ses-V1/anat/sub-S001_ses-V1_run-01_acq-memprage_space-mrsi_atlas-chimeraLFMIHIFIS_desc-scale3grow2mm_dseg.tsv
+experiments/MeSiM_pipeline/run_pipeline.sh
+experiments/MeSiM_pipeline/select_patients.py
+experiments/MeSiM_pipeline/integrate_cerebellum_parc.py
+experiments/MeSiM_pipeline/integrate_cerebellum_parc_batch.py
+experiments/MeSiM_pipeline/compare_patients_control.py
+experiments/construct_MeSiM_subject.py
+experiments/construct_MSI-map_group.py
+experiments/construct_MSI-map_subj.py
+experiments/integrate_cerebellum_parcellation.py
+experiments/plot_metabolic_similarity_map.py
+experiments/registration_mrsi_to_t1.py
+experiments/registration_t1_to_MNI.py
+experiments/transform_mrsi_to-t1_to-mni.py
