@@ -60,7 +60,7 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```
 - File naming convention :
   ```sh
-  sub-<subject_id>_ses-<session>_space-<space>_acq-<acq>_desc-<metabolite>_mrsi.nii.gz
+  sub-<subject_id>_ses-<session>_space-<space>_met-<metabolite>_desc-<description>_mrsi.nii.gz
   ```
 
 | **BIDS Prefix** | **Description**                           | **Choices**                                                                                           |
@@ -68,8 +68,8 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `subject_id`         | Subject/Participant ID                    |                                                                                                       |
 | `session`         | Session                                   | `[V1, V2, V3, ...]`                                                                                   |
 | `space`       | MRI Acquisition space                     | `orig` or `origfilt` (for original MRSI space), `t1w`, `mni`                                                          |
-| `acq`         | Type of reconstructed MRSI map           | `conc` (metabolite signal)<br>`crlb` (LCmodel-issued CRLB map)                                          |
-| `metabolite`        | Metabolite string                         | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate 
+| `metabolite`         | Type of reconstructed MRSI map           | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate    <br>`water` water signal                                       |
+| `description`        | Type of map                          |  `signal` MRSI signal <br> `crlb` (Cramer-Rao LowerBound LC model) <br> `fwhm` (full-width half-maximum LC model)  <br> `snr` (Signal/Noise LC model)  <br> `filtharmonic` (type of preprocessing filter)  <br> `brainmask` brain binary mask 
 
 ## Steps to Construct a within-subject MeSiM
 
