@@ -95,8 +95,8 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `--group`         | Name of the BIDS project folder or group to process.                                                           | string      | Dummy-Project  |
 | `--subject_id`    | ID of the subject to process.<br>Example: sub-XX                                                                  | string      | S001           |
 | `--session`       | Session ID.<br>Example: V1, V2, V3, ...                                                                           | string      | V1             |
-| `--parc `         | Chimera parcellation string followed                    .                                                         | string      | 50             |
-| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | LFMIHIFIS       |
+| `--parc `         | Chimera parcellation string followed                    .                                                         | string      | LFMIHIFIS             |
+| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | 50       |
 | `--leave_one_out` | Add leave-one-metabolite-out option to MeSiM construction.<br>Accepts values: 0, 1.                                | int [0,1]   | 0              |
 | `--show_plot`     | Display MeSiM and natural network analysis.<br>Accepts values: 0, 1.                                               | int [0,1]   | 0              |
 | `--overwrite`     | Overwrite existing                                                                                               | int [0,1]     | 0              |
