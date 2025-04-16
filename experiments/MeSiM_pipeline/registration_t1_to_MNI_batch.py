@@ -2,6 +2,7 @@ import os, sys, subprocess, time
 import numpy as np
 import json, argparse
 import pandas as pd
+from tools.progress_bar import ProgressBar
 from tools.datautils import DataUtils
 from os.path import split, join, exists, abspath
 from tools.debug import Debug
@@ -10,35 +11,34 @@ from tools.mridata import MRIData
 
 dutils    = DataUtils()
 debug     = Debug()
+pb        = ProgressBar()
+
+###############################################################################
 LOG_DIR   = dutils.ANALOGPATH
-EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","MeSiM_pipeline","registration_mrsi_to_t1.py")
+EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","MeSiM_pipeline","registration_t1_to_MNI.py")
 log_file_path = join(LOG_DIR,split(EXEC_PATH)[1].replace(".py",""),"full_run.log")
 os.makedirs(split(log_file_path)[0],exist_ok=True)
+###############################################################################
+
 ###############################################################################
 parser = argparse.ArgumentParser(description="Process some input parameters.")
 # Parse arguments
 parser.add_argument('--group', type=str,default="Mindfulness-Project") 
 parser.add_argument('--nthreads'  , type=int, default = 4,help="Number of CPU threads [default=4]")
-parser.add_argument('--ref_met'   , type=str, default = "CrPCr",help="Reference metabolite to be coregistered with T1 [CrPCr]")
 parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
 parser.add_argument('--t1pattern' , type=str, default=None,help="Anatomical T1w file pattern")
 parser.add_argument('--participants', type=str, default=None,
                     help="Path to TSV file containing list of participant IDs and sessions to include. If not specified, process all.")
-parser.add_argument('--b0'        , type=float, default = 3,choices=[3,7],help="MRI B0 field strength in Tesla [default=3]")
 
 
 args               = parser.parse_args()
 group              = args.group
 overwrite          = args.overwrite
-ref_met            = args.ref_met
 participants_file  = args.participants
 nthreads           = args.nthreads
 t1pattern          = args.t1pattern
-B0_strength        = str(args.b0)
 
 
-
-###############################################################################
 
 ################################################################################
 if participants_file is None:
@@ -50,7 +50,10 @@ else:
     
 subject_id_list = df.participant_id.to_list()
 session_id_list = df.session_id.to_list()
-n_to_process    = len(subject_id_list)
+################################################################################
+
+
+
 
 ############ Process all subjects ##################
 os.system("clear")
@@ -82,7 +85,6 @@ with open(log_file_path, 'a') as logfile:
         try:
             cmd = [
                 "python3", EXEC_PATH,
-                "--ref_met", ref_met,
                 "--t1", t1_path,
                 "--subject_id", str(subject_id),
                 "--session", session,

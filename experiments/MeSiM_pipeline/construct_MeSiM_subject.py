@@ -155,6 +155,7 @@ def main():
     label_list_concat       = ["-".join(sublist) for sublist in all_labels_list]
     parcel_labels_ignore_concat = ["-".join(sublist) for sublist in parcel_labels_ignore]
     n_parcels               = len(parcel_header_dict)
+    os.makedirs(connectome_dir_path,exist_ok=True)
     ############ Compute MeSiM   #############
     mrsirand       = Randomize(mridata,space="orig",option=preproc_string)
     simmatrix_sp, pvalue_sp,parcel_concentrations   = mesim.compute_simmatrix(mrsirand,parcel_mrsi_np,parcel_header_dict,

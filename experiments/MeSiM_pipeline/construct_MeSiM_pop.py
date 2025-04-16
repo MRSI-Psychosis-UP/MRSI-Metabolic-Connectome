@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS', 'LFMIHIFIF','LFIIIIFIS'], 
                         help='Chimera parcellation scheme, choice must be one of: LFMIHIFIS [default], LFMIHIFIF')
     parser.add_argument('--scale',type=int,default=3,help="Cortical parcellation scale (default: 3)")
-    parser.add_argument('--group', type=str, default='Dummy-Project', help='group name (default: "Mindfulness-Project")')
+    parser.add_argument('--group', type=str, default='Mindfulness-Project', help='group name (default: "Mindfulness-Project")')
     parser.add_argument('--npert', type=int, default=50, help='Number of perturbations (default: 50)')
     parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--preproc', type=str, default="filtbiharmonic",help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
@@ -47,18 +47,22 @@ def main():
                     help="Path to TSV file containing list of participant IDs and sessions to include. If not specified, process all.")
     parser.add_argument('--alpha', type=float, default=0.05, help='MeSiM corr correction before Bonferroni (default: 0.05)')
     parser.add_argument('--results_dir_path' , type=str, default=None,help=f"Directory path where results figures will be saved (default: {dutils.ANARESULTSPATH})")
-
+    parser.add_argument('--mrsi_cov' , type=float, default=0.65 ,
+                                help="MRSI-to-T1 parcel coverage above which enough MRSI singal has been recorded (default: 0.65)")
+    
     ################################################################################
     args        = parser.parse_args()
-    parc_scheme        = args.parc 
+    parc_scheme = args.parc 
     scale       = args.scale 
     group       = args.group
     npert       = args.npert
     preproc_str = args.preproc.replace("filt","")
     overwrite   = bool(args.overwrite)
     analyze     = bool(args.analyze)
+    mrsi_cov    = args.mrsi_cov
+    alpha_bf    =  args.alpha/args.npert
+
     participants_file = args.participants
-    alpha_bf    = args.alpha/args.npert
     outDirfigure_path = args.results_dir_path
 
     ################################################################################
@@ -128,10 +132,43 @@ def main():
     debug.info(f"Excluded {len(e)} sparse MeSiMs of shape, remaining {MeSiM_list_sel.shape[0]}")
 
 
+    ####################### Load Parcellation Image ########################################
+    parcellation_data = nib.load(join(dutils.DEVANALYSEPATH,"data","atlas",
+                                      f"chimera-{parc_scheme}-{scale}",
+                                      f"chimera-{parc_scheme}-{scale}.nii.gz"))
+    parcellation_data_np = parcellation_data.get_fdata().astype(int)
+    header_mni           = parcellation_data.header
+
+    ################ Ignore Parcels defined by low MRSI coveraged <-> QMASK ####################
+    qmask_dir      = join(dutils.BIDSDATAPATH,group,"derivatives","group","qmask")
+    qmask_path     = join(qmask_dir, f"{group}_space-mni_met-CrPCr_desc-qmask_mrsi.nii.gz")
+    qmask_pop      = nib.load(qmask_path)
+    n_voxel_counts_dict = parc.count_voxels_inside_parcel(qmask_pop.get_fdata(), 
+                                                          parcellation_data_np, 
+                                                          parcel_labels_group)
+    ignore_parcel_idx = [index for index in n_voxel_counts_dict if n_voxel_counts_dict[index] < mrsi_cov]
+    ignore_rows = [np.where(parcel_labels_group == parcel_idx)[0][0] for parcel_idx in ignore_parcel_idx if len(np.where(parcel_labels_group == parcel_idx)[0]) != 0]
+    ignore_rows = np.sort(np.array(ignore_rows)) 
+
+    for i in ignore_rows:
+        debug.info(f"{i} Low MRSI coverage",round(n_voxel_counts_dict[parcel_labels_group[i]],2),
+                   "detected for parcel",parcel_labels_group[i],parcel_names_group[i])
+
+    # Delete nodes in MeSiM 
+    parcel_labels_group         = np.delete(parcel_labels_group,ignore_rows)
+    parcel_names_group          = np.delete(parcel_names_group,ignore_rows)
+    _MeSiM_list_sel             = np.delete(MeSiM_list_sel,ignore_rows,axis=1)
+    MeSiM_list_sel              = np.delete(_MeSiM_list_sel,ignore_rows,axis=2)
+    metab_profiles_subjects_sel = np.delete(metab_profiles_subjects_sel,ignore_rows,axis=1)
+
+    # parcel_concentrations5D = np.delete(parcel_concentrations5D, ignore_rows, axis=1)
+    # parcel_concentrations4D = parcel_concentrations5D.mean(axis=0)
+    debug.info(f"MeSiMs shape {MeSiM_list_sel.shape[1::]} from {MeSiM_list_sel.shape[0]} subjects")
+
     ############# Detect empty correlations from pop AVG  #############
-    MeSiM_pop_avg             = MeSiM_list_sel.mean(axis=0)
+    MeSiM_pop_avg                 = MeSiM_list_sel.mean(axis=0)
     # Cleanup empty nodes
-    mask_parcel_indices         = np.where(np.diag(MeSiM_pop_avg) == 0)[0]
+    mask_parcel_indices           = np.where(np.diag(MeSiM_pop_avg) == 0)[0]
     debug.title("Remove sparse nodes")
     # delete rowd/cols of empty correlations 
     _MeSiM_pop_avg_clean          = np.delete(MeSiM_pop_avg, mask_parcel_indices, axis=0)
@@ -142,7 +179,7 @@ def main():
 
 
     for i in mask_parcel_indices:
-        debug.info("Removed node",parcel_labels_group[i],parcel_names_group[i])
+        debug.info("Removed sparse connectivty node",parcel_labels_group[i],parcel_names_group[i])
 
     debug.separator()
     debug.info(f"Final MeSiM shape {MeSiM_pop_avg_clean.shape}")
@@ -159,12 +196,22 @@ def main():
     _outpath = mridata.get_connectivity_path("mrsi",parc_scheme,scale,npert,
                                                             filtoption=preproc_str)
     filename = split(_outpath)[1].replace(f"sub-{subject_id}_ses-{session}",group)
-    filename = filename.replace("connectivity","group_connectivity")
+    
+
+    if "patients" in split(participants_file)[1]:
+        filename = filename.replace("connectivity","patients_connectivity")
+        debug.success("patients",filename)
+    elif "controls" in split(participants_file)[1]:
+        filename = filename.replace("connectivity","controls_connectivity")
+        debug.success("controls",filename)
+    else:
+        filename = filename.replace("connectivity","group_connectivity")
+        debug.success("ELSE",filename)
+        
     MeSiM_outpath  = join(resultssubdir,filename)
-
-
+    
     np.savez(MeSiM_outpath,
-                    metab_profiles_subj_list = metab_profiles_subjects_sel,
+                    metab_profiles_subj_list = metab_profiles_subjects_clean,
                     MeSiM_subj_list          = MeSiM_subjects_list_clean,
                     MeSiM_pop_avg            = MeSiM_pop_avg_clean,
                     parcel_labels_group      = parcel_labels_group,
@@ -182,8 +229,8 @@ def main():
     if not analyze:return 
     ################ Create Parcel distance matrix 
     _parc_scheme       = "LFMIHIFIF"
-    parcel_path        = join(dutils.DEVDATAPATH,"atlas",f"chimera-{_parc_scheme}-{scale}",
-                                        f"chimera-{_parc_scheme}-{scale}.nii.gz")
+    parcel_path        = join(dutils.DEVDATAPATH,"atlas",f"chimera-{parc_scheme}-{scale}",
+                                        f"chimera-{parc_scheme}-{scale}.nii.gz")
     parcel_mrsi         = nib.load(parcel_path)
     parcel_mrsi_np      = parcel_mrsi.get_fdata()
     parcel_mrsi_header  = parcel_mrsi.header
@@ -207,7 +254,6 @@ def main():
             outDirfigure_path = join(dutils.ANARESULTSPATH,"MeSiMs",group)
             debug.info("Setting result figures output directory to ",outDirfigure_path)    
         
-
         ######### Adjacency Matrix ########
         debug.info("Create Rich-Club Results")
         # Adj Matrix

@@ -23,19 +23,19 @@ def main():
     parser.add_argument('--subject_id',type=str,default="S002",help="Subject ID [sub-??")
     parser.add_argument('--session',type=str,default="V3",help="Session [ses-??")
     parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads [default=4]")
-    parser.add_argument('--t1_pattern',type=str,default="_run-01_acq-memprage_",help="T1w file pattern e.g _run-01_acq-memprage_")
     parser.add_argument('--filtoption',type=str,default="filtbiharmonic",help="MRSI filter option  [default=filtbihamonic]")
     parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--t1'        , type=str, default=None,help="Anatomical T1w file path")
+    parser.add_argument('--b0'        , type=float, default = 3,choices=[3,7],help="MRI B0 field strength in Tesla [default=3]")
 
 
 
     args               = parser.parse_args()
     GROUP              = args.group
-    t1pattern          = args.t1_pattern
     filtoption         = args.filtoption
     overwrite          = args.overwrite
     t1_path_arg        = args.t1
+    B0_strength        = args.b0
 
     os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(args.nthreads)
     ftools   = FileTools()
@@ -45,6 +45,13 @@ def main():
     BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
     ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
     METABOLITE_LIST = ["CrPCr", "GluGln", "GPCPCh", "NAANAAG", "Ins"]
+
+    if B0_strength == 3:
+        METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins"]
+    elif B0_strength == 7:
+        METABOLITE_LIST = [
+            "NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
+
 
     # Use a list comprehension to generate two entries per metabolite:
     SIGNAL_LIST = [

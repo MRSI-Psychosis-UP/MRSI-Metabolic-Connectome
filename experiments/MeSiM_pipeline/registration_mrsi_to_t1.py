@@ -11,8 +11,8 @@ from tools.debug import Debug
 import random, argparse
 from tools.mridata import MRIData
 from filters.biharmonic import BiHarmonic
+import nibabel as nib
 
-METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins"]
 
 dutils   = DataUtils()
 debug    = Debug()
@@ -26,6 +26,7 @@ def main():
     # Parse arguments
     parser.add_argument('--group', type=str,default="Mindfulness-Project") 
     parser.add_argument('--nthreads'  , type=int, default = 4,help="Number of CPU threads [default=4]")
+    parser.add_argument('--b0'        , type=float, default = 3,choices=[3,7],help="MRI B0 field strength in Tesla [default=3]")
     parser.add_argument('--ref_met'   , type=str, default = "CrPCr",help="Reference metabolite to be coregistered with T1 [CrPCr]")
     parser.add_argument('--subject_id', type=str, help='subject id', default="S002")
     parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V3")
@@ -38,6 +39,7 @@ def main():
     subject_id         = args.subject_id
     session            = args.session
     t1_path_arg        = args.t1
+    B0_strength        = args.b0
     overwrite_flag     = bool(args.overwrite)
     # Set arguments
     mridata            = MRIData(subject_id, session,GROUP)
@@ -47,6 +49,11 @@ def main():
     METABOLITE_REF     = args.ref_met
     os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(args.nthreads)
 
+    if B0_strength == 3:
+        METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins"]
+    elif B0_strength == 7:
+        METABOLITE_LIST = [
+            "NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
 
     __path   = mridata.get_mri_filepath(modality="mrsi",space="orig", desc="signal", met=METABOLITE_REF)
     if not exists(__path):
@@ -57,9 +64,22 @@ def main():
     debug.separator()
     debug.title(f"Start Registration {subject_id}-{session}")
     ############ Denoise PCr+Cr  ##################
-    __path   = mridata.get_mri_filepath(modality="mrsi",space="orig", desc="signal", met=METABOLITE_REF,option="filtbiharmonic")
+    __path   = mridata.get_mri_filepath(modality="mrsi",space="orig", desc="signal", met=METABOLITE_LIST[-1],option="filtbiharmonic")
     if not exists(__path) :
-        __nifti_mask   = mridata.get_mri_nifti(modality="mrsi",space="orig",desc="brainmask")
+        # Load MRSI Mask
+        __mrsi_mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
+        if exists(__mrsi_mask_path):
+            __nifti_mask = nib.load(__mrsi_mask_path)
+        else:
+            # Create MRSI Mask from orig MRSI
+            __mrsi_tmp_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="signal", met=METABOLITE_REF)
+            __tmp_nifti     = nib.load(__mrsi_tmp_path)
+            _tmp_np         = __tmp_nifti.get_fdata()
+            __np_mask       = np.zeros_like(_tmp_np)
+            __np_mask[_tmp_np>0] = 1
+            __nifti_mask    = ftools.numpy_to_nifti(__np_mask,__tmp_nifti.header)
+            ftools.save_nii_file(__np_mask,outpath=__mrsi_mask_path,header=__tmp_nifti.header)
+        #
         brain_mask     = __nifti_mask.get_fdata().squeeze().astype(bool)
         header_mrsi    = __nifti_mask.header
         for metabolite in METABOLITE_LIST:

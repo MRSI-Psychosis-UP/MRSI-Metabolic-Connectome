@@ -7,6 +7,7 @@ from tools.debug import Debug
 from os.path import join, split, exists
 from tools.mridata import MRIData
 import argparse
+import nibabel as nib
 from nilearn import datasets  
 
 
@@ -14,7 +15,6 @@ from nilearn import datasets
 dutils       = DataUtils()
 debug        = Debug()
 reg          = Registration()
-mni_template = datasets.load_mni152_template()
 
 
 
@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--group', type=str,default="Mindfulness-Project") 
     parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads [default=4]")
     parser.add_argument('--subject_id', type=str, help='subject id', default="S002")
-    parser.add_argument('--session', type=str, help='recording session',choices=['V1', 'V2', 'V3','V4','V5'], default="V3")
+    parser.add_argument('--session', type=str, help='recording session', default="V3")
     parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--t1'        , type=str, default=None,help="Anatomical T1w file path")
 
@@ -44,8 +44,6 @@ def main():
     ftools             = FileTools()
     BIDS_ROOT_PATH     = join(dutils.BIDSDATAPATH,GROUP)
     ANTS_TRANFORM_PATH = join(BIDS_ROOT_PATH,"derivatives","transforms","ants")
-
-
     ################################################
 
     debug.separator()
@@ -60,6 +58,12 @@ def main():
     if not exists(t1_path):
         debug.error(f"{t1_path} path does not exist")
         return
+
+    ##### Get MNI template #####
+    t1_resolution = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
+    debug.info("Loading MNI with",t1_resolution,"mm isotropic resolution")
+    mni_template = datasets.load_mni152_template(t1_resolution)
+    ################################################
 
     transform_dir_path        = join(ANTS_TRANFORM_PATH,f"sub-{subject_id}",f"ses-{session}","anat")
     transform_prefix          = f"sub-{subject_id}_ses-{session}_desc-t1w_to_mni"
