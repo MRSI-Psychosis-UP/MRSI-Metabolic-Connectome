@@ -87,3 +87,7 @@ experiments/plot_metabolic_similarity_map.py
 experiments/registration_mrsi_to_t1.py
 experiments/registration_t1_to_MNI.py
 experiments/transform_mrsi_to-t1_to-mni.py
+experiments/MeSiM_pipeline/participant_list/best_LPN-Project_sessions_mrsi.tsv
+experiments/MeSiM_pipeline/participant_list/best_Mindfulness-Project_sessions_mrsi.tsv
+experiments/MeSiM_pipeline/participant_list/controls_LPN-Project_sessions_mrsi.tsv
+experiments/MeSiM_pipeline/participant_list/patients_LPN-Project_sessions_mrsi.tsv
