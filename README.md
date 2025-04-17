@@ -85,6 +85,15 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```python
    python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --atlas LFMIHIFIS --scale 3 --npert 50 --show_plot 1 --nthreads 16 --analyze 1 
 
+4. **Construct population averaged MeSiM from provided within-subject MeSiMs (Geneva-Study)** 
+   ```python
+    python experiments/MeSiM_pipeline/construct_MeSiM_pop.py --group Geneva-Study --scale 3 --parc LFMIHIFIS --participants experiments/MeSiM_pipeline/participant_list/best_Geneva-Study_sessions_mrsi.tsv
+
+5. **Construct Metabolic Similarity Index (MSI) 3DMap from the population averaged MeSiM (Geneva-Study)** 
+   ```python
+    python experiments/MeSiM_pipeline/construct_MSI-map_pop.py --group Geneva-Study --scale 3 --parc LFMIHIFIS --dimalg pca_tsne --perplexity 30
+
+
 - **Outputs**
     Warp transforms, coregistered Chimera parcellation label images, MeSiMs are saved in the ```/derivatives``` folder
 
@@ -125,18 +134,25 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 ## Usefull MRSI processing tools
 
--  **Create T1w-to-MNI transforms**  
+-  **Create T1w-to-MNI transforms (1 subject-session)**  
    ```python
-   python experiments/MeSiM_pipeline/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16
+   python experiments/MeSiM_pipeline/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16 --t1 $PATH2TW_FILE
+
+-  **Create T1w-to-MNI transforms (batch process)**  
+   ```python
+   python experiments/MeSiM_pipeline/registration_t1_to_MNI_batch.py --group Dummy-Project  --particpants $PATH2_PARTICIPANT-SESSION_FILE --nthreads 16 --t1pattern T1PATTERM
 
 
-- **Coregister all MRSI metabolites to T1 & MNI space** 
+- **Coregister all MRSI metabolites to T1 & MNI space (1 subject-session)** 
    ```python
     python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
 
+- **Coregister all MRSI metabolites to T1 & MNI space (batch process)** 
+   ```python
+    python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni_batch.py --group Dummy-Project  --particpants $PATH2_PARTICIPANT-SESSION_FILE  --nthreads 16
 
-- **Construct Metabolic Similarity Map**
-    ```python
-    python experiments/MeSiM_pipeline/compute_MSI-map_subj.py --group Dummy-Project --subject_id S001 --session V1 --npert 50 --nthreads 16
+
+- **Notes**
+     For batch processing, specify a T1 pattern  ```--t1pattern``` that matches the corresponding T1 image path (e.g ```acq-memprage```,```brain_T1W```)
 
 
