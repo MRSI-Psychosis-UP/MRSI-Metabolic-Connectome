@@ -60,16 +60,16 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
    ```
 - File naming convention :
   ```sh
-  sub-<subject_id>_ses-<session>_space-<space>_acq-<acq>_desc-<metabolite>_mrsi.nii.gz
+  sub-<subject_id>_ses-<session>_space-<space>_met-<metabolite>_desc-<description>_mrsi.nii.gz
   ```
 
 | **BIDS Prefix** | **Description**                           | **Choices**                                                                                           |
 |-----------------|-------------------------------------------|-------------------------------------------------------------------------------------------------------|
 | `subject_id`         | Subject/Participant ID                    |                                                                                                       |
-| `session`         | Session                                   | `[V1, V2, V3, ...]`                                                                                   |
+| `session`         | Session ID                                   | `[V1, V2, V3, ...]`                                                                                   |
 | `space`       | MRI Acquisition space                     | `orig` or `origfilt` (for original MRSI space), `t1w`, `mni`                                                          |
-| `acq`         | Type of reconstructed MRSI map           | `conc` (metabolite signal)<br>`crlb` (LCmodel-issued CRLB map)                                          |
-| `metabolite`        | Metabolite string                         | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate 
+| `metabolite`         | MRSI metabolite          | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate    <br>`water` water signal                                       |
+| `description`        | Description of MRSI map                          |  `signal` MRSI signal <br> `crlb` (Cramer-Rao LowerBound LC model) <br> `fwhm` (full-width half-maximum LC model)  <br> `snr` (Signal/Noise LC model)  <br> `filtharmonic` (type of preprocessing filter)  <br> `brainmask` brain binary mask 
 
 ## Steps to Construct a within-subject MeSiM
 
@@ -95,8 +95,8 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 | `--group`         | Name of the BIDS project folder or group to process.                                                           | string      | Dummy-Project  |
 | `--subject_id`    | ID of the subject to process.<br>Example: sub-XX                                                                  | string      | S001           |
 | `--session`       | Session ID.<br>Example: V1, V2, V3, ...                                                                           | string      | V1             |
-| `--parc `         | Chimera parcellation string followed                    .                                                         | string      | 50             |
-| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | LFMIHIFIS       |
+| `--parc `         | Chimera parcellation string followed                    .                                                         | string      | LFMIHIFIS             |
+| `--npert`         | Number of metabolic profile perturbations used.                                                                  | integer     | 50       |
 | `--leave_one_out` | Add leave-one-metabolite-out option to MeSiM construction.<br>Accepts values: 0, 1.                                | int [0,1]   | 0              |
 | `--show_plot`     | Display MeSiM and natural network analysis.<br>Accepts values: 0, 1.                                               | int [0,1]   | 0              |
 | `--overwrite`     | Overwrite existing                                                                                               | int [0,1]     | 0              |
@@ -108,6 +108,20 @@ A ```data/BIDS/Dummy-Project``` has been provided for demonstration purposes. Fo
 
 <!-- <img src="https://github.com/user-attachments/assets/4f0069ea-c4d7-4466-bd8e-7c55b1da3180" alt="Screenshot from 2025-03-11 22-40-35" width="600" /> -->
 
+## Batch processing
+
+1. **Create MRSI-to-T1w transforms**
+   ```python
+   python experiments/MeSiM_pipeline/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+
+2. **Construct MeSiM** 
+   ```python
+   python experiments/MeSiM_pipeline/construct_MeSiM_subject_batch.py --group Dummy-Project --atlas LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+
+
+- **Notes**
+     ```--participants``` list all the the participant and session ID  as defined by the standard BIDS ```participants_allsessions.tsv ```. If not specified ```--participants```  is set to ```$BIDSDATAPATH/group``` defined in the environment file ```.env``` created in step ```4. **Set up ENV paths**```
+  
 
 ## Usefull MRSI processing tools
 
