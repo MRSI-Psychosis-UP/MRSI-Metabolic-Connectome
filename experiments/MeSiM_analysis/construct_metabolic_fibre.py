@@ -116,9 +116,9 @@ con_output = umap_con.connectivity(mapper,
 
 node_names = con_output["node_names"]
 
-fig   = umap_con.plot_connectivty(con_output,edge_color="black",
+fig   = umap_con.plot_connectivty(con_output,edge_color="white",
                                   node_cmap=spectrum_colors_trans,
-                                  node_size=15,background="white")
+                                  node_size=15,background="black")
 fig.show()
 
 

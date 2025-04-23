@@ -177,6 +177,9 @@ To access the full dataset, contact the authors with a detailed research proposa
 - **Note**: `--dimalg` refers to the manifold discovery algorithm useful to construct the subsequent metabolic fibre. `--h` specifies which hemisphere to restrain the fibre construction [`lh` or `rh`]. Metabolic Fibre is constructed as an edge bundled network and rendered on your default browser at `127.0.0.0:PORT`  
 ---
 
+![Metabolic Fibre](figures/metab_fibre.png)
+
+
 ## 🛠️ Useful MRSI Processing Tools
 
 - **T1w-to-MNI Transforms (1 subject)**
