@@ -129,7 +129,7 @@ class ColorBar():
 
         return LinearSegmentedColormap.from_list("custom_cmap", colors)
 
-    def load_fsl_cmap(self,map="spectrum_iso"):
+    def load_fsl_cmap(self,map="spectrum_iso",plotly=False):
         # Load the Nx3 RGB values (assuming they are between 0 and 255)
         rgb_values = np.loadtxt(join(current_dirpath,"cmaps",f"{map}.cmap"))
         
@@ -138,5 +138,17 @@ class ColorBar():
 
         # Create a colormap from the normalized RGB values
         spectrum_cmap = LinearSegmentedColormap.from_list('spectrum_fsl', rgb_values)
-
-        return spectrum_cmap
+        if plotly:
+            return self.__matplotlib_to_plotly(spectrum_cmap)
+        else:
+            return spectrum_cmap
+    
+    def __matplotlib_to_plotly(self,cmap, n_colors=256):
+        """Convert a matplotlib colormap to a Plotly colorscale."""
+        rgba_colors = [cmap(i / (n_colors - 1)) for i in range(n_colors)]
+        plotly_colorscale = []
+        for i, rgba in enumerate(rgba_colors):
+            r, g, b, a = [int(x * 255) if i < 3 else x for i, x in enumerate(rgba)]
+            color_string = f'rgba({r}, {g}, {b}, {a:.3f})'
+            plotly_colorscale.append([i / (n_colors - 1), color_string])
+        return plotly_colorscale

@@ -49,3 +49,7 @@ dependencies:
       - plotly
       - bctpy
       - tk
+      - datashader
+      - bokeh
+      - holoviews
+      - colorcet

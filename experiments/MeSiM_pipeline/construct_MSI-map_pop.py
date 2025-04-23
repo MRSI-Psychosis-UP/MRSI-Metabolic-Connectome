@@ -35,7 +35,7 @@ def main():
     parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS','LFIIIIFIS', 'LFMIHIFIF'], 
                         help='Chimera parcellation scheme, choice must be one of: LFMIHIFIS [default], LFMIHIFIF')
     parser.add_argument('--scale',type=int,default=3,help="Cortical parcellation scale (default: 3)")
-    parser.add_argument('--group', type=str,default="Mindfulness-Project") 
+    parser.add_argument('--group', type=str,default="Geneva-Study") 
     parser.add_argument('--proj_comp',type=int, default=1, help='Dim Reduction component (default:1)')
     parser.add_argument('--npert', type=int, default=50, help='Number of perturbations (default: 50)')
     parser.add_argument('--dimalg', type=str,default="pca_tsne",choices=['pca_tsne', 'umap'],help='Manifold discovery algorithm (default: pca-tsne)') 

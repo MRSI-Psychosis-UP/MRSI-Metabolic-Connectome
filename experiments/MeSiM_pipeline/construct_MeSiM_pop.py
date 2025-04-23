@@ -7,26 +7,25 @@ from tools.filetools import FileTools
 from graphplot.simmatrix import SimMatrixPlot
 from tools.mridata import MRIData
 import nibabel as nib
-from connectomics.netcluster import NetCluster
 import copy, sys
 import pandas as pd
 from connectomics.network import NetBasedAnalysis
 from connectomics.nettools import NetTools
 from connectomics.parcellate import Parcellate
-from connectomics.simmilarity import Simmilarity
+from connectomics.mesim import MeSiM
+
 import argparse
 from rich.progress import track
 import seaborn as sns
 
 dutils    = DataUtils()
-simm      = Simmilarity()
 debug     = Debug()
-netclust  = NetCluster()
 parc      = Parcellate()
 ftools    = FileTools()
 simplt    = SimMatrixPlot()
 nettools  = NetTools()
 nba       = NetBasedAnalysis()
+mesim     = MeSiM()
 FONTSIZE  = 16
 
 
@@ -38,7 +37,7 @@ def main():
     parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS', 'LFMIHIFIF','LFIIIIFIS'], 
                         help='Chimera parcellation scheme, choice must be one of: LFMIHIFIS [default], LFMIHIFIF')
     parser.add_argument('--scale',type=int,default=3,help="Cortical parcellation scale (default: 3)")
-    parser.add_argument('--group', type=str, default='Mindfulness-Project', help='group name (default: "Mindfulness-Project")')
+    parser.add_argument('--group', type=str, default='Geneva-Study', help='group name (default: "Geneva-Study")')
     parser.add_argument('--npert', type=int, default=50, help='Number of perturbations (default: 50)')
     parser.add_argument('--overwrite',type=int,default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--preproc', type=str, default="filtbiharmonic",help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
@@ -70,8 +69,8 @@ def main():
 
     # participants_file = "experiments/MeSiM_pipeline/participant_list/best_Mindfulness-Project_sessions_mrsi.tsv"
     if participants_file is None:
-        participant_session_list = join(dutils.BIDSDATAPATH,group,"participants_allsessions.tsv")
-        df                       = pd.read_csv(participant_session_list, sep='\t')
+        participants_file = join(dutils.BIDSDATAPATH,group,"participants_allsessions.tsv")
+        df                = pd.read_csv(participants_file, sep='\t')
         df = df[df.session_id != "V2BIS"]
     else:
         df = pd.read_csv(participants_file, sep='\t')
@@ -122,7 +121,7 @@ def main():
 
     # Diascard sparse subjects MeSiM from average 
     debug.title("Exclude sparse within subject-wise MeSiMs")
-    MeSiM_list_sel,i,e = simm.filter_sparse_matrices(MeSiM_subjects_list,sigma=5)
+    MeSiM_list_sel,i,e          = mesim.filter_sparse_matrices(MeSiM_subjects_list,sigma=5)
     metab_profiles_subjects_sel = np.delete(metab_profiles_subjects,e,axis=0)
     session_id_arr_sel      = np.delete(session_id_list,e,axis=0)
     subject_id_arr_sel      = np.delete(subject_id_list,e,axis=0)

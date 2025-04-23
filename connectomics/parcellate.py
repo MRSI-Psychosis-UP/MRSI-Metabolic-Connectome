@@ -328,6 +328,42 @@ class Parcellate:
             voxel_count_t1 = np.sum((parcel_image == parcel_id) & (mask_t1 == 1))
             parcel_header_dict[parcel_id]["t1cov"].append(voxel_count_mrsi/voxel_count_t1)
         return  parcel_header_dict
+    
+
+
+    def count_voxels_inside_parcel(self,image3D, parcel_image3D, parcel_ids_list,norm=True):
+        parcel_count = {}
+
+        # Loop through each parcel ID in the provided list
+        for parcel_id in parcel_ids_list:
+            # Skip if the parcel ID is 0
+            if parcel_id == 0:
+                continue
+            
+            # Create a mask for the current parcel ID
+            parcel_mask = parcel_image3D == parcel_id
+            
+            # Check if there are any voxels in this parcel
+            n_total = parcel_mask.sum()
+            if n_total == 0:
+                continue
+            
+            # Count the number of voxels in the image3D that are inside the current parcel
+            image_mask = image3D[parcel_mask].sum()
+            
+
+            # Calculate the percentage coverage
+            if norm:
+                n_coverage = image_mask / n_total
+            else:
+                n_coverage = image_mask
+            
+            # Assign the count to the dictionary
+            parcel_count[parcel_id] = n_coverage
+        
+        # Return the dictionary containing the voxel counts
+        return parcel_count
+       
 
 
     

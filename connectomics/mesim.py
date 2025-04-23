@@ -222,3 +222,26 @@ class MeSiM(object):
             "corr": spearman_corr_quadratic,
             "pvalue": spearman_pvalue_quadratic
         }
+
+
+    def filter_sparse_matrices(self,matrix_list,sigma=1):
+        n_zeros_arr = list()
+        for i,sim in enumerate(matrix_list):
+            n_zeros = len(np.where(sim==0)[0])
+            n_zeros_arr.append(n_zeros)
+
+        n_zeros_arr = np.array(n_zeros_arr)
+        debug.info("0 nodal strength count",n_zeros_arr.mean(),"+-",n_zeros_arr.std())
+
+        include_indices = list()
+        exclude_indices = list()
+        matrix_list_refined = list()
+
+        for i,sim in enumerate(matrix_list):
+            n_zeros = len(np.where(sim==0)[0])
+            if n_zeros<n_zeros_arr.mean()+sigma*n_zeros_arr.std():
+                matrix_list_refined.append(sim)
+                include_indices.append(i)
+            else:
+                exclude_indices.append(i)
+        return matrix_list_refined,include_indices,exclude_indices
