@@ -152,24 +152,13 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ---
 
-<<<<<<< HEAD
 ## 📊 MeSiM Analysis
-=======
--  **Create T1w-to-MNI transforms (1 subject-session)**  
-   ```python
-   python experiments/MeSiM_pipeline/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16 --t1 $PATH2TW_FILE
-
--  **Create T1w-to-MNI transforms (batch process)**  
-   ```python
-   python experiments/MeSiM_pipeline/registration_t1_to_MNI_batch.py --group Dummy-Project  --particpants $PATH2_PARTICIPANT-SESSION_FILE --nthreads 16 --t1pattern T1PATTERM
->>>>>>> 312e52ea74444ad3ff663d90f46b655308806d67
 
 1. **Construct Metabolic Similarity Map (Single Subject)**
    ```bash
    python experiments/MeSiM_analysis/construct_MSI-map_subj.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
    ```
 
-<<<<<<< HEAD
 2. **Construct Metabolic Similarity Map (Population)**
    ```bash
    python experiments/MeSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne --msiscale -255.0
@@ -187,19 +176,6 @@ To access the full dataset, contact the authors with a detailed research proposa
    ```
 - **Note**: `--dimalg` refers to the manifold discovery algorithm useful to construct the subsequent metabolic fibre. `--h` specifies which hemisphere to restrain the fibre construction [`lh` or `rh`]. Metabolic Fibre is constructed as an edge bundled network and rendered on your default browser at `127.0.0.0:PORT`  
 ---
-=======
-- **Coregister all MRSI metabolites to T1 & MNI space (1 subject-session)** 
-   ```python
-    python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
-
-- **Coregister all MRSI metabolites to T1 & MNI space (batch process)** 
-   ```python
-    python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni_batch.py --group Dummy-Project  --particpants $PATH2_PARTICIPANT-SESSION_FILE  --nthreads 16
-
-
-- **Notes**
-     For batch processing, specify a T1 pattern  ```--t1pattern``` that matches the corresponding T1 image path (e.g ```acq-memprage```,```brain_T1W```)
->>>>>>> 312e52ea74444ad3ff663d90f46b655308806d67
 
 ## 🛠️ Useful MRSI Processing Tools
 
