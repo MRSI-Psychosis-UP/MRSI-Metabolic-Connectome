@@ -76,10 +76,20 @@ To access the full dataset, contact the authors with a detailed research proposa
    PROJECT_NAME/derivatives/mrsi-<space>/sub-<subject_id>/ses-<session>/
    ```
 
+<<<<<<< HEAD
 - File naming convention:
    ```
    sub-<subject_id>_ses-<session>_space-<space>_met-<metabolite>_desc-<description>_mrsi.nii.gz
    ```
+=======
+| **BIDS Prefix** | **Description**                           | **Choices**                                                                                           |
+|-----------------|-------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `subject_id`         | Subject/Participant ID                    |                                                                                                       |
+| `session`         | Session ID                                   | `[V1, V2, V3, ...]`                                                                                   |
+| `space`       | MRI Acquisition space                     | `orig` (for original MRSI space), `anat`, `mni`                                                          |
+| `metabolite`         | MRSI metabolite          | `Ins` myo-inositol <br>`CrPCr` creatine + phosphocreatine <br> `GPCPCh` lycerophosphocholine + phosphocholine   <br> `GluGln` glutamate + glutamine,   <br> `NAANAAG` N-acetylaspartate + N-acetylaspartylglutamate    <br>`water` water signal                                       |
+| `description`        | Description of MRSI map                          |  `signal` MRSI signal <br> `crlb` (Cramer-Rao LowerBound LC model) <br> `fwhm` (full-width half-maximum LC model)  <br> `snr` (Signal/Noise LC model)  <br> `filtharmonic` (type of preprocessing filter)  <br> `brainmask` brain binary mask 
+>>>>>>> 312e52ea74444ad3ff663d90f46b655308806d67
 
 | **BIDS Prefix**  | **Description**                        | **Choices**                                                                                           |
 |------------------|----------------------------------------|-------------------------------------------------------------------------------------------------------|
@@ -108,7 +118,21 @@ To access the full dataset, contact the authors with a detailed research proposa
    python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 1 --nthreads 16 --analyze 1
    ```
 
+<<<<<<< HEAD
 - **Outputs**: Transforms, coregistered parcellations, and MeSiMs are saved in the `derivatives/` folder.
+=======
+4. **Construct population averaged MeSiM from provided within-subject MeSiMs (Geneva-Study)** 
+   ```python
+    python experiments/MeSiM_pipeline/construct_MeSiM_pop.py --group Geneva-Study --scale 3 --parc LFMIHIFIS --participants experiments/MeSiM_pipeline/participant_list/best_Geneva-Study_sessions_mrsi.tsv
+
+5. **Construct Metabolic Similarity Index (MSI) 3DMap from the population averaged MeSiM (Geneva-Study)** 
+   ```python
+    python experiments/MeSiM_pipeline/construct_MSI-map_pop.py --group Geneva-Study --scale 3 --parc LFMIHIFIS --dimalg pca_tsne --perplexity 30
+
+
+- **Outputs**
+    Warp transforms, coregistered Chimera parcellation label images, MeSiMs are saved in the ```/derivatives``` folder
+>>>>>>> 312e52ea74444ad3ff663d90f46b655308806d67
 
 ---
 
@@ -152,13 +176,24 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ---
 
+<<<<<<< HEAD
 ## 📊 MeSiM Analysis
+=======
+-  **Create T1w-to-MNI transforms (1 subject-session)**  
+   ```python
+   python experiments/MeSiM_pipeline/registration_t1_to_MNI.py --group Dummy-Project  --subject_id S001 --session V1 --nthreads 16 --t1 $PATH2TW_FILE
+
+-  **Create T1w-to-MNI transforms (batch process)**  
+   ```python
+   python experiments/MeSiM_pipeline/registration_t1_to_MNI_batch.py --group Dummy-Project  --particpants $PATH2_PARTICIPANT-SESSION_FILE --nthreads 16 --t1pattern T1PATTERM
+>>>>>>> 312e52ea74444ad3ff663d90f46b655308806d67
 
 1. **Construct Metabolic Similarity Map (Single Subject)**
    ```bash
    python experiments/MeSiM_analysis/construct_MSI-map_subj.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
    ```
 
+<<<<<<< HEAD
 2. **Construct Metabolic Similarity Map (Population)**
    ```bash
    python experiments/MeSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne --msiscale -255.0
@@ -176,6 +211,19 @@ To access the full dataset, contact the authors with a detailed research proposa
    ```
 - **Note**: `--dimalg` refers to the manifold discovery algorithm useful to construct the subsequent metabolic fibre. `--h` specifies which hemisphere to restrain the fibre construction [`lh` or `rh`]. Metabolic Fibre is constructed as an edge bundled network and rendered on your default browser at `127.0.0.0:PORT`  
 ---
+=======
+- **Coregister all MRSI metabolites to T1 & MNI space (1 subject-session)** 
+   ```python
+    python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1  --nthreads 16
+
+- **Coregister all MRSI metabolites to T1 & MNI space (batch process)** 
+   ```python
+    python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni_batch.py --group Dummy-Project  --particpants $PATH2_PARTICIPANT-SESSION_FILE  --nthreads 16
+
+
+- **Notes**
+     For batch processing, specify a T1 pattern  ```--t1pattern``` that matches the corresponding T1 image path (e.g ```acq-memprage```,```brain_T1W```)
+>>>>>>> 312e52ea74444ad3ff663d90f46b655308806d67
 
 ## 🛠️ Useful MRSI Processing Tools
 
