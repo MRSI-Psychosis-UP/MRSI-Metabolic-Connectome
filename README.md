@@ -81,13 +81,14 @@ To access the full dataset, contact the authors with a detailed research proposa
    sub-<subject_id>_ses-<session>_space-<space>_met-<metabolite>_desc-<description>_mrsi.nii.gz
    ```
 
-| **BIDS Prefix**  | **Description**                        | **Choices**                                                                                           |
-|------------------|----------------------------------------|-------------------------------------------------------------------------------------------------------|
-| `subject_id`     | Subject/Participant ID                 |                                                                                                       |
-| `session`        | Session ID                             | `[V1, V2, V3, ...]`                                                                                   |
-| `space`          | MRI Acquisition space                  | `orig`, `origfilt`, `t1w`, `mni`                                                                      |
-| `metabolite`     | MRSI Metabolite                        | `Ins`, `CrPCr`, `GPCPCh`, `GluGln`, `NAANAAG`, `water`                                                |
-| `description`    | MRSI Map Description                   | `signal`, `crlb`, `fwhm`, `snr`, `filtharmonic`, `brainmask`                                          |
+| **BIDS Prefix**  | **Description**           | **Choices**                                                                                           |
+|------------------|---------------------------|-------------------------------------------------------------------------------------------------------|
+| `subject_id`     | Subject/Participant ID    |                                                                                                       |
+| `session`        | Session ID                | `[V1, V2, V3, ...]`                                                                                   |
+| `space`          | MRI Acquisition space     | `orig`, `t1w`, `mni`                                                                                  |
+| `metabolite`     | MRSI resolved Metabolite  | **B<sub>0</sub> = 3T**: `Ins`, `CrPCr`, `GPCPCh`, `GluGln`, `NAANAAG`, `water`                                        |
+|                  |                           | **B<sub>0</sub> = 7T**: `NAA`, `NAAG`, `Ins`, `GPCPCh`, `Glu`, `Gln`, `CrPCr`, `GABA`, `GSH`                          |
+| `description`    | MRSI Map Description      | `signal`, `crlb`, `fwhm`, `snr`, `filtharmonic`, `brainmask`                                          |
 
 ---
 
@@ -128,6 +129,8 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--nthreads`      | Number of parallel CPU threads                                                  | integer       | 4              |
 | `--t1`            | Path to T1-weighted image                                                       | string        | None           |
 | `--t1mask`        | Path to T1-weighted brain mask                                                  | string        | None           |
+| `--b0`            | MRI  B<sub>0</sub> field in Tesla (3 or 7)                                      | float         | 3              |
+
 
 ---
 
