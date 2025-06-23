@@ -241,5 +241,8 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--crlb`         | float  | `20`                | CRLB threshold below which an MRSI signal is considered significant (per voxel).                           |
 | `--fwhm`         | float  | `0.1`               | FWHM threshold below which an MRSI signal is considered significant (per voxel).                           |
 | `--alpha`        | float  | `0.68`              | Proportion of significant voxels across participants to retain a voxel at the group level.     |
-| `--b0`           | float  | `3` (choices: 3, 7)  | MRI B0 field strength in Tesla.                                                                |
+| `--b0`           | float  | `3` (choices: 3, 7)  | MRI B0 field strength in Tesla.
+
+![Figure 1](figures/preproc_vba.png)
+|
 
