@@ -19,7 +19,9 @@ parser = argparse.ArgumentParser(description="Process some input parameters.")
 # Parse arguments
 parser.add_argument('--group', type=str,default="Mindfulness-Project") 
 parser.add_argument('--nthreads'  , type=int, default = 4,help="Number of CPU threads [default=4]")
-parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
+parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite coregistered maps (default: 0)")
+parser.add_argument('--overwrite_pve' , type=int, default=0, choices = [1,0],help="Overwrite partial volume correction (default: 0)")
+parser.add_argument('--overwrite_filt' , type=int, default=0, choices = [1,0],help="Overwrite filtered MRSI raw orig space (default: 0)")
 parser.add_argument('--t1pattern' , type=str, default=None,help="Anatomical T1w file pattern")
 parser.add_argument('--participants', type=str, default=None,
                     help="Path to TSV file containing list of participant IDs and sessions to include. If not specified, process all.")
@@ -33,8 +35,8 @@ participants_file  = args.participants
 nthreads           = args.nthreads
 t1pattern          = args.t1pattern
 B0_strength        = str(args.b0)
-
-
+overwrite_pvcorr   = str(args.overwrite_pve)
+overwrite_filt     = str(args.overwrite_filt)
 
 ###############################################################################
 EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","MeSiM_pipeline","transform_mrsi_to-t1_to-mni.py")
@@ -51,8 +53,8 @@ session_id_list = df.session_id.to_list()
 
 ############ Process all subjects ##################
 os.system("clear")
-for subject_id,session in zip(subject_id_list,session_id_list):
-    debug.title(f"Processing sub-{subject_id}_ses-{session}")
+for i,(subject_id,session) in enumerate(zip(subject_id_list,session_id_list)):
+    debug.title(f"Processing sub-{subject_id}_ses-{session} ---- {i}/{len(session_id_list)}")
     if t1pattern is not None:
         mrsiData = MRIData(subject_id,session,group)
         t1_path  = mrsiData.find_nifti_paths(t1pattern)
@@ -72,6 +74,8 @@ for subject_id,session in zip(subject_id_list,session_id_list):
                         "--group",group,
                         "--b0",B0_strength,
                         "--overwrite",str(overwrite),
+                        "--overwrite_pve",overwrite_pvcorr,
+                        "--overwrite_filt",overwrite_filt,
                         "--nthreads",str(nthreads),
                         ])
     except subprocess.CalledProcessError:
