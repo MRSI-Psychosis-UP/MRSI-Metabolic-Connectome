@@ -2,6 +2,14 @@
 
 This repository provides tools to construct a within-subject **Metabolic Similarity Matrix (MeSiM)** based on MRSI scans, as detailed in our [preprint](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
 
+## 📚 Table of Contents
+
+- [🧩 Steps to Construct a within-subject MeSiM](#️-steps-to-construct-a-within-subject-mesim)
+- [🛠️ MRSI Pre-Processing Pipeline for Voxel-Based Analysis](#️-mrsi-pre-processing-pipeline-for-voxel-based-analysis)
+- [📊 MeSiM Analysis](#️-mesim-analysis)
+
+
+
 ![Figure 1](figures/Figure1.png)
 
 ---
@@ -12,6 +20,14 @@ Licensed under the terms specified in [LICENSE](./LICENSE).
 
 ---
 
+## 🧑‍💻 Contributors
+
+| Name               | GitHub Profile                                   | Email                      |
+|--------------------|--------------------------------------------------|----------------------------|
+| Federico Lucchetti | [@fedlucchetti](https://github.com/fedlucchetti) | federico.lucchetti@unil.ch |
+| Edgar Céléreau     | [@bobdev](https://github.com/ecelreau)           | edgar.celereau@unil.ch     |
+
+---
 ## 📂 Dataset
 
 A demo dataset is available at `data/BIDS/Dummy-Project` and constructed MeSiMs from the Geneva-Study in `data/BIDS/Geneva-Study/derivatives/connectivity`.
@@ -56,18 +72,8 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ## 🗂️ Inputs
 
-### Chimera Anatomical Parcellation Files
-
-- Example for subject `S0001-V1`:
-   ```bash
-   chimera -b data/BIDS/Dummy-Project/ \
-           -d data/BIDS/Dummy-Project/derivatives/ \
-           --freesurferdir data/BIDS/Dummy-Project/derivatives/freesurfer/ \
-           -p LFMFIIFIS -g 2
-   ```
-- Parcellations saved in `PROJECT_NAME/derivatives/chimera-atlases`.
-
----
+### List of Participants/Subject File
+- BIDS directory `PROJECT_NAME/` should contain a tab-separated `participants_allsessions.tsv` file following the BIDS standard `subject-id \t session-id`.
 
 ### MRSI Files
 
@@ -89,6 +95,32 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `metabolite`     | MRSI resolved Metabolite  | **B<sub>0</sub> = 3T**: `Ins`, `CrPCr`, `GPCPCh`, `GluGln`, `NAANAAG`, `water`                                        |
 |                  |                           | **B<sub>0</sub> = 7T**: `NAA`, `NAAG`, `Ins`, `GPCPCh`, `Glu`, `Gln`, `CrPCr`, `GABA`, `GSH`                          |
 | `description`    | MRSI Map Description      | `signal`, `crlb`, `fwhm`, `snr`, `filtharmonic`, `brainmask`                                          |
+### Anatomical Files
+
+- **Chimera Anatomical Parcellation Files:**
+   - Example for all subjects found in `Dummy-Project`:
+      ```bash
+      chimera -b data/BIDS/Dummy-Project/ \
+              -d data/BIDS/Dummy-Project/derivatives/ \
+              --freesurferdir data/BIDS/Dummy-Project/derivatives/freesurfer/ \
+              -p LFMFIIFIS -g 2
+      ```
+   - Parcellations saved in `PROJECT_NAME/derivatives/chimera-atlases`.
+
+- **Partial Volume Correction (PVC) files:**
+
+  Replace `<N>` with the appropriate tissue type index (e.g., `1` for GM, `2` for WM, `3` for CSF):
+
+   ```bash
+   PROJECT_NAME/derivatives/<PVCORR_DIR>/sub-<subject_id>/ses-<session>/sub-<subject_id>_ses-<session>_desc-p<N>_T1w.nii.gz
+   ```
+
+  - **Minimum required:**
+    - `p1`: gray matter
+    - `p2`: white matter
+    - `p3`: CSF
+
+  - **Additional tissue files may be included (optional).**
 
 ---
 
@@ -131,7 +163,6 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--t1mask`        | Path to T1-weighted brain mask                                                  | string        | None           |
 | `--b0`            | MRI  B<sub>0</sub> field in Tesla (3 or 7)                                      | float         | 3              |
 
-
 ---
 
 ## 🔄 Batch Processing
@@ -172,7 +203,7 @@ To access the full dataset, contact the authors with a detailed research proposa
    python experiments/MeSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
    ```
 
-4. **Construct Metabolic Fibre (Population)**
+4. **Construct Metabolic Principal Curve (Population)**
    ```bash
    python experiments/MeSiM_analysis/construct_metabolic_fibre.py --group Geneva-Study --parc LFMIHIFIS --scale 3 
    --h both
@@ -183,23 +214,20 @@ To access the full dataset, contact the authors with a detailed research proposa
 ![Metabolic Fibre](figures/metab_fibre.png)
 
 
-## 🛠️ Useful MRSI Processing Tools
+## 🛠️ MRSI Pre-Processing Pipeline for Voxel-Based Analysis
 
-- **T1w-to-MNI Transforms (1 subject)**
+- **Create MRSI-to-T1w Transforms (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/registration_t1_to_MNI.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
+   python experiments/MeSiM_pipeline/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
    ```
-- **T1w-to-MNI Transforms (population)**
+
+- **Create T1w-to-MNI Transforms (batch)**
    ```bash
    python experiments/MeSiM_pipeline/registration_t1_to_MNI_batch.py --group Dummy-Project --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE
    ```
 
-- **Coregister All MRSI Metabolites to T1 & MNI (1 subject)**
+- **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni.py --group Dummy-Project --subject_id S001 --session V1 --nthreads 16
-   ```
-- **Coregister All MRSI Metabolites to T1 & MNI (population)**
-   ```bash
-   python experiments/MeSiM_pipeline/transform_mrsi_to-t1_to-mni_batch.py --group Dummy-Project --nthreads 16
-   --participants $PATH2_PARTICIPANT-SESSION_FILE
+   python experiments/MeSiM_pipeline/preprocess_batch.py --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1
+   --participants $PATH2_PARTICIPANT-SESSION_FILE 
    ```
