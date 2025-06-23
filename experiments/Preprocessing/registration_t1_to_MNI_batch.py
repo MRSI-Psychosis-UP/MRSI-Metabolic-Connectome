@@ -15,7 +15,7 @@ pb        = ProgressBar()
 
 ###############################################################################
 LOG_DIR   = dutils.ANALOGPATH
-EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","MeSiM_pipeline","registration_t1_to_MNI.py")
+EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","scripts","registration_t1_to_MNI.py")
 log_file_path = join(LOG_DIR,split(EXEC_PATH)[1].replace(".py",""),"full_run.log")
 os.makedirs(split(log_file_path)[0],exist_ok=True)
 ###############################################################################

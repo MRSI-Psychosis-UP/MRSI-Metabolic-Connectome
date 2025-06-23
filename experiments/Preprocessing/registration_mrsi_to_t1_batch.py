@@ -11,7 +11,7 @@ from tools.mridata import MRIData
 dutils    = DataUtils()
 debug     = Debug()
 LOG_DIR   = dutils.ANALOGPATH
-EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","MeSiM_pipeline","registration_mrsi_to_t1.py")
+EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","scripts","registration_mrsi_to_t1.py")
 log_file_path = join(LOG_DIR,split(EXEC_PATH)[1].replace(".py",""),"full_run.log")
 os.makedirs(split(log_file_path)[0],exist_ok=True)
 ###############################################################################
