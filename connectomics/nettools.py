@@ -1,14 +1,27 @@
 
 from tools.debug import Debug
-import numpy as np
+try:
+    import cupy as cp
+    import numpy as np
+    # Check if at least one GPU is available
+    if cp.cuda.runtime.getDeviceCount() > 0:
+        USE_GPU = True
+    else:
+        raise RuntimeError("No GPU detected.")
+except (ImportError, RuntimeError):
+    # Fallback to numpy if cupy is not installed or no GPU is available
+    import numpy as cp
+    USE_GPU = False
+
 import nibabel as nib
 from scipy.spatial.distance import cdist
-import cupy as cp
 from scipy.ndimage import center_of_mass
-from tqdm import tqdm 
-from scipy.linalg import expm  # This is used to compute the matrix exponential
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+
+
+
+
 debug  = Debug()
 
 
@@ -92,12 +105,12 @@ class NetTools:
         nodal_strength_map_cp[parcellation_data_cp == 0] = 0
         
         # Convert the result back to a NumPy array if needed
-        feature_3d_space = cp.asnumpy(nodal_strength_map_cp)
-        return feature_3d_space
+        nodal_strength_map_np = cp.asnumpy(nodal_strength_map_cp)
+        return nodal_strength_map_np
 
 
 
-    def project_matrix(self, data, method='isomap', scale_factor=255.0, output_dim=1,perplexity=30):
+    def dimreduce_matrix(self, data, method='pca_tsne', scale_factor=255.0, output_dim=1,perplexity=30):
         """
         Project a 4D array onto a 1D array using specified manifold learning method.
         

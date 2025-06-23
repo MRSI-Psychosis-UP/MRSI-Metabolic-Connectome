@@ -29,13 +29,29 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class FileTools:
-    def __init__(self,group="Dummy-Project") -> None:
-        self.ROOTDIRPATH       = join(dutils.BIDSDATAPATH,group)
+    def __init__(self) -> None:
+       pass
+    
+    def save_nii_file(self, image, outpath,header=None):
+        """
+        Save an image to a NIfTI file.
 
+        Parameters:
+        image: A nibabel Nifti1Image or a numpy array.
+        header: The NIfTI header. Must be provided if image is a numpy array.
+        outpath: The file path to save the image.
+        """
+        if isinstance(image, nib.Nifti1Image):
+            nifti_img = image
+        elif isinstance(image, np.ndarray):
+            if header is not None:
+                nifti_img = self.numpy_to_nifti(image, header)
+            else:
+                raise ValueError("Provide header for saving np.ndarray to NIFTI")
+        else:
+            raise ValueError("Input must be a Nifti1Image or a numpy array")
         
-    def save_nii_file(self, tensor3D, header,outpath):
-        nifti_img = self.numpy_to_nifti(tensor3D, header)
-        nifti_img.to_filename(f"{outpath}")
+        nifti_img.to_filename(outpath)
 
     @staticmethod
     def save_dict(python_dict,outpath):
@@ -99,21 +115,26 @@ class FileTools:
                     nii_files.append(os.path.abspath(os.path.join(root, file)))
         return nii_files
 
-    def list_recordings(self):
+    @staticmethod
+    def list_recordings(group,modality="mrsi"):
+        bidsdir = join(dutils.BIDSDATAPATH,group)
         recording_list = list()
-        subject_list = os.listdir(self.ROOTDIRPATH)
+        subject_list = os.listdir(bidsdir)
         for subject_id in subject_list:
             if "sub-" not in subject_id:continue
-            session_list = os.listdir(join(self.ROOTDIRPATH,subject_id))
+            session_list = os.listdir(join(bidsdir,subject_id))
+            
             for session in session_list:
                 if "ses-" in session:
-                    acq_list = os.listdir(join(self.ROOTDIRPATH,subject_id,session))
-                    mrsi_dir_path = join(self.ROOTDIRPATH,subject_id,session,"spectroscopy")
+                    print("subject_list",subject_id,session)
+                    acq_list = os.listdir(join(bidsdir,subject_id,session))
+                    mrsi_dir_path = join(bidsdir,subject_id,session,modality)
                     if os.path.exists(mrsi_dir_path):
                         n_mrsi = len(os.listdir(mrsi_dir_path))
-                        if n_mrsi!=0 and "anat" in acq_list:
+                        if n_mrsi!=0:
                             recording_list.append([subject_id[4::],session[4::]])
         recording_list = np.array(recording_list)
+        print(recording_list)
         ids = np.argsort(recording_list[:,0])
         return recording_list[ids,:]
 

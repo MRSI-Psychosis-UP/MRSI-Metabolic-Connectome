@@ -1,30 +1,12 @@
 import nibabel as nib
 import numpy as np
-import os
+import os, csv, copy, sys, time
 from os.path import join, split
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from scipy.ndimage import zoom
-from scipy.stats import linregress
-from scipy.stats import spearmanr
-from registration.registration import Registration
-from scipy.stats import chi2
-from sklearn.metrics import mutual_info_score
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import warnings
 import random
-from threading import Thread, Event
-import csv, copy, sys, time
 from tools.debug import Debug
-from rich.progress import Progress,track
-import scipy.stats as stats
-import statsmodels.api as sm
 from tools.datautils import DataUtils
-from concurrent.futures import ProcessPoolExecutor
-# from tqdm.auto import tqdm  # For progress bar
-import itertools
 from nilearn import datasets,image
-from nilearn.image import resample_to_img
 import xml.etree.ElementTree as ET
 from scipy.stats import ConstantInputWarning
 from nilearn.image import resample_img
@@ -36,7 +18,6 @@ warnings.filterwarnings("ignore", category=ConstantInputWarning)
 
 dutils = DataUtils()
 debug  = Debug()
-reg    = Registration()
 ftools   = FileTools()
 
 
@@ -170,7 +151,6 @@ class Parcellate:
             new_parcel_image[~self.mni_gm_mask.get_fdata().astype(bool)] = 0
         return new_parcel_image.astype(int), labels, new_indices, header
 
-
     def parse_atlas_xml(self,file_path,prefix=""):
         tree = ET.parse(file_path)
         root = tree.getroot()
@@ -184,7 +164,6 @@ class Parcellate:
 
         return index_numbers, labels
 
-
     def generate_random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
 
@@ -196,29 +175,37 @@ class Parcellate:
                 color = self.generate_random_color()
                 f.write(f"{index}\t{label}\t{color}\n")
 
+    def read_tsv_file(self,filepath,ignore_parcel_list=[]):
+        """
+        Reads a TSV file with three columns: an integer, a string label, and a color code.
+        Returns the data as three separate lists.
+
+        Parameters:
+        - filepath: Path to the TSV file.
+
+        Returns:
+        - numbers: List of integers from the first column.
+        - labels: List of string labels from the second column.
+        - colors: List of color codes (strings) from the third column.
+        """
+        numbers, labels, colors = [], [], []
+
+        with open(filepath, 'r') as file:
+            tsv_reader = csv.reader(file, delimiter='\t')
+            next(tsv_reader, None)  # Skip the header row
+            for row in tsv_reader:
+                # Assuming the file structure is exactly as described
+                number, label, color = row
+                if any(ignore_parcel in label for ignore_parcel in ignore_parcel_list):
+                    continue
+                numbers.append(int(number))  # Convert string to int
+                labels.append(label)
+                colors.append(color)
+
+        return np.array(numbers), labels, colors
 
     def merge_gm_wm_parcel(self,gmParcel, wmParcel):
         return np.where(gmParcel != 0, gmParcel, wmParcel)
-
-
-    def merge_gm_wm_dict(self,parcel_header_dict_gm,parcel_header_dict_wm):
-        parcel_header_dict = copy.deepcopy(parcel_header_dict_gm)
-        parcel_header_dict.update(parcel_header_dict_wm)   # Update the copy with the second dictionary
-        return parcel_header_dict
-
-    def get_parcel_path(self,subject_id):
-        debug.info("get_parcel_path for",subject_id)
-        filename = "run-01_acq-memprage_space-orig_atlas-chimeraLFMIHIFIF_desc-scale3grow2mm_dseg.tsv"
-        # filename = "run-01_acq-memprage_space-orig_atlas-chimeraLFIIHIFIF_desc-scale1grow2mm_dseg.tsv"
-        S,V = subject_id[0][0:4],subject_id[0][5:]
-        if V=="V2_BIS":V="V3"
-        path = join(self.PARCEL_PATH,f"sub-{S}", 
-                                  f"ses-{V}", 
-                                  "anat", 
-                                  f"sub-{S}_ses-{V}_{filename}")
-    
-        return path
-
 
     def get_parcel_header(self,parcel_header_path,cutoff=None,ignore_parcel_list=[]):
         '''
@@ -246,14 +233,6 @@ class Parcellate:
         header_dict[0] = {"label":["BND"],"color":0,"mask":0,"count":[0],"mean":0,"std":0,"med":0,"t1cov":[0]}
 
         return header_dict
-
-
-    def tranform_parcel(self,target_image_path,parcel_path,transform):     
-        parcel_image3D           = reg.transform(target_image_path,
-                                                parcel_path,
-                                                transform,
-                                                interpolator_mode="genericLabel")
-        return parcel_image3D.numpy()
 
     def filter_parcel(self,parcel_image,parcel_header_dict ,ignore_list=[]):
         '''
@@ -289,7 +268,6 @@ class Parcellate:
 
         return filt_parcel_image,parcel_header_dict
 
-
     def get_main_parcel_plot_positions(self,sel_parcel_list,label_list_concat):
         parcel_ids_positions=dict()
         start_l = 0
@@ -322,37 +300,6 @@ class Parcellate:
                 parcel_header_dict.pop(merge_idx, None)
         return merged_parcel_image, parcel_header_dict
 
-    
-    def read_tsv_file(self,filepath,ignore_parcel_list=[]):
-        """
-        Reads a TSV file with three columns: an integer, a string label, and a color code.
-        Returns the data as three separate lists.
-
-        Parameters:
-        - filepath: Path to the TSV file.
-
-        Returns:
-        - numbers: List of integers from the first column.
-        - labels: List of string labels from the second column.
-        - colors: List of color codes (strings) from the third column.
-        """
-        numbers, labels, colors = [], [], []
-
-        with open(filepath, 'r') as file:
-            tsv_reader = csv.reader(file, delimiter='\t')
-            next(tsv_reader, None)  # Skip the header row
-            for row in tsv_reader:
-                # Assuming the file structure is exactly as described
-                number, label, color = row
-                if any(ignore_parcel in label for ignore_parcel in ignore_parcel_list):
-                    continue
-                numbers.append(int(number))  # Convert string to int
-                labels.append(label)
-                colors.append(color)
-
-        return np.array(numbers), labels, colors
-
-
     def get_parcellation_image(self,filepath,ignore_parcel_list=[]):
         parc_image         = nib.load(filepath)
         parc_image_np      = parc_image.get_fdata().astype(int)
@@ -362,7 +309,6 @@ class Parcellate:
             filtered_parcel_image[parc_image_np==parcel_idx] = parcel_idx
         return ftools.numpy_to_nifti(filtered_parcel_image,parc_image.header)
          
-
     def count_voxels_per_parcel(self,parcel_image, mask_mrsi,mask_t1,parcel_header_dict):
         """
         Identifies parcel IDs that are completely ignored based on the mask, 
@@ -382,10 +328,9 @@ class Parcellate:
             voxel_count_t1 = np.sum((parcel_image == parcel_id) & (mask_t1 == 1))
             parcel_header_dict[parcel_id]["t1cov"].append(voxel_count_mrsi/voxel_count_t1)
         return  parcel_header_dict
-
-
-
     
+
+
     def count_voxels_inside_parcel(self,image3D, parcel_image3D, parcel_ids_list,norm=True):
         parcel_count = {}
 
@@ -418,38 +363,7 @@ class Parcellate:
         
         # Return the dictionary containing the voxel counts
         return parcel_count
-   
+       
 
 
-    def normalizeMetabolites4D(self,met_image4D_data):
-        normalized_4d = np.zeros(met_image4D_data.shape)
-        for i, image3D in enumerate(met_image4D_data):
-            normalized_4d[i] = image3D/np.max(image3D)
-        return normalized_4d
     
-    def initialize_label_dict(self,gm_mask_np):
-        """
-        Initializes a dictionary for the given grey matter mask numpy array.
-
-        Parameters:
-        - gm_mask_np: 3D numpy array representing the grey matter mask.
-
-        Returns:
-        - label_dict: Dictionary with the specified structure.
-        """
-        unique_labels = np.unique(gm_mask_np)
-        label_dict = {}
-
-        for key in range(len(unique_labels)):
-            label_dict[key] = {
-                'label': [key],
-                'color': self.generate_random_color(),
-                'mask': 1,
-                'count': [],
-                'mean': 0,
-                'std': 0,
-                'med': 0,
-                't1cov': []
-            }
-        
-        return label_dict

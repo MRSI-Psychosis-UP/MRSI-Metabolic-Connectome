@@ -20,7 +20,7 @@ setup(
     url='https://github.com/MRSI-Psychosis-UP/Metabolic-Connectome.git',
     packages=find_packages(include=['tools','graphplot','filters',
                                     'registration','connectomics',
-                                    'bids']),
+                                    'randomize']),
     # long_description=read('README.md'),
     classifiers=[
         "Development Status :: 3 - Beta",

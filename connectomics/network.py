@@ -1,35 +1,14 @@
 import numpy as np
 from tools.debug import Debug
 import networkx as nx
-import scipy.stats as stats
-from scipy.stats import percentileofscore
-import copy 
-from collections import defaultdict, Counter
-from sklearn.linear_model import RANSACRegressor
-from scipy.stats import ttest_ind
 from multiprocessing import Pool, cpu_count
 import bct
 
-from scipy.stats import norm
 debug  = Debug()
 
 class NetBasedAnalysis:
     def __init__(self) -> None:
         pass
-
-
-    def get_rich_club_coefficient(self,correlation_matrix):
-        """
-        Compute the rich-club coefficient for a given correlation matrix.
-        """
-        # Convert the correlation matrix to a NetworkX graph
-        G = nx.from_numpy_array(correlation_matrix)
-        
-        # Compute the rich-club coefficient
-        rc = nx.rich_club_coefficient(G, normalized=False)
-        return rc
-
-
 
 
     def binarize(self, simmatrix, threshold, mode="abs", threshold_mode="value", binarize=True):
@@ -228,64 +207,7 @@ class NetBasedAnalysis:
 
 
 
-    def rich_club_coefficient_curve(self,G, reference_degrees):
-        """
-        Computes the rich-club coefficient curve for a graph G, aligned to the reference degrees.
-        
-        Parameters:
-        G (networkx.Graph): The input graph.
-        reference_degrees (np.array): The reference degrees to align the rich-club coefficients.
 
-        Returns:
-        np.array: Aligned rich-club coefficients.
-        """
-        rc = nx.rich_club_coefficient(G, normalized=False)
-        rc_coefficients = np.zeros_like(reference_degrees, dtype=float)
-        for i, degree in enumerate(reference_degrees):
-            rc_coefficients[i] = rc.get(degree, 0)
-        return rc_coefficients
 
-    def generate_random_graph(self,G):
-        """
-        Generates a random graph with the same degree sequence as G and removes self-loops and parallel edges.
-        
-        Parameters:
-        G (networkx.Graph): The input graph.
 
-        Returns:
-        networkx.Graph: A random simple graph with the same degree sequence as G.
-        """
-        degree_sequence = [d for n, d in G.degree()]
-        random_G = nx.configuration_model(degree_sequence)
-        
-        # Convert to a simple graph (removing self-loops and parallel edges)
-        random_G = nx.Graph(random_G)  # This removes parallel edges
-        random_G.remove_edges_from(nx.selfloop_edges(random_G))  # This removes self-loops
-        
-        return random_G
 
-    def rich_club_random_distribution(self,G, reference_degrees, num_random_graphs=50):
-        """
-        Computes the rich-club coefficient curves for random equivalent models of G, aligned to the reference degrees.
-        
-        Parameters:
-        G (networkx.Graph): The input graph.
-        reference_degrees (np.array): The reference degrees to align the rich-club coefficients.
-        num_random_graphs (int): Number of random equivalent models to generate.
-
-        Returns:
-        tuple: Two numpy arrays, mean coefficients, and std coefficients.
-        """
-        random_curves = []
-        
-        for _ in range(num_random_graphs):
-            random_G = self.generate_random_graph(G)
-            coefficients = self.rich_club_coefficient_curve(random_G, reference_degrees)
-            random_curves.append(coefficients)
-        
-        random_curves = np.array(random_curves)
-        mean_coefficients = np.nanmean(random_curves, axis=0)
-        std_coefficients = np.nanstd(random_curves, axis=0)
-        
-        return mean_coefficients, std_coefficients
-  
