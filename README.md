@@ -4,8 +4,8 @@ This repository provides tools to construct a within-subject **Metabolic Similar
 
 ## 📚 Table of Contents
 
-- [🧩 Steps to Construct a within-subject MeSiM](#️-steps-to-construct-a-within-subject-mesim)
-- [🛠️ MRSI Pre-Processing Pipeline for Voxel-Based Analysis](#️-mrsi-pre-processing-pipeline-for-voxel-based-analysis)
+- [🧩 Construct a within-subject MeSiM](#️-steps-to-construct-a-within-subject-mesim)
+- [🛠️ Pre-Processing Pipeline for Voxel-Based Analysis](#️-mrsi-pre-processing-pipeline-for-voxel-based-analysis)
 - [📊 MeSiM Analysis](#️-mesim-analysis)
 
 
@@ -124,7 +124,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ---
 
-## 🧩 Steps to Construct a within-subject MeSiM
+## 🧩 Construct a within-subject MeSiM
 
 1. **Create MRSI-to-T1w Transforms**
    ```bash
@@ -209,7 +209,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 ![Metabolic Fibre](figures/metab_fibre.png)
 
 
-## 🛠️ MRSI Pre-Processing Pipeline for Voxel-Based Analysis
+## 🛠️ Pre-Processing Pipeline for Voxel-Based Analysis
 
 - **Create MRSI-to-T1w Transforms (batch)**
    ```bash
