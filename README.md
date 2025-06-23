@@ -6,8 +6,7 @@ This repository provides tools to construct a within-subject **Metabolic Similar
 
 - [🧩 Construct a within-subject MeSiM](#-construct-a-within-subject-mesim)
 - [📊 MeSiM Analysis](#-mesim-analysis)
-- [🛠️ Pre-Processing Pipeline for Voxel-Based Analysis](#-pre-processing-pipeline-for-voxel-based-analysis)
-
+- [🛠️ Pre-Processing Pipeline for Voxel-Based Analysis](#🛠️-pre-processing-pipeline-for-voxel-based-analysis)
 
 
 
