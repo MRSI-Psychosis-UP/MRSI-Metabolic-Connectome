@@ -1,13 +1,12 @@
-# 🧠 Constructing the Metabolic Connectome from MRSI
+# 🧠 MRSI Toolbox Kit
 
-This repository provides tools to construct a within-subject **Metabolic Similarity Matrix (MeSiM)** based on MRSI scans, as detailed in our [preprint](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1).
+This repository provides tools and preprocessing utilites to construct a within-subject **Metabolic Similarity Matrix (MeSiM)** based on MRSI scans, as detailed in [preprint](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1) and preparing files for a voxel-based analysis as detailed in [preprint](http://TBA)
 
 ## 📚 Table of Contents
 
-- [🧩 Steps to Construct a within-subject MeSiM](#️-steps-to-construct-a-within-subject-mesim)
-- [🛠️ MRSI Pre-Processing Pipeline for Voxel-Based Analysis](#️-mrsi-pre-processing-pipeline-for-voxel-based-analysis)
-- [📊 MeSiM Analysis](#️-mesim-analysis)
-
+- [🧩 Construct a within-subject MeSiM](#-construct-a-within-subject-mesim)
+- [📊 MeSiM Analysis](#-mesim-analysis)
+- [🔧 Pre-Processing Pipeline for Voxel-Based Analysis](#-pre-processing-pipeline-for-voxel-based-analysis)
 
 
 ![Figure 1](figures/Figure1.png)
@@ -124,11 +123,11 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ---
 
-## 🧩 Steps to Construct a within-subject MeSiM
+## 🧩 Construct a within-subject MeSiM
 
 1. **Create MRSI-to-T1w Transforms**
    ```bash
-   python experiments/MeSiM_pipeline/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
+   python experiments/Preprocessing/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
    ```
 
 2. **Map Chimera Parcel Image to MRSI Space**
@@ -136,10 +135,19 @@ To access the full dataset, contact the authors with a detailed research proposa
    python experiments/MeSiM_pipeline/map_parcel_image_to_mrsi.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3
    ```
 
-3. **Construct MeSiM**
+3. **Construct within-subject MeSiM**
    ```bash
    python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 1 --nthreads 16 --analyze 1
    ```
+
+4. **Construct within-subject MeSiM (batch)**
+   ```bash
+   python experiments/MeSiM_pipeline/construct_MeSiM_subject_batch.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+   ```
+
+5. **Construct MeSiM Population Average**
+   ```bash
+   python experiments/MeSiM_pipeline/construct_MeSiM_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --participants $PATH2_PARTICIPANT-SESSION_FILE
 
 - **Outputs**: Transforms, coregistered parcellations, and MeSiMs are saved in the `derivatives/` folder.
 
@@ -163,26 +171,12 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--t1mask`        | Path to T1-weighted brain mask                                                  | string        | None           |
 | `--b0`            | MRI  B<sub>0</sub> field in Tesla (3 or 7)                                      | float         | 3              |
 
----
-
-## 🔄 Batch Processing
-
-1. **Create MRSI-to-T1w Transforms**
-   ```bash
-   python experiments/MeSiM_pipeline/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
-   ```
-
-2. **Construct MeSiM**
-   ```bash
-   python experiments/MeSiM_pipeline/construct_MeSiM_subject_batch.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
-   ```
-
-3. **Construct MeSiM Population Average**
-   ```bash
-   python experiments/MeSiM_pipeline/construct_MeSiM_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --participants $PATH2_PARTICIPANT-SESSION_FILE
-   ```
 
 - **Note**: `--participants` refers to a BIDS-style `participants_allsessions.tsv`. Defaults to `$BIDSDATAPATH/group` if not specified.
+---
+
+
+
 
 ---
 
@@ -214,20 +208,41 @@ To access the full dataset, contact the authors with a detailed research proposa
 ![Metabolic Fibre](figures/metab_fibre.png)
 
 
-## 🛠️ MRSI Pre-Processing Pipeline for Voxel-Based Analysis
+## 🔧 Pre-Processing Pipeline for Voxel-Based Analysis
 
 - **Create MRSI-to-T1w Transforms (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+   python experiments/Preprocess/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
    ```
 
 - **Create T1w-to-MNI Transforms (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/registration_t1_to_MNI_batch.py --group Dummy-Project --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE
+   python experiments/Preprocess/registration_t1_to_MNI_batch.py --group Dummy-Project --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE
    ```
 
 - **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/preprocess_batch.py --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1
-   --participants $PATH2_PARTICIPANT-SESSION_FILE 
+   python experiments/Preprocess/preprocess_batch.py --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1 --participants $PATH2_PARTICIPANT-SESSION_FILE 
    ```
+   
+- **Create population quality mask**
+   ```bash
+   python experiments/Preprocess/compute_pop_qmask.py --group Dummy-Project --participants $PATH2_PARTICIPANT-SESSION_FILE --snr 4 --crlb 20 --fwhm 0.1 --alpha 0.68 --b0 3
+   ```
+
+### Command-Line Arguments
+
+| Argument         | Type   | Default             | Description                                                                                     |
+|------------------|--------|---------------------|-------------------------------------------------------------------------------------------------|
+| `--group`        | str    | `"Dummy-Project"` | Name of the group/study directory.                                                              |
+| `--overwrite`    | int    | `0` (choices: 0, 1)  | Overwrite existing parcellation. Set to `1` to enable overwriting.                             |
+| `--participants` | str    | `None`              | Path to a `.tsv` file with participant IDs and sessions to include. If not specified, all are processed. |
+| `--snr`          | float  | `4`                 | SNR threshold above which an MRSI signal is considered significant (per voxel).                            |
+| `--crlb`         | float  | `20`                | CRLB threshold below which an MRSI signal is considered significant (per voxel).                           |
+| `--fwhm`         | float  | `0.1`               | FWHM threshold below which an MRSI signal is considered significant (per voxel).                           |
+| `--alpha`        | float  | `0.68`              | Proportion of significant voxels across participants to retain a voxel at the group level.     |
+| `--b0`           | float  | `3` (choices: 3, 7)  | MRI B0 field strength in Tesla.
+
+![Figure 1](figures/preproc_vba.png)
+|
+
