@@ -39,7 +39,7 @@ overwrite_pvcorr   = str(args.overwrite_pve)
 overwrite_filt     = str(args.overwrite_filt)
 
 ###############################################################################
-EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","scripts","transform_mrsi_to-t1_to-mni.py")
+EXEC_PATH = join(dutils.DEVANALYSEPATH,"experiments","scripts","preprocess.py")
 ################################################################################
 if participants_file is None:
     participant_session_list = join(dutils.BIDSDATAPATH,group,"participants_allsessions.tsv")
