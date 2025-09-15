@@ -197,12 +197,26 @@ To access the full dataset, contact the authors with a detailed research proposa
    python experiments/MeSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
    ```
 
-4. **Construct Metabolic Principal Curve (Population)**
+4. **Derive all GM constrained networtk paths**
    ```bash
-   python experiments/MeSiM_analysis/construct_metabolic_fibre.py --group Geneva-Study --parc LFMIHIFIS --scale 3 
-   --h both
+   python experiments/MeSiM_analysis/find_all_network_paths.py --group Geneva-Study --parc LFMIHIFIS --scale 3
+   --lobe LOBE --hemi HEMI --lpath 13
    ```
-- **Note**: `--dimalg` refers to the manifold discovery algorithm useful to construct the subsequent metabolic fibre. `--h` specifies which hemisphere to restrain the fibre construction [`lh` or `rh`]. Metabolic Fibre is constructed as an edge bundled network and rendered on your default browser at `127.0.0.0:PORT`  
+5. **Construct Metabolic Principal Curve (Population)**
+
+   ```bash
+   python experiments/MeSiM_analysis/construct_metabolic_principal_path.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --diag patients --lpath 13 --group LPN-Project --lobe ctx --nperm 100 --lobe ctx
+   ```
+- **Note**:  
+  - Run first `find_all_network_paths.py` for both hemispheres `lh` and `rh` to construct all possible network paths then select the one which maximizes metabolic entropy and minimizes local metabolic heterogeneity with `construct_metabolic_principal_path.py` followed by comparison with a random geometric network and results figure generation.
+  - `--dimalg` specifies the **manifold-discovery algorithm** used to construct the metabolic fibre.  
+  - `--hemi`  chooses the **hemisphere** in which the fibre is built (`lh` or `rh`).  
+  - `--lpath` sets the **maximum path length**.  
+  - `--nperm` defines the **size of the null distribution**, generated from random-geometric networks.  
+  - `--start` and `--stop` indicate the **start and stop nodes**.  
+    - If not provided, they default to the **occipital region** (start) and **frontal/anterior cingulate regions** (stop), which maximise the inter-node MS-mode difference.  
+    - The script then runs `find_all_network_paths.py` from scratch with these adjusted end-node labels.  
+  - `--lobe` restricts the path search to either the **neocortex** (`ctx`) or the **subcortex** (`subc`).
 ---
 
 ![Metabolic Fibre](figures/metab_fibre.png)

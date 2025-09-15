@@ -5,7 +5,10 @@ build
 .env
 
 t1s.txt
-data/BIDS/Geneva-Study/
+data/BIDS/Geneva-Study/derivatives/group/msi
+data/BIDS/Geneva-Study/derivatives/connectivity
+data/BIDS/Geneva-Study/derivatives/group/networkpaths
+
 recon_sample.sh
 parcellate_chimera.sh
 
