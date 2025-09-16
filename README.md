@@ -8,9 +8,6 @@ This repository provides tools and preprocessing utilites to construct a within-
 - [📊 MeSiM Analysis](#-mesim-analysis)
 - [🔧 Pre-Processing Pipeline for Voxel-Based Analysis](#-pre-processing-pipeline-for-voxel-based-analysis)
 
-
-![Figure 1](figures/Figure1.png)
-
 ---
 
 ## 📜 License
@@ -125,6 +122,13 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ## 🧩 Construct a within-subject MeSiM
 
+> **Batch mode semantics**
+>
+> * `--batch file` **requires** `--participants` to point to a `.tsv` file listing the subject–session pairs to process.
+> * `--batch off` **requires** both `--subject_id` and `--session` and processes **one** acquisition (a single subject–session pair).
+> * `--batch all` processes all discoverable subject–session pairs in the group.
+
+
 1. **Create MRSI-to-T1w Transforms**
    ```bash
    python experiments/Preprocessing/registration_mrsi_to_t1.py --group Dummy-Project --ref_met CrPCr --subject_id S001 --session V1 --nthreads 16
@@ -142,7 +146,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 4. **Construct within-subject MeSiM (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/construct_MeSiM_subject_batch.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
+   python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE --t1mask acq-memprage_desc-brain_T1w 
    ```
 
 5. **Construct MeSiM Population Average**
@@ -155,28 +159,29 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ### Input Options Description
 
-| **Arg Name**      | **Description**                                                                 | **Type**      | **Default**    |
-|-------------------|---------------------------------------------------------------------------------|---------------|----------------|
-| `--group`         | BIDS project folder name                                                        | string        | Dummy-Project  |
-| `--subject_id`    | Subject ID, e.g., S001                                                          | string        | S001           |
-| `--session`       | Session ID, e.g., V1                                                            | string        | V1             |
-| `--parc`          | Chimera parcellation string                                                     | string        | LFMIHIFIS      |
-| `--npert`         | Number of metabolic profile perturbations                                       | integer       | 50             |
-| `--leave_one_out` | Leave-one-metabolite-out option (0 or 1)                                        | int [0,1]     | 0              |
-| `--show_plot`     | Show plots (0 or 1)                                                             | int [0,1]     | 0              |
-| `--overwrite`     | Overwrite existing results (0 or 1)                                             | int [0,1]     | 0              |
-| `--ref_met`       | Reference metabolite for coregistration                                         | string        | CrPCr          |
-| `--nthreads`      | Number of parallel CPU threads                                                  | integer       | 4              |
-| `--t1`            | Path to T1-weighted image                                                       | string        | None           |
-| `--t1mask`        | Path to T1-weighted brain mask                                                  | string        | None           |
-| `--b0`            | MRI  B<sub>0</sub> field in Tesla (3 or 7)                                      | float         | 3              |
-
+| **Arg Name**      | **Description**                                                                                                                                                 | **Type**                          | **Default**     |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | --------------- |
+| `--group`         | BIDS project folder name                                                                                                                                        | str                               | `Dummy-Project` |
+| `--subject_id`    | Subject ID (e.g., `S001`). **Required when** `--batch off` (processes a single acquisition).                                                                    | str                               | `S001`          |
+| `--session`       | Session label (e.g., `V1`). **Required when** `--batch off` (processes a single acquisition).                                                                   | str                               | `V1`            |
+| `--parc`          | Chimera parcellation string                                                                                                                                     | str                               | `LFMIHIFIS`     |
+| `--npert`         | Number of metabolic profile perturbations                                                                                                                       | int                               | `50`            |
+| `--leave_one_out` | Leave-one-metabolite-out option                                                                                                                                 | int (0 or 1)                      | `0`             |
+| `--show_plot`     | Show plots                                                                                                                                                      | int (0 or 1)                      | `0`             |
+| `--overwrite`     | Overwrite existing results                                                                                                                                      | int (0 or 1)                      | `0`             |
+| `--ref_met`       | Reference metabolite for coregistration                                                                                                                         | str                               | `CrPCr`         |
+| `--nthreads`      | Number of parallel CPU threads                                                                                                                                  | int                               | `4`             |
+| `--t1`            | Path or pattern to T1-weighted image                                                                                                                            | str                               | `None`          |
+| `--t1mask`        | Path or pattern to T1-weighted brain mask                                                                                                                       | str                               | `None`          |
+| `--b0`            | MRI B<sub>0</sub> field in Tesla                                                                                                                                | float (choices: 3, 7)             | `3`             |
+| `--batch`         | Batch mode. `file` **requires** `--participants`; `off` **requires** `--subject_id` **and** `--session` (processes a single acquisition); `all` uses all pairs. | str (choices: `all`,`file`,`off`) | `off`           |
+| `--participants`  | Path to a `.tsv` listing subject–session pairs to process (**required when** `--batch file`; ignored for `--batch off` and `--batch all`).                      | path                              | `None`          |
 
 - **Note**: `--participants` refers to a BIDS-style `participants_allsessions.tsv`. Defaults to `$BIDSDATAPATH/group` if not specified.
 ---
 
 
-
+![Figure 1](figures/Figure1.png)
 
 ---
 
@@ -205,7 +210,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 5. **Construct Metabolic Principal Curve (Population)**
 
    ```bash
-   python experiments/MeSiM_analysis/construct_metabolic_principal_path.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --diag patients --lpath 13 --group LPN-Project --lobe ctx --nperm 100 --lobe ctx
+   python experiments/MeSiM_analysis/construct_metabolic_principal_path.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --diag group --lpath 13 --lobe ctx --nperm 100 --lobe ctx
    ```
 - **Note**:  
   - Run first `find_all_network_paths.py` for both hemispheres `lh` and `rh` to construct all possible network paths then select the one which maximizes metabolic entropy and minimizes local metabolic heterogeneity with `construct_metabolic_principal_path.py` followed by comparison with a random geometric network and results figure generation.

@@ -16,7 +16,9 @@ class MeSiM(object):
     def compute_simmatrix(self,mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore=[],N_PERT=50,corr_mode = "spearman",
                             rescale="mean",n_permutations=10,return_parcel_conc=True,n_proc=16):
             parcel_concentrations = None
-            for i in track(range(N_PERT), description="Map Parcellation Image to MRSI..."):
+            self.metabolites      = mrsirand.metabolites
+            self.npert            = N_PERT
+            for i in track(range(N_PERT), description="Map parcellation image to MRSI space..."):
                 met_image4D_data           = mrsirand.sample_noisy_img4D()
                 parcel_concentrations      = self.parcellate_vectorized(met_image4D_data,parcel_mrsi_np,
                                                                         parcel_header_dict,rescale=rescale,
@@ -27,16 +29,31 @@ class MeSiM(object):
                                                                         show_progress=True,
                                                                         n_permutations=n_permutations,
                                                                         n_workers=n_proc)
+            
+            
             parcel_concentrations_np = None
             if return_parcel_conc:
-                n_parcels     = len(list(parcel_concentrations.keys()))
-                n_metabolites = met_image4D_data.shape[0]
-                parcel_concentrations_np = np.zeros([n_parcels,n_metabolites,N_PERT])
-                for idx,parcel_id in enumerate(parcel_concentrations):
-                    array = np.array(parcel_concentrations[parcel_id])
-                    parcel_concentrations_np[idx] = self.extract_metabolite_per_parcel(array)
+                parcel_concentrations = None
+                for i in track(range(N_PERT), description="Retrieve MRSI levels..."):
+                    met_image4D_data      = mrsirand.sample_noisy_img4D()
+                    parcel_concentrations = self.parcellate_vectorized(
+                        met_image4D_data,
+                        parcel_mrsi_np,
+                        parcel_header_dict,
+                        rescale="raw",
+                        parcel_concentrations=parcel_concentrations,
+                    )
+                parcel_concentrations_np = self.map_mrsi_to_parcel(parcel_concentrations)
             return simmatrix, pvalue, parcel_concentrations_np
 
+
+    def map_mrsi_to_parcel(self,parcel_concentrations):
+        n_parcels                = len(list(parcel_concentrations.keys()))
+        parcel_concentrations_np = np.zeros([n_parcels,len(self.metabolites),self.npert])
+        for idx,parcel_id in enumerate(parcel_concentrations):
+            array = np.array(parcel_concentrations[parcel_id])
+            parcel_concentrations_np[idx] = self.extract_metabolite_per_parcel(array)
+        return parcel_concentrations_np
 
 
     def parcellate_vectorized(self,met_image4D_data, parcel_image3D, parcel_header_dict, rescale="zscore", parcel_concentrations=None):
@@ -47,7 +64,7 @@ class MeSiM(object):
         - met_image4D_data: 4D numpy array of metabolite concentrations.
         - parcel_image3D: 3D numpy array mapping voxels to parcels.
         - parcel_header_dict: Dictionary with parcel IDs as keys.
-        - rescale: Boolean, whether to rescale concentrations by their mean.
+        - rescale: str, whether to rescale concentrations by their mean.
         - parcel_concentrations: Optional dictionary to update with new concentrations.
         
         Returns:
@@ -70,6 +87,8 @@ class MeSiM(object):
                 std_val  = np.std(met_image4D_data[idm, ...])
                 if mean_val != 0 and  std_val != 0: 
                     met_image4D_data[idm, ...] = (met_image4D_data[idm, ...]-mean_val)/std_val
+        elif rescale=="raw":
+            pass
 
         if parcel_concentrations is None:
             parcel_concentrations = {}
@@ -132,10 +151,11 @@ class MeSiM(object):
 
 
     def extract_metabolite_per_parcel(self,array):
-        N_metabolites = 5
+        N_metabolites = len(self.metabolites)
         if len(array) % N_metabolites != 0:
             raise ValueError("The length of the array must be a multiple of 5.")
-        N_pert = len(array) // N_metabolites
+        # N_pert = len(array) // N_metabolites
+        N_pert = self.npert
         metabolite_conc = np.zeros([N_metabolites,N_pert])
         for i,el in enumerate(array):
             met_pos = i % N_metabolites
@@ -199,14 +219,14 @@ class MeSiM(object):
             for target in mets_remove:
                 _ids = np.where(metabolite_arr==target)[0][0]
                 ids_to_remove.append(_ids)
+            # debug.warning("ids_to_remove",ids_to_remove)
             metabolite_arr = np.delete(metabolite_arr, ids_to_remove)
-            debug.warning("leave_one_out: Remove",METABOLITES[ids_to_remove])
-            mrsirand.metabolites = metabolite_arr
+            # debug.warning("leave_one_out: Remove",METABOLITES[ids_to_remove[0]])
+            mrsirand.metabolites   = metabolite_arr
             simmatrix, pvalue,_    = self.compute_simmatrix(mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore,N_PERT,
                                                             corr_mode = "spearman",rescale="zscore",return_parcel_conc=False)
             simmatrix[pvalue>0.005] = 0
             delta = np.abs(simmatrix-simmatrix_ref).mean()
-            # debug.info(mets_remove,delta)
             delta_arr[ids] = delta
             simmatrix_arr.append(simmatrix)
         return np.array(simmatrix_arr)
@@ -222,26 +242,3 @@ class MeSiM(object):
             "corr": spearman_corr_quadratic,
             "pvalue": spearman_pvalue_quadratic
         }
-
-
-    def filter_sparse_matrices(self,matrix_list,sigma=1):
-        n_zeros_arr = list()
-        for i,sim in enumerate(matrix_list):
-            n_zeros = len(np.where(sim==0)[0])
-            n_zeros_arr.append(n_zeros)
-
-        n_zeros_arr = np.array(n_zeros_arr)
-        debug.info("0 nodal strength count",n_zeros_arr.mean(),"+-",n_zeros_arr.std())
-
-        include_indices = list()
-        exclude_indices = list()
-        matrix_list_refined = list()
-
-        for i,sim in enumerate(matrix_list):
-            n_zeros = len(np.where(sim==0)[0])
-            if n_zeros<n_zeros_arr.mean()+sigma*n_zeros_arr.std():
-                matrix_list_refined.append(sim)
-                include_indices.append(i)
-            else:
-                exclude_indices.append(i)
-        return matrix_list_refined,include_indices,exclude_indices
