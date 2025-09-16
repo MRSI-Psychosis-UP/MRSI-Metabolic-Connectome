@@ -1,9 +1,9 @@
-import os, sys, argparse
+import os, sys, argparse, csv
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from registration.registration import Registration
 from tools.datautils import DataUtils
-from os.path import split, join, exists
+from os.path import split, join, exists, isdir
 from tools.filetools import FileTools
 from tools.debug import Debug
 from tools.mridata import MRIData
@@ -22,6 +22,74 @@ reg      = Registration()
 ftools   = FileTools()
 pvc      = PVECorrection()
 bhfilt   = BiHarmonic()
+
+
+def _read_pairs_from_file(path):
+    """Return list of (subject, session) extracted from TSV/CSV file."""
+    delimiter = '\t' if path.lower().endswith('.tsv') else ','
+    try:
+        with open(path, newline='') as handle:
+            reader = csv.DictReader(handle, delimiter=delimiter)
+            headers = reader.fieldnames or []
+            col_sub, col_ses = None, None
+            for header in headers:
+                h_lower = header.lower()
+                if col_sub is None and h_lower in ("participant_id", "subject", "subject_id", "sub", "id"):
+                    col_sub = header
+                if col_ses is None and h_lower in ("session", "session_id", "ses"):
+                    col_ses = header
+            if col_sub is None or col_ses is None:
+                raise ValueError("Participants file must contain subject and session columns.")
+
+            pairs = []
+            for row in reader:
+                sid = str(row.get(col_sub, "")).strip()
+                ses = str(row.get(col_ses, "")).strip()
+                if not sid or not ses:
+                    continue
+                pairs.append((sid, ses))
+    except FileNotFoundError:
+        raise
+
+    # Preserve order while deduplicating
+    unique_pairs = list(dict.fromkeys(pairs))
+    return unique_pairs
+
+
+def _discover_all_pairs(group):
+    """Return all subject-session pairs available for a group."""
+    dataset_root = join(dutils.BIDSDATAPATH, group)
+    pairs = []
+
+    default_list = join(dataset_root, "participants_allsessions.tsv")
+    if exists(default_list):
+        try:
+            pairs = _read_pairs_from_file(default_list)
+            pairs = [pair for pair in pairs if pair[1] != "V2BIS"]
+        except Exception as exc:
+            debug.warning(f"Failed reading {default_list}: {exc}")
+
+    if pairs:
+        return pairs
+
+    if not isdir(dataset_root):
+        return []
+
+    for entry in sorted(os.listdir(dataset_root)):
+        if not entry.startswith("sub-"):
+            continue
+        subj_dir = join(dataset_root, entry)
+        if not isdir(subj_dir):
+            continue
+        subject_id = entry[4:]
+        for session_entry in sorted(os.listdir(subj_dir)):
+            if not session_entry.startswith("ses-"):
+                continue
+            session_id = session_entry[4:]
+            pairs.append((subject_id, session_id))
+
+    # Deduplicate while keeping order
+    return list(dict.fromkeys(pairs))
 
 
 def filter_worker(input_path, output_path, mask_path,percentile):
@@ -53,24 +121,7 @@ def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="mrsi"):
 
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Process some input parameters.")
-    # Parse arguments
-    parser.add_argument('--group', type=str,default="Mindfulness-Project") 
-    parser.add_argument('--subject_id',type=str,default="S002",help="Subject ID [sub-??")
-    parser.add_argument('--session',type=str,default="V3",help="Session [ses-??")
-    parser.add_argument('--nthreads',type=int,default=4,help="Number of CPU threads [default=4]")
-    parser.add_argument('--filtoption',type=str,default="filtbiharmonic",help="MRSI filter option  [default=filtbihamonic]")
-    parser.add_argument('--spikepc',type=float,default=99,help="Percentile for MRSI signal spike detection  [default=98]")
-    parser.add_argument('--t1'        , type=str, default=None,help="Anatomical T1w file path")
-    parser.add_argument('--b0'        , type=float, default = 3,choices=[3,7],help="MRI B0 field strength in Tesla [default=3]")
-    parser.add_argument('--overwrite' , type=int, default=0, choices = [1,0],help="Overwrite existing parcellation (default: 0)")
-    parser.add_argument('--overwrite_filt' , type=int, default=0, choices = [1,0],help="Overwrite MRSI filtering output (default: 0)")
-    parser.add_argument('--overwrite_pve' , type=int, default=0, choices = [1,0],help="Overwrite partial volume correction (default: 0)")
-    parser.add_argument('--v' , type=int, default=0, choices = [1,0],help="Verbose")
-
-
-    args               = parser.parse_args()
+def _run_single_preprocess(args, subject_id, session):
     GROUP              = args.group
     filtoption         = args.filtoption
     overwrite          = bool(args.overwrite)
@@ -86,10 +137,13 @@ def main():
 
 
     if verbose:
-        debug.display_dict(vars(args),"MRSI Preprocessing Pipeline")
+        arg_dict = vars(args).copy()
+        arg_dict.update({"subject_id": subject_id, "session": session})
+        debug.display_dict(arg_dict,"MRSI Preprocessing Pipeline")
 
     os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(nthreads)
-    subject_id, session = args.subject_id, args.session
+    subject_id = str(subject_id)
+    session = str(session)
     recording_id = f"sub-{subject_id}_ses-{session}"
 
     if B0_strength == 3:
@@ -450,6 +504,61 @@ def main():
     debug.separator()
     return
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Process some input parameters.")
+    parser.add_argument('--group', type=str, default="Mindfulness-Project")
+    parser.add_argument('--subject_id', type=str, default="S002", help="Subject ID [sub-??]")
+    parser.add_argument('--session', type=str, default="V3", help="Session [ses-??]")
+    parser.add_argument('--nthreads', type=int, default=4, help="Number of CPU threads [default=4]")
+    parser.add_argument('--filtoption', type=str, default="filtbiharmonic", help="MRSI filter option  [default=filtbihamonic]")
+    parser.add_argument('--spikepc', type=float, default=99, help="Percentile for MRSI signal spike detection  [default=98]")
+    parser.add_argument('--t1', type=str, default=None, help="Anatomical T1w file path")
+    parser.add_argument('--b0', type=float, default=3, choices=[3, 7], help="MRI B0 field strength in Tesla [default=3]")
+    parser.add_argument('--overwrite', type=int, default=0, choices=[1, 0], help="Overwrite existing parcellation (default: 0)")
+    parser.add_argument('--overwrite_filt', type=int, default=0, choices=[1, 0], help="Overwrite MRSI filtering output (default: 0)")
+    parser.add_argument('--overwrite_pve', type=int, default=0, choices=[1, 0], help="Overwrite partial volume correction (default: 0)")
+    parser.add_argument('--v', type=int, default=0, choices=[1, 0], help="Verbose")
+    parser.add_argument('--participants', type=str, default=None,
+                        help="Path to TSV/CSV containing subject-session pairs to process in batch.")
+    parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
+                        help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
+
+    args = parser.parse_args()
+
+    if args.batch == 'off':
+        pair_list = [(args.subject_id, args.session)]
+    elif args.batch == 'file':
+        if not args.participants:
+            debug.error("--batch=file requires --participants to be provided.")
+            return
+        try:
+            pair_list = _read_pairs_from_file(args.participants)
+        except Exception as exc:
+            debug.error(f"Failed to read participants list: {exc}")
+            return
+    else:  # args.batch == 'all'
+        pair_list = _discover_all_pairs(args.group)
+        if not pair_list:
+            debug.error(f"No subject-session pairs found for group {args.group}.")
+            return
+
+    if not pair_list:
+        debug.error("No subject-session pairs to process.")
+        return
+
+    total = len(pair_list)
+    for index, (subject_id, session) in enumerate(pair_list, start=1):
+        run_args = argparse.Namespace(**vars(args))
+        run_args.subject_id = subject_id
+        run_args.session = session
+        if args.batch != 'off':
+            debug.title(f"Batch item {index}/{total}: sub-{subject_id}_ses-{session}")
+        try:
+            _run_single_preprocess(run_args, subject_id, session)
+        except Exception as exc:
+            debug.error(f"Processing sub-{subject_id}_ses-{session} failed: {exc}")
+
 if __name__=="__main__":
     main()
 
@@ -467,9 +576,3 @@ if __name__=="__main__":
 
 
     
-
-
-
-
-
-

@@ -224,39 +224,78 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ## 🔧 Pre-Processing Pipeline for Voxel-Based Analysis
 
-- **Create MRSI-to-T1w Transforms (batch)**
-   ```bash
-   python experiments/Preprocess/registration_mrsi_to_t1_batch.py --group Dummy-Project --ref_met CrPCr --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE --t1pattern acq-memprage_desc-brain_T1w
-   ```
+> **Batch mode semantics**
+>
+> * `--batch file` **requires** `--participants` to point to a `.tsv` file listing the subject–session pairs to process.
+> * `--batch off` **requires** both `--subject_id` and `--session` and processes **one** acquisition (a single subject–session pair).
+> * `--batch all` processes all discoverable subject–session pairs in the group.
 
-- **Create T1w-to-MNI Transforms (batch)**
-   ```bash
-   python experiments/Preprocess/registration_t1_to_MNI_batch.py --group Dummy-Project --nthreads 16 --participants $PATH2_PARTICIPANT-SESSION_FILE
-   ```
+* **Create MRSI-to-T1w Transforms (batch)**
 
-- **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (batch)**
-   ```bash
-   python experiments/Preprocess/preprocess_batch.py --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1 --participants $PATH2_PARTICIPANT-SESSION_FILE 
-   ```
-   
-- **Create population quality mask**
-   ```bash
-   python experiments/Preprocess/compute_pop_qmask.py --group Dummy-Project --participants $PATH2_PARTICIPANT-SESSION_FILE --snr 4 --crlb 20 --fwhm 0.1 --alpha 0.68 --b0 3
-   ```
+  ```bash
+  python experiments/Preprocess/registration_mrsi_to_t1.py \
+    --group Dummy-Project --ref_met CrPCr --nthreads 16 \
+    --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE \
+    --t1 acq-memprage_desc-brain_T1w
+  ```
+
+* **Create T1w-to-MNI Transforms (batch)**
+
+  ```bash
+  python experiments/Preprocess/registration_t1_to_MNI.py \
+    --group Dummy-Project --nthreads 16 \
+    --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE
+  ```
+
+* **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (single subject)**
+
+  ```bash
+  python experiments/Preprocess/preprocess.py \
+    --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1 \
+    --batch off --subject_id S001 --session V1
+  ```
+
+* **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (batch)**
+
+  ```bash
+  python experiments/Preprocess/preprocess.py \
+    --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1 \
+    --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE
+  ```
+
+* **Create population quality mask**
+
+  ```bash
+  python experiments/Preprocess/compute_pop_qmask.py \
+    --group Dummy-Project --participants $PATH2_PARTICIPANT-SESSION_FILE \
+    --snr 4 --crlb 20 --fwhm 0.1 --alpha 0.68 --b0 3
+  ```
 
 ### Command-Line Arguments
 
-| Argument         | Type   | Default             | Description                                                                                     |
-|------------------|--------|---------------------|-------------------------------------------------------------------------------------------------|
-| `--group`        | str    | `"Dummy-Project"` | Name of the group/study directory.                                                              |
-| `--overwrite`    | int    | `0` (choices: 0, 1)  | Overwrite existing parcellation. Set to `1` to enable overwriting.                             |
-| `--participants` | str    | `None`              | Path to a `.tsv` file with participant IDs and sessions to include. If not specified, all are processed. |
-| `--snr`          | float  | `4`                 | SNR threshold above which an MRSI signal is considered significant (per voxel).                            |
-| `--crlb`         | float  | `20`                | CRLB threshold below which an MRSI signal is considered significant (per voxel).                           |
-| `--fwhm`         | float  | `0.1`               | FWHM threshold below which an MRSI signal is considered significant (per voxel).                           |
-| `--alpha`        | float  | `0.68`              | Proportion of significant voxels across participants to retain a voxel at the group level.     |
-| `--b0`           | float  | `3` (choices: 3, 7)  | MRI B0 field strength in Tesla. |
+| Argument         | Type  | Default                               | Description                                                                                                                                                     |
+| ---------------- | ----- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--group`        | str   | `Dummy-Project`                       | Name of the group/study directory.                                                                                                                              |
+| `--overwrite`    | int   | `0` (choices: `0`, `1`)               | Overwrite existing outputs; set to `1` to enable.                                                                                                               |
+| `--batch`        | str   | `off` (choices: `all`, `file`, `off`) | Batch mode. `file` **requires** `--participants`; `off` **requires** `--subject_id` **and** `--session` (processes a single acquisition); `all` uses all pairs. |
+| `--participants` | path  | `None`                                | Path to a `.tsv` listing subject–session pairs (**required when** `--batch file`; ignored for `--batch off` and `--batch all`).                                 |
+| `--subject_id`   | str   | `None`                                | Subject identifier (**required when** `--batch off`; ignored otherwise).                                                                                        |
+| `--session`      | str   | `None`                                | Session label (**required when** `--batch off`; ignored otherwise).                                                                                             |
+| `--snr`          | float | `4`                                   | SNR threshold above which an MRSI signal is considered significant (per voxel).                                                                                 |
+| `--crlb`         | float | `20`                                  | CRLB threshold below which an MRSI signal is considered significant (per voxel).                                                                                |
+| `--fwhm`         | float | `0.1`                                 | FWHM threshold below which an MRSI signal is considered significant (per voxel).                                                                                |
+| `--alpha`        | float | `0.68`                                | Proportion of significant voxels across participants required to retain a voxel at the group level.                                                             |
+| `--b0`           | float | `3` (choices: `3`, `7`)               | MRI B0 field strength in Tesla.                                                                                                                                 |
+                                                                                                |
+
 
 ![Figure 1](figures/preproc_vba.png)
+
+
+
+
+
+
+
 
 
