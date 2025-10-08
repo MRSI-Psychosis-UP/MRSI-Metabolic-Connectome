@@ -12,7 +12,7 @@ This repository provides tools and preprocessing utilites to construct a within-
 
 ## 📜 License
 
-Licensed under the terms specified in [LICENSE](./LICENSE).
+The repository is distributed under the CHUV license [LICENSE](./LICENSE).
 
 ---
 
