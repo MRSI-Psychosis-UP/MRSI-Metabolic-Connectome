@@ -12,6 +12,7 @@ import argparse
 from tools.mridata import MRIData
 from filters.biharmonic import BiHarmonic
 import nibabel as nib
+from nibabel.orientations import inv_ornt_aff 
 
 
 dutils   = DataUtils()
@@ -85,6 +86,34 @@ def _discover_all_pairs(group):
 
     return list(dict.fromkeys(pairs))
 
+def orientation_worker(input_path,overwrite_og=False,output_path=None,transform=np.array([[1.,  1.],[0., -1.],[2.,  1.]])):
+    try:
+        img     = nib.load(input_path)
+    except Exception as e:
+        debug.error("orient_to_target: Error loading input path \n ",e)
+    try:
+        img_np  = img.get_fdata().squeeze()
+        aff     = img.affine
+        aff_new = aff @ inv_ornt_aff(transform, img_np.shape[:3])
+        # Copy header, set qform/sform
+        hdr     = img.header.copy()
+        hdr.set_sform(aff_new, code=1) ; hdr.set_qform(aff_new, code=1)
+        out_img = nib.Nifti1Image(img_np, aff_new, header=hdr)
+    except Exception as e:
+        debug.error("orient_to_target: Error setting new image orientation \n ",e)
+    try:
+        # out_reorient_path = input_path.replace(".nii.gz","_reoriented.nii.gz")
+        if overwrite_og:
+            backup_path = input_path.replace(".nii.gz","_backup.nii.gz")
+            ftools.save_nii_file(img, backup_path)
+            ftools.save_nii_file(out_img, input_path)
+        elif not overwrite_og and output_path:
+            ftools.save_nii_file(out_img, output_path)
+        else:
+            debug.error("orient_to_target: Outpath needs to be specfied if overwrite set to False \n ",e)
+    except:
+        debug.error("orient_to_target: Error saving new image orientation \n ",e)
+
 
 def _run_single_registration(args, subject_id, session):
     GROUP = args.group
@@ -92,7 +121,7 @@ def _run_single_registration(args, subject_id, session):
     B0_strength = args.b0
     overwrite_flag = bool(args.overwrite)
     METABOLITE_REF = args.ref_met
-
+    correct_orientation = args.corr_orient
     subject_id = str(subject_id)
     session = str(session)
 
@@ -170,18 +199,20 @@ def _run_single_registration(args, subject_id, session):
             debug.warning(f"Overwriting existing {METABOLITE_REF} to T1w Registration")
         elif not exists(join(transform_dir_path, warpfilename)):
             debug.warning(f"Creating MRSI {METABOLITE_REF} to T1w Registration")
-
-        syn_tx, _ = reg.register(
-            fixed_input=t1_path,
-            moving_input=mridata.get_mri_nifti(
+        
+        input_path = mridata.get_mri_filepath(
                 modality="mrsi",
                 space="orig",
                 desc="signal",
                 met=METABOLITE_REF,
                 option="filtbiharmonic"
-            ),
-            fixed_mask=None,
-            moving_mask=None,
+            )
+        if correct_orientation:
+            tmp_path = join("/tmp",split(input_path)[1])
+            orientation_worker(input_path,output_path=tmp_path,overwrite_og=False)
+        syn_tx, _ = reg.register(
+            fixed_input=t1_path,
+            moving_input=tmp_path,
             transform="sr",
             verbose=0
         )
@@ -208,7 +239,7 @@ def main():
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
-
+    parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique orientation [default=0]")
     args = parser.parse_args()
 
     if args.batch == 'off':

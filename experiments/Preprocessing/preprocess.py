@@ -14,7 +14,7 @@ import threading
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from filters.pve import PVECorrection
 from filters.biharmonic import BiHarmonic
-
+from nibabel.orientations import inv_ornt_aff 
 
 dutils   = DataUtils()
 debug    = Debug()
@@ -54,6 +54,37 @@ def _read_pairs_from_file(path):
     # Preserve order while deduplicating
     unique_pairs = list(dict.fromkeys(pairs))
     return unique_pairs
+
+
+def orientation_worker(input_path,overwrite_og=False,output_path=None,transform=np.array([[1.,  1.],[0., -1.],[2.,  1.]])):
+    try:
+        img     = nib.load(input_path)
+    except Exception as e:
+        debug.error("orient_to_target: Error loading input path \n ",e)
+    try:
+        img_np  = img.get_fdata().squeeze()
+        aff     = img.affine
+        aff_new = aff @ inv_ornt_aff(transform, img_np.shape[:3])
+        # Copy header, set qform/sform
+        hdr     = img.header.copy()
+        hdr.set_sform(aff_new, code=1) ; hdr.set_qform(aff_new, code=1)
+        out_img = nib.Nifti1Image(img_np, aff_new, header=hdr)
+    except Exception as e:
+        debug.error("orient_to_target: Error setting new image orientation \n ",e)
+    try:
+        # out_reorient_path = input_path.replace(".nii.gz","_reoriented.nii.gz")
+        if overwrite_og:
+            backup_path = input_path.replace(".nii.gz","_backup.nii.gz")
+            ftools.save_nii_file(img, backup_path)
+            ftools.save_nii_file(out_img, input_path)
+        elif not overwrite_og and output_path:
+            ftools.save_nii_file(out_img, output_path)
+        else:
+            debug.error("orient_to_target: Outpath needs to be specfied if overwrite set to False \n ",e)
+    except:
+        debug.error("orient_to_target: Error saving new image orientation \n ",e)
+
+
 
 
 def _discover_all_pairs(group):
@@ -122,18 +153,19 @@ def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="mrsi"):
 
 
 def _run_single_preprocess(args, subject_id, session):
-    GROUP              = args.group
-    filtoption         = args.filtoption
-    overwrite          = bool(args.overwrite)
-    overwrite_filt     = bool(args.overwrite_filt)
-    overwrite_pvcorr   = bool(args.overwrite_pve)
-    t1_path_arg        = args.t1
-    B0_strength        = args.b0
+    GROUP               = args.group
+    filtoption          = args.filtoption
+    overwrite           = bool(args.overwrite)
+    overwrite_filt      = bool(args.overwrite_filt)
+    overwrite_pvcorr    = bool(args.overwrite_pve)
+    t1_path_arg         = args.t1
+    B0_strength         = args.b0
     nthreads            = args.nthreads
-    spike_pc           = args.spikepc
-    pv_corr_str        = "pvcorr"
-    verbose            = bool(args.v)
-    TISSUE_LIST        = [None, "GM","WM","CSF"]
+    spike_pc            = args.spikepc
+    pv_corr_str         = "pvcorr"
+    verbose             = bool(args.v)
+    TISSUE_LIST         = [None, "GM","WM","CSF"]
+    correct_orientation = args.corr_orient
 
 
     if verbose:
@@ -204,6 +236,8 @@ def _run_single_preprocess(args, subject_id, session):
                         mrsi_img_orig_filt_path = mridata.get_mri_filepath(
                             modality="mrsi", space="orig", desc=desc, met=met, option=filtoption
                         )
+                        if correct_orientation:
+                            orientation_worker(mrsi_img_orig_path,overwrite_og=True)
                         mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
                         futures.append(executor.submit(
                             filter_worker,
@@ -523,6 +557,7 @@ def main():
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
+    parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique orientation [default=0]")
 
     args = parser.parse_args()
 
