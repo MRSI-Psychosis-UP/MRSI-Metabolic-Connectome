@@ -106,7 +106,9 @@ def _run_single_registration(args, subject_id, session):
             t1_path = mridata.find_nifti_paths(t1_path_arg)
             if t1_path is None:
                 debug.error(f"{t1_path} does not exists or no matching pattern for {t1_path_arg} found")
-                return 
+                return
+            else:
+                debug.info("Using t1 image",t1_path) 
     except Exception as e: 
         debug.error("--t1 argument must be a valid string or path")
         return

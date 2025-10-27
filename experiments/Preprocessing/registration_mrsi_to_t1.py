@@ -1,8 +1,11 @@
 import os, sys, csv
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
-import tensorflow as tf
-tf.config.set_visible_devices([], 'GPU')
+# try:
+#     import tensorflow as tf
+#     tf.config.set_visible_devices([], 'GPU')
+# except:
+#     pass
 from registration.registration import Registration
 from tools.datautils import DataUtils
 from os.path import split, join, exists, isdir
@@ -167,8 +170,11 @@ def _run_single_registration(args, subject_id, session):
         brain_mask = nifti_mask.get_fdata().squeeze().astype(bool)
         for metabolite in metabolite_list:
             debug.info("Denoise Orig", metabolite)
-            image_og_nifti = mridata.get_mri_nifti(modality="mrsi", space="orig", desc="signal", met=metabolite)
-            image_filt_nifti = bhfilt.proc(image_og_nifti, brain_mask, fwhm=6, percentile=98)
+            try:
+                image_og_nifti = mridata.get_mri_nifti(modality="mrsi", space="orig", desc="signal", met=metabolite)
+                image_filt_nifti = bhfilt.proc(image_og_nifti, brain_mask, fwhm=6, percentile=98)
+            except Exception as e :
+                debug.error("bhfilt.proc",e)
             mrsi_filt_refout_path = mridata.get_mri_filepath(
                 modality="mrsi", space="orig", desc="signal", met=metabolite, option="filtbiharmonic"
             )
@@ -198,7 +204,7 @@ def _run_single_registration(args, subject_id, session):
         if exists(join(transform_dir_path, warpfilename)) and overwrite_flag:
             debug.warning(f"Overwriting existing {METABOLITE_REF} to T1w Registration")
         elif not exists(join(transform_dir_path, warpfilename)):
-            debug.warning(f"Creating MRSI {METABOLITE_REF} to T1w Registration")
+            debug.warning(f"Creating new MRSI {METABOLITE_REF} to T1w Registration")
         
         input_path = mridata.get_mri_filepath(
                 modality="mrsi",
@@ -210,9 +216,10 @@ def _run_single_registration(args, subject_id, session):
         if correct_orientation:
             tmp_path = join("/tmp",split(input_path)[1])
             orientation_worker(input_path,output_path=tmp_path,overwrite_og=False)
+            input_path = tmp_path
         syn_tx, _ = reg.register(
             fixed_input=t1_path,
-            moving_input=tmp_path,
+            moving_input=input_path,
             transform="sr",
             verbose=0
         )
@@ -239,7 +246,7 @@ def main():
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
-    parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique orientation [default=0]")
+    parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique FOV orientation [default=0]")
     args = parser.parse_args()
 
     if args.batch == 'off':

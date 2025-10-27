@@ -40,7 +40,17 @@ class BiHarmonic:
         else:
             raise TypeError("image_og must be a nib.Nifti1Image")
         if image_og_np.ndim == 4:
-            image_og_np = image_og_np[:, :, :, channel]          
+            image_og_np = image_og_np[:, :, :, channel]  
+
+        # If input is a Nifti image, extract data and header.
+        if isinstance(brain_mask, nib.Nifti1Image):
+            brain_mask_np = brain_mask.get_fdata().astype(bool)
+        # If input is a NumPy array, use it directly. If 4D, select the specified channel.
+        else:
+            raise TypeError("brain_mask must be a nib.Nifti1Image")
+        if brain_mask_np.ndim == 4:
+            brain_mask_np = brain_mask[:, :, :, channel].astype(bool) 
+
 
         
         # Detect spikes based on a sigma threshold converted to a percentile.
@@ -50,7 +60,7 @@ class BiHarmonic:
         nan_mask = np.isnan(image_unspiked_np)
         # Detect missing values in image wrt brain mask in the image.
         missing_mask = np.zeros_like(image_unspiked_np).astype(bool)
-        missing_mask[(image_unspiked_np==0) & (brain_mask==1)]=True
+        missing_mask[(image_unspiked_np==0) & (brain_mask_np==1)]=True
         # Combine masks for inpainting.
         inpaint_mask = (nan_mask | spike_mask) | missing_mask
         # Inpaint the detected defects using biharmonic inpainting.
@@ -66,7 +76,7 @@ class BiHarmonic:
         image_inpaint_nifti = ftools.numpy_to_nifti(image_inpaint_np,header)
         image_smoothed_np = self.spatial_filter(image_inpaint_nifti, fwhm=fwhm, mask=inpaint_mask)
         # Zero out voxels outside the brain mask.
-        image_smoothed_np[~brain_mask] = 0
+        image_smoothed_np[~brain_mask_np] = 0
         return ftools.numpy_to_nifti(image_smoothed_np,header)
 
 

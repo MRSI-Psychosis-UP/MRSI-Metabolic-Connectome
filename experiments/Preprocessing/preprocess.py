@@ -57,6 +57,13 @@ def _read_pairs_from_file(path):
 
 
 def orientation_worker(input_path,overwrite_og=False,output_path=None,transform=np.array([[1.,  1.],[0., -1.],[2.,  1.]])):
+    backup_path = input_path.replace(".nii.gz","_backup.nii.gz")
+    if os.path.exists(backup_path):
+        input_path = backup_path
+        # debug.info("Revert back to wrongly oriented backup",backup_path)
+    else:
+        pass
+        # debug.info("Correct Orientation and store original as",split(backup_path)[1])
     try:
         img     = nib.load(input_path)
     except Exception as e:
@@ -74,7 +81,6 @@ def orientation_worker(input_path,overwrite_og=False,output_path=None,transform=
     try:
         # out_reorient_path = input_path.replace(".nii.gz","_reoriented.nii.gz")
         if overwrite_og:
-            backup_path = input_path.replace(".nii.gz","_backup.nii.gz")
             ftools.save_nii_file(img, backup_path)
             ftools.save_nii_file(out_img, input_path)
         elif not overwrite_og and output_path:
@@ -142,7 +148,7 @@ def transform_worker(fixed_image, moving_image, transform_list, outpath):
     except Exception as e:
         return {"transform_worker error": str(e), "outpath": outpath}
 
-def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="mrsi"):
+def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="t1w"): # pv_corr_space="mrsi"
     try:
         out_dict = pvc.proc(mridb, mrsi_nocorr_path, tissue_mask_space=pv_corr_space)
         return out_dict
@@ -222,6 +228,9 @@ def _run_single_preprocess(args, subject_id, session):
     debug.info("Filter MRSI orig space spikes")
     if not exists(__path) or overwrite_filt:
         with Progress() as progress:
+            mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
+            if correct_orientation:
+                orientation_worker(mask_path,overwrite_og=True)
             task = progress.add_task("Filtering...", total=len(METABOLITE_LIST)+1)
             with ProcessPoolExecutor(max_workers=nthreads) as executor:
                 futures = []
@@ -238,7 +247,6 @@ def _run_single_preprocess(args, subject_id, session):
                         )
                         if correct_orientation:
                             orientation_worker(mrsi_img_orig_path,overwrite_og=True)
-                        mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
                         futures.append(executor.submit(
                             filter_worker,
                             mrsi_img_orig_path,
@@ -259,8 +267,7 @@ def _run_single_preprocess(args, subject_id, session):
                     progress.update(task, description=f"Collecting results")
                     progress.advance(task)
     else:
-        debug.success("Already transformed: SKIP")
-
+        debug.success("Already filtered: SKIP")
 
     ################################################################################
     #################### Partial Volume Correction ####################
@@ -557,7 +564,7 @@ def main():
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
-    parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique orientation [default=0]")
+    parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique FOV orientation [default=0]")
 
     args = parser.parse_args()
 

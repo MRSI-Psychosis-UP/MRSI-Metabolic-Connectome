@@ -120,7 +120,6 @@ class  MRIData:
         else:
             debug.warning(f"Modality '{modality}' is not supported.")
             return None
-
         # Construct search path and find matching file(s).
         search_path = os.path.join(base_dir, pattern)
         debug.info("get_mri_filepath", search_path)

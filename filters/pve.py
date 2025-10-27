@@ -41,9 +41,12 @@ class PVECorrection:
         # Correct T1W space
         t1w_img         = nib.load(mridb.find_nifti_paths("desc-brain_T1w"))
         affine          = t1w_img.affine
-        self.p1_img     = resample_img(p1_img, target_affine=affine, target_shape=t1w_img.shape)
-        self.p2_img     = resample_img(p2_img, target_affine=affine, target_shape=t1w_img.shape)
-        self.p3_img     = resample_img(p3_img, target_affine=affine, target_shape=t1w_img.shape)
+        self.p1_img     = resample_img(p1_img, target_affine=affine, target_shape=t1w_img.shape,
+                                       force_resample=True,copy_header=True)
+        self.p2_img     = resample_img(p2_img, target_affine=affine, target_shape=t1w_img.shape,
+                                       force_resample=True,copy_header=True)
+        self.p3_img     = resample_img(p3_img, target_affine=affine, target_shape=t1w_img.shape,
+                                       force_resample=True,copy_header=True)
 
 
 
@@ -71,7 +74,7 @@ class PVECorrection:
         self.tissue4D_path = outpath
         return outpath
 
-    def proc(self,mridb, mrsi_path,tissue_mask_space="t1w",tissue="GM",nthreads=16):
+    def proc(self,mridb, mrsi_path,tissue_mask_space="t1w",tissue="GM",nthreads=16,psf_width=5):
         os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(nthreads)
         input_space = mridb.extract_metadata(mrsi_path)["space"]
         tissue_mask_space = "mrsi" if input_space=="orig" else input_space
@@ -101,9 +104,9 @@ class PVECorrection:
             "-i", mrsi_path,
             "-m", self.tissue4D_path,
             "-p", "RBV",
-            "-x", "5",
-            "-y", "5",
-            "-z", "5",
+            "-x", str(psf_width),
+            "-y", str(psf_width),
+            "-z", str(psf_width),
             "-o", mrsi_corr_path
         ]
 
