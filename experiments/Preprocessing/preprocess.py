@@ -1,4 +1,4 @@
-import os, sys, argparse, csv
+import os, sys, argparse, csv, subprocess
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from registration.registration import Registration
@@ -334,7 +334,36 @@ def _run_single_preprocess(args, subject_id, session):
         t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
         mni_ref          = datasets.load_mni152_template(t1_resolution)
         transform_list   = mridata.get_transform("forward", "mrsi")
-
+        if not all(exists(path) for path in transform_list):
+            debug.warning("Missing MRSI->T1w transforms; launching registration_mrsi_to_t1.")
+            registration_script = os.path.abspath(
+                join(os.path.dirname(__file__), "registration_mrsi_to_t1.py")
+            )
+            cmd = [
+                sys.executable,
+                registration_script,
+                "--group", GROUP,
+                "--subject_id", subject_id,
+                "--session", session,
+                "--nthreads", str(nthreads),
+                "--b0", str(B0_strength),
+                "--batch", "off",
+                "--corr_orient", str(int(correct_orientation)),
+            ]
+            if t1_path:
+                cmd.extend(["--t1", str(t1_path)])
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError as exc:
+                debug.error("registration_mrsi_to_t1.py failed", exc)
+                return
+            except Exception as exc:
+                debug.error("Unable to start registration_mrsi_to_t1.py", exc)
+                return
+            transform_list = mridata.get_transform("forward", "mrsi")
+            if not all(exists(path) for path in transform_list):
+                debug.error("registration_mrsi_to_t1.py did not produce the expected transforms")
+                return
         with ProcessPoolExecutor(max_workers=nthreads) as executor:
             futures = []
             for component in SIGNAL_LIST:
@@ -440,6 +469,36 @@ def _run_single_preprocess(args, subject_id, session):
         t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
         mni_ref          = datasets.load_mni152_template(t1_resolution)
         transform_list   = mridata.get_transform("forward", "anat")
+        if not all(exists(path) for path in transform_list):
+            debug.warning("Missing T1w->MNI transforms; launching registration_t1_to_MNI.")
+            registration_script = os.path.abspath(
+                join(os.path.dirname(__file__), "registration_t1_to_MNI.py")
+            )
+            cmd = [
+                sys.executable,
+                registration_script,
+                "--group", GROUP,
+                "--subject_id", subject_id,
+                "--session", session,
+                "--nthreads", str(nthreads),
+                "--batch", "off",
+            ]
+            if t1_path:
+                cmd.extend(["--t1", str(t1_path)])
+            if overwrite:
+                cmd.extend(["--overwrite", "1"])
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError as exc:
+                debug.error("registration_t1_to_MNI.py failed", exc)
+                return
+            except Exception as exc:
+                debug.error("Unable to start registration_t1_to_MNI.py", exc)
+                return
+            transform_list = mridata.get_transform("forward", "anat")
+            if not all(exists(path) for path in transform_list):
+                debug.error("registration_t1_to_MNI.py did not produce the expected transforms")
+                return
         with Progress() as progress:
             task = progress.add_task("Transforming...", total=len(SIGNAL_LIST))
             with ProcessPoolExecutor(max_workers=nthreads) as executor:
