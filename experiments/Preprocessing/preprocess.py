@@ -595,6 +595,68 @@ def _run_single_preprocess(args, subject_id, session):
         debug.success("Partial Volume effect already corrected in MNI space")
 
 
+    #########################################################################
+    # MRSI-orig PV correction --> MRSI-MNI PV correction @ Orig Resolution ##
+    #########################################################################
+    __path =  mridata.get_mri_filepath(modality="mrsi",space="orig",desc="signal",
+                                       met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
+
+    if not exists(__path) or args.overwrite_mni:
+        debug.info("MRSI-orig PV correction --> MRSI-MNI PV correction @ Orig Resolution")
+        orig_resolution           = np.array(nib.load(__path).header.get_zooms()[:3]).mean()
+        mni_ref                   = datasets.load_mni152_template(orig_resolution)
+        transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
+        transform_t1_to_mni_list  = mridata.get_transform("forward", "anat")
+        transform_list            = transform_t1_to_mni_list + transform_mrsi_to_t1_list
+        with ProcessPoolExecutor(max_workers=nthreads) as executor:
+            futures = []
+            for component in SIGNAL_LIST:
+                met, desc, option = component
+                if desc!="signal" or option is None:continue
+                try:
+                    for tissue in TISSUE_LIST:
+                        preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
+                        mrsi_orig_corr_path = mridata.get_mri_filepath(
+                            modality="mrsi", space="orig", desc=desc, met=met, option=preproc_str
+                        )
+                        mrsi_img_corr_mni_origres_path = mridata.get_mri_filepath(
+                            modality="mrsi", space="mni", desc=desc, met=met, option=preproc_str,
+                            res = round(orig_resolution),
+                        )
+                        # debug.info(exists(mrsi_anat_corr_nifti),split(mrsi_anat_corr_nifti)[1])
+                        if not exists(mrsi_orig_corr_path): 
+                            # debug.error("\n","PV corrected MRSI t1w-space does not exists")
+                            log_report.append(f"MRSI-orig PV correction --> MRSI-MNI PV correction @ Orig Resolution: no mrsi-origspace-corr found {component}-{tissue}")
+                            continue
+                        if not exists(mrsi_img_corr_mni_origres_path) or args.overwrite_mni: 
+                            futures.append(executor.submit(
+                                transform_worker,
+                                mni_ref,
+                                mrsi_orig_corr_path,
+                                transform_list,
+                                mrsi_img_corr_mni_origres_path
+                            ))
+                        else:
+                            debug.info("mrsi_img_corr_mni_origres_path already exists")
+                            continue
+                except Exception as e:
+                    debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+
+            # As each job completes, update the progress bar
+            with Progress() as progress:
+                task = progress.add_task("Correcting...", total=len(futures))
+                for future in as_completed(futures):
+                    result = future.result()
+                    if isinstance(result, dict) and "error" in result:
+                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"Collecting results")
+                    progress.advance(task)
+    else:
+        debug.success("Partial Volume effect already corrected in MNI space")
+
+
+
+
     if len(log_report)==0:
         debug.success(f"Processed {recording_id} without errors")
     else:
@@ -618,6 +680,7 @@ def main():
     parser.add_argument('--overwrite', type=int, default=0, choices=[1, 0], help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--overwrite_filt', type=int, default=0, choices=[1, 0], help="Overwrite MRSI filtering output (default: 0)")
     parser.add_argument('--overwrite_pve', type=int, default=0, choices=[1, 0], help="Overwrite partial volume correction (default: 0)")
+    parser.add_argument('--overwrite_mni', type=int, default=0, choices=[1, 0], help="Overwrite trasnform to MNI orig res (default: 0)")
     parser.add_argument('--v', type=int, default=0, choices=[1, 0], help="Verbose")
     parser.add_argument('--participants', type=str, default=None,
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")

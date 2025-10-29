@@ -44,7 +44,7 @@ class  MRIData:
         self.prefix              = f"sub-{self.subject_id}_ses-{self.session}"
 
             
-    def get_mri_filepath(self, modality, space, desc, met=None, option=None, acq="memprage", run="01", dwi_options=None):
+    def get_mri_filepath(self, modality, space, desc, met=None, option=None, acq="memprage", run="01", dwi_options=None, res=None):
         """
         Returns the path of an MRI file using BIDS keys with a standardized naming pattern.
 
@@ -56,6 +56,7 @@ class  MRIData:
         Args:
             modality (str): Modality type ("mrsi", "t1w", "dwi", "func").
             space (str): Image space (e.g., "orig", "T1w", "mni").
+            res (int): Image isotropic resolution, defaults to original resolution if set to None.
             desc (str): Descriptor (e.g., "signal", "crlb","fwhm","snr", "brainmask", "brain").
             met (str, optional): Metabolite name (e.g., "CrPCr", "GluGln", etc.). Defaults to None.
             option (str, optional): Additional preprocessing tag (e.g., "filt_neuralnet"). Defaults to None.
@@ -68,7 +69,7 @@ class  MRIData:
         """
         bids_root = self.ROOT_PATH
         sub, ses = self.subject_id, self.session
-
+        res_str  = "" if res is None else f"_res-{res}mm"
         # Setup based on modality
         if modality == "mrsi":
             _dirspace = (
@@ -80,11 +81,11 @@ class  MRIData:
             _space="orig" if space=="mrsi" else space
             debug.info("get_mri_filepath: looking inside",space,_dirspace)
             if met:
-                pattern = f"sub-{sub}_ses-{ses}_space-{_space}_met-{met}_desc-{desc}"
+                pattern = f"sub-{sub}_ses-{ses}_space-{_space}{res_str}_met-{met}_desc-{desc}"
                 if option:
                     pattern += f"_{option}"
             else:
-                pattern = f"sub-{sub}_ses-{ses}_space-{_space}_desc-{desc}"
+                pattern = f"sub-{sub}_ses-{ses}_space-{_space}{res_str}_desc-{desc}"
             pattern += "_mrsi.nii.gz"
         elif modality.lower() == "t1w":
             base_dir = os.path.join(bids_root, "derivatives", "skullstrip", f"sub-{sub}", f"ses-{ses}")
@@ -136,7 +137,7 @@ class  MRIData:
 
 
 
-    def get_mri_nifti(self,modality, space, desc, met=None,option=None,acq="memprage",run="01"):
+    def get_mri_nifti(self,modality, space, desc, met=None,option=None,acq="memprage",run="01",res=None):
         """
         Returns the nibabel Nifti1Image for an MRI file based on BIDS keys.
         
@@ -150,6 +151,7 @@ class  MRIData:
             option (str, optional): Preprocessing string. Defaults to None.
             acq (str, optional): Acquisition parameter. Defaults to "memprage".
             run (str, optional): Run identifier. Defaults to "01".
+            res (int): Image isotropic resolution, defaults to original resolution if set to None.
             
         Returns:
             nibabel.Nifti1Image: The loaded image if found.
@@ -157,7 +159,7 @@ class  MRIData:
         Raises:
             FileNotFoundError: If the file does not exist.
         """
-        path = self.get_mri_filepath(modality, space, desc, met, option, acq, run)
+        path = self.get_mri_filepath(modality, space, desc, met, option, acq, run,res)
         if path is not None:
             if exists(path):
                 return nib.load(path)
@@ -350,7 +352,8 @@ class  MRIData:
             'grow':       r"grow(\d+)mm",
             'npert':      r"npert(\d+)_",
             'filt':       r"filt([^_]+)",
-            'met':        r"met-([^_]+)",   # <-- new line
+            'met':        r"met-([^_]+)",   
+            'res':        r"res-([^_]+)",   
         }
 
         for key, pat in patterns.items():
@@ -404,6 +407,6 @@ if __name__=="__main__":
     filepath = mrsiData.find_nifti_paths("desc-brain_T1w")
     print("Found",filepath)
 
-    filename = "/media/veracrypt2/Connectome/Data/LPN-Project/derivatives/chimera-atlases/sub-CHUVA013_ses-V4_space-orig_met-GluGln_desc-signal_filtbiharmonic_mrsi.nii.gz"
+    filename = "/media/veracrypt2/Connectome/Data/LPN-Project/derivatives/chimera-atlases/sub-CHUVA013_ses-V4_space-orig_res-5mm_met-GluGln_desc-signal_filtbiharmonic_mrsi.nii.gz"
     meta = mrsiData.extract_metadata(filename)
     print(meta)
