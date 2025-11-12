@@ -21,7 +21,7 @@ The repository is distributed under the CHUV license [LICENSE](./LICENSE).
 | Name               | GitHub Profile                                   | Email                      |
 |--------------------|--------------------------------------------------|----------------------------|
 | Federico Lucchetti | [@fedlucchetti](https://github.com/fedlucchetti) | federico.lucchetti@unil.ch |
-| Edgar Céléreau     | [@bobdev](https://github.com/ecelreau)           | edgar.celereau@unil.ch     |
+| Edgar Céléreau     | [@mrspsy](https://github.com/mrspsy)             | edgar.celereau@unil.ch     |
 
 ---
 ## 📂 Dataset
