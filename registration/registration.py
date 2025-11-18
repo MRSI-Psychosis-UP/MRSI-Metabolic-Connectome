@@ -83,7 +83,6 @@ class Registration():
             return None
 
     def register(self, fixed_input, moving_input,fixed_mask=None,moving_mask=None ,transform="sr",verbose=False):
-        debug.info("Start registration")
         ## Preformat ANTS images
         fixed_image = self.__load_ants_image(fixed_input)
         if fixed_image is None:

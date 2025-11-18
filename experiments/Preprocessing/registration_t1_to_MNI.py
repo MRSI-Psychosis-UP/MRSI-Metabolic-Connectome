@@ -97,7 +97,7 @@ def _run_single_registration(args, subject_id, session):
     ants_transform_path = join(bids_root_path, "derivatives", "transforms", "ants")
 
     debug.separator()
-    debug.title(f"Processing {subject_id}-{session} ")
+    debug.proc(f"Processing {subject_id}-{session} ")
 
     try:
         if exists(t1_path_arg):
@@ -122,7 +122,7 @@ def _run_single_registration(args, subject_id, session):
     transform_dir_prefix_path = join(transform_dir_path, transform_prefix)
 
     if not exists(f"{transform_dir_prefix_path}.syn.nii.gz") or overwrite_flag:
-        debug.warning(f"{transform_prefix} to T1w Registration not found or not up to date")
+        debug.warning(f"{transform_prefix} not found or not up to date")
         syn_tx, _ = reg.register(
             fixed_input=mni_template,
             moving_input=t1_path,

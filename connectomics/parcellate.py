@@ -69,7 +69,12 @@ class Parcellate:
         elif atlas_string == "mist-197":
             mist_atlas      = datasets.fetch_atlas_basc_multiscale_2015()
             parcel_image_og = mist_atlas.scale197
-            parcel_image_ni = image.resample_to_img(parcel_image_og, self.mni_template, interpolation='nearest')
+            parcel_image_ni = image.resample_to_img(
+                parcel_image_og,
+                self.mni_template,
+                interpolation='nearest',
+                force_resample=True,
+            )
             parcel_image    = parcel_image_ni.get_fdata()
             header          = parcel_image_ni.header
             indices, labels = self.read_roi_label(join(dutils.DEVANALYSEPATH,"data","atlas","mist197","MIST_197.csv"))
@@ -81,7 +86,12 @@ class Parcellate:
             # atlas_schaefer.labels = np.insert(atlas_schaefer.labels, 0, "Background")
             parcel_image_og = atlas_schaefer['maps'] 
             labels          = atlas_schaefer['labels'] 
-            parcel_image_ni = image.resample_to_img(parcel_image_og, self.mni_template, interpolation='nearest')
+            parcel_image_ni = image.resample_to_img(
+                parcel_image_og,
+                self.mni_template,
+                interpolation='nearest',
+                force_resample=True,
+            )
             parcel_image    = parcel_image_ni.get_fdata()
             header          = parcel_image_ni.header
             indices         = np.arange(1,parcel_image.max())
@@ -97,10 +107,13 @@ class Parcellate:
             parcel_image    = nib.load(maps)
             reference_img   = datasets.load_mni152_template()
 
-            parcel_image    = resample_img(parcel_image, 
-                                           target_affine=reference_img.affine, 
-                                           target_shape=reference_img.shape,
-                                           interpolation="nearest").get_fdata()
+            parcel_image    = resample_img(
+                parcel_image,
+                target_affine=reference_img.affine,
+                target_shape=reference_img.shape,
+                interpolation="nearest",
+                force_resample=True,
+            ).get_fdata()
 
         elif atlas_string == "geometric_cubeK23mm":
             gm_mask_mni152  = datasets.load_mni152_gm_mask()

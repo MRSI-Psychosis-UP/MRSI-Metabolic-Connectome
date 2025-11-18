@@ -40,7 +40,7 @@ class BiHarmonic:
         else:
             raise TypeError("image_og must be a nib.Nifti1Image")
         if image_og_np.ndim == 4:
-            image_og_np = image_og_np[:, :, :, channel]  
+            image_og_np = image_og_np.squeeze()  
 
         # If input is a Nifti image, extract data and header.
         if isinstance(brain_mask, nib.Nifti1Image):
@@ -49,7 +49,7 @@ class BiHarmonic:
         else:
             raise TypeError("brain_mask must be a nib.Nifti1Image")
         if brain_mask_np.ndim == 4:
-            brain_mask_np = brain_mask[:, :, :, channel].astype(bool) 
+            brain_mask_np = brain_mask_np[:, :, :].squeeze().astype(bool) 
 
 
         

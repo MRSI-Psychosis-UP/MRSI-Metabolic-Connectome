@@ -2,6 +2,7 @@ import numpy   as np
 import nibabel as nib
 import nilearn as nil
 from nilearn.image import resample_img, resample_to_img
+import warnings
 
 import tempfile, os
 
@@ -11,6 +12,17 @@ from tools.filetools import FileTools
 from tools.debug import Debug
 from tools.mridata import MRIData
 import subprocess
+
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="'force_resample' will be set to 'True' by default in Nilearn 0.13.0.",
+)
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="From release 0.13.0 onwards, this function will, by default, copy the header",
+)
 
 debug    = Debug()
 reg      = Registration()
@@ -23,58 +35,67 @@ class PVECorrection:
         pass
     
 
-    def create_3tissue_pev(self,mridb,space="mrsi"):
+    def create_3tissue_pev(self, mridb, space="mrsi", overwrite=False):
+        """
+        Build a 4D GM/WM/CSF partial-volume stack either in T1w space or MRSI space.
 
+        Args:
+            mridb (MRIData): Data access helper.
+            space (str): Target space ("mrsi" or "t1w"/"anat").
+            overwrite (bool): Force regeneration when the output already exists.
 
-        mrsi_path   = mridb.get_mri_filepath("mrsi","orig","signal","Ins","filtbiharmonic")
-        met_img     = nib.load(mrsi_path); 
-        header_mrsi = met_img.header 
-        #
-        cat12_dirPath = split(mridb.find_nifti_paths("_desc-p1_T1w"))[0]
-        p1_img  = nib.load(mridb.find_nifti_paths("_desc-p1_T1w"))
-        p2_img  = nib.load(mridb.find_nifti_paths("_desc-p2_T1w"))
-        p3_img  = nib.load(mridb.find_nifti_paths("_desc-p3_T1w"))
-        # p5_img  = nib.load(p5_path)
-        # p6_img  = nib.load(p6_path)
+        Returns:
+            str: Path to the generated 4D tissue file.
+        """
+        target_space = space.lower()
+        if target_space not in ("mrsi", "anat", "t1w"):
+            raise ValueError("space must be 'mrsi' or 't1w/anat'")
 
+        cat12_dir = split(mridb.find_nifti_paths("_desc-p1_T1w"))[0]
+        filename = (
+            f"{mridb.prefix}_space-mrsi_desc-4Dtissue_T1w.nii.gz"
+            if target_space == "mrsi"
+            else f"{mridb.prefix}_space-orig_desc-4Dtissue_T1w.nii.gz"
+        )
+        outpath = join(cat12_dir, filename)
+        if exists(outpath) and not overwrite:
+            self.tissue4D_path = outpath
+            return outpath
 
-        # Correct T1W space
-        t1w_img         = nib.load(mridb.find_nifti_paths("desc-brain_T1w"))
-        affine          = t1w_img.affine
-        self.p1_img     = resample_img(p1_img, target_affine=affine, target_shape=t1w_img.shape,
-                                       force_resample=True,copy_header=True)
-        self.p2_img     = resample_img(p2_img, target_affine=affine, target_shape=t1w_img.shape,
-                                       force_resample=True,copy_header=True)
-        self.p3_img     = resample_img(p3_img, target_affine=affine, target_shape=t1w_img.shape,
-                                       force_resample=True,copy_header=True)
+        tissues = [
+            nib.load(mridb.find_nifti_paths(f"_desc-p{i}_T1w"))
+            for i in (1, 2, 3)
+        ]
+        t1_img = nib.load(mridb.find_nifti_paths("desc-brain_T1w"))
 
+        if target_space == "mrsi":
+            mrsi_path = mridb.get_mri_filepath("mrsi", "orig", "signal", "Ins", "filtbiharmonic")
+            mrsi_img = nib.load(mrsi_path)
+            transform_list = mridb.get_transform("inverse", "mrsi")
+            aligned = [
+                reg.transform(mrsi_img, tissue, transform_list).to_nibabel()
+                for tissue in tissues
+            ]
+            reference_header = mrsi_img.header
+        else:
+            aligned = [
+                resample_img(
+                    tissue,
+                    target_affine=t1_img.affine,
+                    target_shape=t1_img.shape,
+                    force_resample=True,
+                    copy_header=True,
+                )
+                for tissue in tissues
+            ]
+            reference_header = t1_img.header
 
-
-        if space=="anat" or space.lower()=="t1w":
-            filename = f"{mridb.prefix}_space-orig_desc-4Dtissue_T1w.nii.gz"
-            outpath  = join(cat12_dirPath,filename)
-            header   = t1w_img.header
-        elif space=="mrsi":
-            transform_list  = mridb.get_transform("inverse","mrsi")
-            self.p1_img     = reg.transform(met_img,p1_img,transform=transform_list).to_nibabel()
-            self.p2_img     = reg.transform(met_img,p2_img,transform=transform_list).to_nibabel()
-            self.p3_img     = reg.transform(met_img,p3_img,transform=transform_list).to_nibabel()
-            filename = f"{mridb.prefix}_space-mrsi_desc-4Dtissue_T1w.nii.gz"
-            outpath  = join(cat12_dirPath,filename)
-            header   = met_img.header
-            
-
-
-        # Create 4D nifti
-        tissue_4d          = np.zeros(self.p1_img.shape+(3,))
-        tissue_4d[:,:,:,0] = self.p1_img.get_fdata() 
-        tissue_4d[:,:,:,1] = self.p2_img.get_fdata()
-        tissue_4d[:,:,:,2] = self.p3_img.get_fdata()
-        ftools.save_nii_file(tissue_4d,header=header,outpath=outpath)
+        tissue_data = np.stack([img.get_fdata() for img in aligned], axis=-1)
+        ftools.save_nii_file(tissue_data, header=reference_header, outpath=outpath)
         self.tissue4D_path = outpath
         return outpath
 
-    def proc(self,mridb, mrsi_path,tissue_mask_space="t1w",tissue="GM",nthreads=16,psf_width=5):
+    def proc(self,mridb, mrsi_path,tissue_mask_space="mrsi",tissue="GM",nthreads=16,psf_width=5):
         os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(nthreads)
         input_space = mridb.extract_metadata(mrsi_path)["space"]
         tissue_mask_space = "mrsi" if input_space=="orig" else input_space
@@ -85,24 +106,30 @@ class PVECorrection:
         filt          = bids_suffixes["filt"]
         filter        = f"filt{filt}"
 
-        tissue4D_path = self.create_3tissue_pev(mridb,
-                                                space=tissue_mask_space)
-
+        tissue4d_path = getattr(self, "tissue4D_path", None)
+        if not tissue4d_path or not exists(tissue4d_path):
+            tissue4d_path = self.create_3tissue_pev(
+                mridb,
+                space=tissue_mask_space,
+            )
 
         if not exists(mrsi_path):
             debug.error("MRSI path does not exist", mrsi_path)
             return
-        if not exists(tissue4D_path):
+        if not exists(tissue4d_path):
             debug.error("tissue4D_path does not exist or not created")
             debug.error("Run create_3tissue_pev() first")
             return
         
+        tissue_nifti = nib.load(tissue4d_path)
+        tissue_maps = tissue_nifti.get_fdata()
+
         mrsi_corr_path = mrsi_path.replace("_mrsi.nii.gz","_pvcorr_mrsi.nii.gz")
 
         command = [
             "petpvc",
             "-i", mrsi_path,
-            "-m", self.tissue4D_path,
+            "-m", tissue4d_path,
             "-p", "RBV",
             "-x", str(psf_width),
             "-y", str(psf_width),
@@ -139,11 +166,11 @@ class PVECorrection:
             pvcorr_str = f"pvcorr_{tissue}" if tissue is not None else f"pvcorr"
             tissue_out_path = mrsi_corr_path.replace("_pvcorr",f"_{pvcorr_str}")
             if tissue=="GM":
-                img_np_tissue = img_np * self.p1_img.get_fdata()
+                img_np_tissue = img_np * tissue_maps[..., 0]
             elif tissue=="WM":
-                img_np_tissue = img_np * self.p2_img.get_fdata()
+                img_np_tissue = img_np * tissue_maps[..., 1]
             elif tissue=="CSF":
-                img_np_tissue = img_np * self.p3_img.get_fdata()
+                img_np_tissue = img_np * tissue_maps[..., 2]
             elif tissue is None:
                 img_np_tissue   = img_np
                 tissue_out_path = mrsi_corr_path
@@ -220,6 +247,3 @@ if __name__=="__main__":
         out_dict = pve.proc(mridata, metab_path, tissue_mask_space="mrsi")
         # for k,v in out_dict.items():
         #     debug.info(exists(v),k,"\t",v)
-
-
-

@@ -59,19 +59,21 @@ class FileTools:
             json.dump(python_dict, f, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     @staticmethod
-    def numpy_to_nifti(tensor3D, header):
+    def numpy_to_nifti(tensor, header):
+        """
+        Convert a numpy array to a NIfTI image reusing metadata from an existing header.
+
+        The original header is copied so that spatial metadata (affine, zooms, etc.)
+        are preserved, and its dimensionality is updated to match the new tensor.
+        """
+        if header is None:
+            raise ValueError("Header must be provided to convert numpy array to NIfTI.")
+
         affine = header.get_best_affine()
-        # Preserve affine transform
-        header.set_data_dtype(np.float32)
-        nifti_img = nib.Nifti1Image(tensor3D.astype(np.float32), affine)
-        
-        # Update specific fields in the new header from the original header
-        for key in header.keys():
-            try:
-                nifti_img.header[key] = header[key]
-            except Exception as e:
-                debug.warning(f"Could not set header field '{key}': {e}")
-        
+        new_header = header.copy()
+        new_header.set_data_dtype(np.float32)
+        new_header.set_data_shape(tensor.shape)
+        nifti_img = nib.Nifti1Image(tensor.astype(np.float32), affine, header=new_header)
         return nifti_img
 
     def save_transform(self,transform,dir_path):

@@ -44,7 +44,8 @@ class  MRIData:
         self.prefix              = f"sub-{self.subject_id}_ses-{self.session}"
 
             
-    def get_mri_filepath(self, modality, space, desc, met=None, option=None, acq="memprage", run="01", dwi_options=None, res=None):
+    def get_mri_filepath(self, modality, space, desc, met=None, option=None, 
+                         acq="memprage", run="01", dwi_options=None, res=None):
         """
         Returns the path of an MRI file using BIDS keys with a standardized naming pattern.
 

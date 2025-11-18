@@ -149,7 +149,7 @@ def _run_single_registration(args, subject_id, session):
         return
 
     debug.separator()
-    debug.title(f"Start Registration {subject_id}-{session}")
+    debug.proc(f"Start Registration {subject_id}-{session}")
 
     filt_ref_path = mridata.get_mri_filepath(
         modality="mrsi", space="orig", desc="signal", met=metabolite_list[-1], option="filtbiharmonic"

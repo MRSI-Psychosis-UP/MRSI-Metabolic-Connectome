@@ -1,4 +1,4 @@
-import os, sys, argparse, csv, subprocess
+import os, sys, argparse, csv, subprocess, time
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from registration.registration import Registration
@@ -129,6 +129,240 @@ def _discover_all_pairs(group):
     return list(dict.fromkeys(pairs))
 
 
+def _get_metabolite_list(b0_strength):
+    """Return ordered list of metabolites expected for the specified B0."""
+    if b0_strength == 3:
+        return ["CrPCr", "GluGln", "GPCPCh", "NAANAAG", "Ins"]
+    if b0_strength == 7:
+        return ["NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
+    raise ValueError(f"Unsupported B0 strength: {b0_strength}")
+
+
+def _build_signal_list(metabolites, filtoption):
+    """Return the SIGNAL_LIST definition shared across the pipeline."""
+    signal_list = []
+    for met in metabolites:
+        signal_list.append([met, "signal", filtoption])
+        signal_list.append([met, "crlb", None])
+    signal_list.extend([
+        ["water", "signal", None],
+        [None, "snr", None],
+        [None, "fwhm", None],
+        [None, "brainmask", None],
+    ])
+    return signal_list
+
+
+def _resolve_t1_path(mridata, t1_argument):
+    """Resolve --t1 argument into an on-disk file for the current subject/session."""
+    if t1_argument is None:
+        raise ValueError("--t1 argument must be provided for preprocessing.")
+
+    t1_candidate = str(t1_argument).strip()
+    if not t1_candidate:
+        raise ValueError("--t1 argument must be provided for preprocessing.")
+
+    if exists(t1_candidate):
+        return os.path.abspath(t1_candidate)
+
+    resolved = mridata.find_nifti_paths(t1_candidate)
+    if resolved and exists(resolved):
+        return resolved
+
+    recording_id = f"sub-{mridata.subject_id}_ses-{mridata.session}"
+    raise FileNotFoundError(
+        f"No anatomical file matching '{t1_candidate}' for {recording_id}"
+    )
+
+
+def _gather_input_requirements(args, subject_id, session):
+    """Collect presence/absence information for files required by preprocessing."""
+    mridata = MRIData(subject_id, session, args.group)
+    recording_id = f"sub-{subject_id}_ses-{session}"
+    requirements = []
+
+    try:
+        t1_path = _resolve_t1_path(mridata, args.t1)
+        t1_entry = {
+            "label": "T1w reference (--t1)",
+            "path": t1_path,
+            "status": True,
+        }
+    except Exception as exc:
+        t1_entry = {
+            "label": "T1w reference (--t1)",
+            "path": args.t1,
+            "status": False,
+            "message": str(exc),
+        }
+    requirements.append(t1_entry)
+
+    metabolites = _get_metabolite_list(args.b0)
+    signal_list = _build_signal_list(metabolites, args.filtoption)
+    mrsi_entries = []
+    for met, desc, _ in signal_list:
+        label = f"MRSI {desc}" + (f" ({met})" if met else "")
+        path = mridata.get_mri_filepath(modality="mrsi", space="orig", desc=desc, met=met)
+        status = bool(path) and exists(path)
+        is_brainmask = desc == "brainmask"
+        entry = {
+            "label": label,
+            "path": path,
+            "status": status,
+            "autogen": is_brainmask,
+        }
+        mrsi_entries.append(entry)
+        requirements.append(entry)
+
+    pv_entries = []
+    for idx in (1, 2, 3):
+        pattern = f"_desc-p{idx}_T1w"
+        pv_path = None
+        message = None
+        try:
+            pv_path = mridata.find_nifti_paths(pattern)
+        except Exception as exc:
+            message = str(exc)
+        status = bool(pv_path) and exists(pv_path)
+        pv_entry = {
+            "label": f"T1w partial volume map p{idx}",
+            "path": pv_path,
+            "status": status,
+        }
+        if message:
+            pv_entry["message"] = message
+        pv_entries.append(pv_entry)
+        requirements.append(pv_entry)
+
+    missing_any = any(not req["status"] for req in requirements)
+    missing_non_autogen = any(
+        (not req["status"]) and not req.get("autogen") for req in requirements
+    )
+    return {
+        "recording_id": recording_id,
+        "requirements": requirements,
+        "t1": t1_entry,
+        "mrsi": mrsi_entries,
+        "pv": pv_entries,
+        "missing": missing_any,
+        "missing_non_autogen": missing_non_autogen,
+    }
+
+
+def _preflight_batch_inputs(args, pair_list):
+    """Check availability of inputs for every batch item and prompt before running."""
+    debug.separator()
+    debug.title("Preanalysis: required inputs")
+    results = [_gather_input_requirements(args, sub, ses) for sub, ses in pair_list]
+
+    missing_count = 0
+    total_missing_files = 0
+    for result in results:
+        debug.separator()
+        debug.info(result["recording_id"])
+        t1_entry = result["t1"]
+        if t1_entry["status"]:
+            debug.success("T1w reference (--t1)")
+        else:
+            path_display = t1_entry["path"] or "Not found"
+            debug.error(f"T1w reference (--t1): {path_display}")
+            if t1_entry.get("message"):
+                debug.error("  ↪", t1_entry["message"])
+
+        def _summarize_group(title, entries):
+            is_mrsi_group = title.lower().startswith("mrsi")
+            if not entries:
+                debug.warning(f"{title}: no files expected")
+                return
+            found_entries = [entry for entry in entries if entry["status"]]
+            if found_entries:
+                if is_mrsi_group:
+                    brainmask_found = [
+                        entry for entry in found_entries
+                        if entry.get("autogen")
+                    ]
+                    other_found = [
+                        entry for entry in found_entries
+                        if entry not in brainmask_found
+                    ]
+                    if other_found:
+                        debug.success(
+                            f"{title}: found "
+                            f"{len(other_found)} ({', '.join(entry['label'] for entry in other_found)})"
+                        )
+                    if brainmask_found:
+                        debug.warning(
+                            "MRSI brainmask present; will reuse or regenerate if needed "
+                            f"({', '.join(entry['label'] for entry in brainmask_found)})"
+                        )
+                else:
+                    debug.success(f"{title}: {len(found_entries)} found")
+
+            missing_entries = [entry for entry in entries if not entry["status"]]
+            if not missing_entries:
+                return
+            warn_entries = []
+            error_entries = []
+            for entry in missing_entries:
+                if is_mrsi_group and entry.get("autogen"):
+                    warn_entries.append(entry)
+                else:
+                    error_entries.append(entry)
+
+            def _format_entries(entries):
+                formatted = []
+                for entry in entries:
+                    path_display = entry["path"] or "Not found"
+                    text = f"{entry['label']} -> {path_display}"
+                    if entry.get("message"):
+                        text += f" ({entry['message']})"
+                    formatted.append(text)
+                return formatted
+
+            if error_entries:
+                details = _format_entries(error_entries)
+                debug.error(
+                    f"{title}: missing {len(error_entries)}/{len(entries)} | " + "; ".join(details)
+                )
+            if warn_entries:
+                details = _format_entries(warn_entries)
+                debug.warning(
+                    f"{title}: will generate {len(warn_entries)} brainmask file(s) | " + "; ".join(details)
+                )
+
+        _summarize_group("MRSI files", result["mrsi"])
+        _summarize_group("T1w partial volume maps", result["pv"])
+
+        non_autogen_missing = [
+            req for req in result["requirements"]
+            if (not req["status"]) and not req.get("autogen")
+        ]
+        if non_autogen_missing:
+            missing_count += 1
+            total_missing_files += len(non_autogen_missing)
+
+    debug.separator()
+    if missing_count:
+        debug.warning(
+            f"Detected {total_missing_files} missing files across {missing_count}/{len(results)} batch items."
+        )
+    else:
+        debug.success("All required inputs found for every batch item.")
+
+    if not sys.stdin.isatty():
+        debug.warning("Non-interactive session detected; continuing without confirmation prompt.")
+        return True
+
+    try:
+        response = input("Continue with preprocessing batch? [y/N]: ")
+    except EOFError:
+        response = ""
+    if response.strip().lower() not in ("y", "yes"):
+        debug.info("Stopping preprocessing per user request after preanalysis.")
+        return False
+    return True
+
+
 def filter_worker(input_path, output_path, mask_path,percentile):
     try:
         image_og_nifti   = nib.load(input_path)
@@ -148,7 +382,7 @@ def transform_worker(fixed_image, moving_image, transform_list, outpath):
     except Exception as e:
         return {"transform_worker error": str(e), "outpath": outpath}
 
-def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="t1w"): # pv_corr_space="mrsi"
+def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="mrsi"): # pv_corr_space="mrsi"
     try:
         out_dict = pvc.proc(mridb, mrsi_nocorr_path, tissue_mask_space=pv_corr_space)
         return out_dict
@@ -161,9 +395,6 @@ def pv_correction_worker(mridb,mrsi_nocorr_path,pv_corr_space="t1w"): # pv_corr_
 def _run_single_preprocess(args, subject_id, session):
     GROUP               = args.group
     filtoption          = args.filtoption
-    overwrite           = bool(args.overwrite)
-    overwrite_filt      = bool(args.overwrite_filt)
-    overwrite_pvcorr    = bool(args.overwrite_pve)
     t1_path_arg         = args.t1
     B0_strength         = args.b0
     nthreads            = args.nthreads
@@ -184,38 +415,15 @@ def _run_single_preprocess(args, subject_id, session):
     session = str(session)
     recording_id = f"sub-{subject_id}_ses-{session}"
 
-    if B0_strength == 3:
-        METABOLITE_LIST    = ["CrPCr","GluGln","GPCPCh","NAANAAG","Ins"]
-    elif B0_strength == 7:
-        METABOLITE_LIST = [
-            "NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
+    METABOLITE_LIST = _get_metabolite_list(B0_strength)
+    SIGNAL_LIST = _build_signal_list(METABOLITE_LIST, filtoption)
 
-
-    # Use a list comprehension to generate two entries per metabolite:
-    SIGNAL_LIST = [
-        [met, "signal", filtoption] if entry == "signal" else [met, "crlb", None]
-        for met in METABOLITE_LIST
-        for entry in ("signal", "crlb")
-    ] + [
-        ["water", "signal", None],
-        [None, "snr", None],
-        [None, "fwhm", None],
-        [None, "brainmask", None]
-    ]
-
-    
     mridata = MRIData(subject_id, session,GROUP)
     # Check if already processed
     try:
-        if exists(t1_path_arg):
-            t1_path = t1_path_arg
-        else:
-            t1_path = mridata.find_nifti_paths(t1_path_arg)
-            if t1_path is None:
-                debug.error(f"{t1_path} does not exists or no matching pattern for {t1_path_arg} found")
-                return 
-    except Exception as e: 
-        debug.error("--t1 argument must be a valid string or path")
+        t1_path = _resolve_t1_path(mridata, t1_path_arg)
+    except Exception as exc:
+        debug.error(str(exc))
         return
 
 
@@ -223,10 +431,25 @@ def _run_single_preprocess(args, subject_id, session):
     ################################################################################
     #################### Filter MRSI spike ####################
     ################################################################################
-    __path =  mridata.get_mri_filepath(modality="mrsi", space="orig", desc="signal", 
-                                       met=METABOLITE_LIST[-1], option=filtoption)
-    debug.info("Filter MRSI orig space spikes")
-    if not exists(__path) or overwrite_filt:
+    debug.proc("Filter MRSI orig space spikes")
+    need_filter = bool(args.overwrite_filt)
+    if not need_filter:
+        for met, desc, option in SIGNAL_LIST:
+            if desc != "signal":
+                continue
+            target = mridata.get_mri_filepath(
+                modality="mrsi",
+                space="orig",
+                desc=desc,
+                met=met,
+                option=filtoption,
+            )
+            if not exists(target):
+                need_filter = True
+                debug.info(met, desc, option,"needs filtering")
+                break
+
+    if need_filter:
         with Progress() as progress:
             mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
             if correct_orientation:
@@ -254,35 +477,101 @@ def _run_single_preprocess(args, subject_id, session):
                             mask_path,
                             spike_pc,
                         ))
-                        
                     except Exception as e:
-                        debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+                        debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
                         progress.advance(task)
 
                 # As each job completes, update the progress bar
                 for future in as_completed(futures):
                     result = future.result()
                     if isinstance(result, dict) and "error" in result:
-                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
-                    progress.update(task, description=f"Collecting results")
+                        debug.error("\t",f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"\t Collecting results")
                     progress.advance(task)
     else:
-        debug.success("Already filtered: SKIP")
+        debug.success("\t","Already processed: SKIP")
+
+
+
+    #########################################################################
+    ########## REGISTRATION: MRSI-orig  --> MRSI-T1W  ###########
+    #########################################################################
+    # __path =  mridata.get_mri_filepath(modality="mrsi",space="T1w",desc="signal",
+    #                                    met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
+    # if not exists(__path) or overwrite_pvcorr:
+    debug.proc("REGISTRATION: MRSI-orig  --> MRSI-T1W")
+    t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
+    mni_ref          = datasets.load_mni152_template(t1_resolution)
+    transform_list   = mridata.get_transform("forward", "mrsi")
+    if not all(exists(path) for path in transform_list) or args.overwrite_t1_reg:
+        if args.overwrite_t1_reg:
+            debug.warning("\t","Overwrite existing MRSI->T1w registration")
+        else:
+            debug.warning("\t","Missing MRSI->T1w transforms; launching registration_mrsi_to_t1.")
+        registration_script = os.path.abspath(
+            join(os.path.dirname(__file__), "registration_mrsi_to_t1.py")
+        )
+        cmd = [
+            sys.executable,
+            registration_script,
+            "--group", GROUP,
+            "--subject_id", subject_id,
+            "--session", session,
+            "--nthreads", str(nthreads),
+            "--b0", str(B0_strength),
+            "--batch", "off",
+            "--corr_orient", str(int(correct_orientation)),
+        ]
+        if t1_path:
+            cmd.extend(["--t1", str(t1_path)])
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as exc:
+            debug.error("\t","registration_mrsi_to_t1.py failed", exc)
+            return
+        except Exception as exc:
+            debug.error("\t","Unable to start registration_mrsi_to_t1.py", exc)
+            return
+        transform_list = mridata.get_transform("forward", "mrsi")
+        if not all(exists(path) for path in transform_list):
+            debug.error("\t","registration_mrsi_to_t1.py did not produce the expected transforms")
+            return
+    else:
+        debug.success("\t","Already computed: SKIP")
+
 
     ################################################################################
     #################### Partial Volume Correction ####################
     ################################################################################
-    debug.info("Partial Volume Correction")
-    _e = True
-    for i in [1,2,3]:
+    debug.proc("Partial Volume Correction (MRSI space)")
+    def _has_tissue_map(idx):
         try:
-            _e&=exists(mridata.find_nifti_paths(f"_desc-p{i}_T1w"))
-        except:
-            _e&=False
-    if _e: 
-        __path = mridata.get_mri_filepath(modality="mrsi", space="orig", desc="signal", 
-                                        met=METABOLITE_LIST[-1], option=f"{filtoption}_pvcorr")
-        if not exists(__path) or overwrite_pvcorr:
+            path = mridata.find_nifti_paths(f"_desc-p{idx}_T1w")
+            return bool(path) and exists(path)
+        except Exception:
+            return False
+
+    cat12_available = all(_has_tissue_map(idx) for idx in (1, 2, 3))
+    if cat12_available: 
+        needs_pvcorr = bool(args.overwrite_pve)
+        if not needs_pvcorr:
+            for met, desc, option in SIGNAL_LIST:
+                if desc != "signal":
+                    continue
+                base_option = option or ""
+                pvcorr_option = f"{base_option}_pvcorr" if base_option else "pvcorr"
+                candidate = mridata.get_mri_filepath(
+                    modality="mrsi",
+                    space="orig",
+                    desc=desc,
+                    met=met,
+                    option=pvcorr_option,
+                )
+                if not exists(candidate):
+                    needs_pvcorr = True
+                    break
+        if needs_pvcorr:
+            pvc.create_3tissue_pev(mridata,space="mrsi")
             with Progress() as progress:
                 task = progress.add_task("Partial volume correction...", total=len(METABOLITE_LIST))
                 mridata = MRIData(subject_id, session,GROUP)
@@ -311,14 +600,19 @@ def _run_single_preprocess(args, subject_id, session):
                     for future in as_completed(futures):
                         result = future.result()
                         if isinstance(result, dict) and "error" in result:
-                            debug.error(f"PV Correction failed: {result['outpath']}", result["error"])
-                        progress.update(task, description=f"Collecting results")
+                            debug.error("\t",f"PV Correction failed: {result['outpath']}", result["error"])
+                        progress.update(task, description=f"\t Collecting results")
                         progress.advance(task)
         else:
-            debug.success("Partial volume effect already corrected: SKIP")
+            debug.success("\t","Already processed: SKIP")
     else:
-        debug.error("One or multiple partial volume files p1 p2 p3 not found: Skip")
-        log_report.append(f"Error preparing task: {recording_id} - {met, desc, option} Exception {e}")
+        debug.error("\t","One or multiple partial volume files p1/p2/p3 not found: Skip")
+        log_report.append(
+            "Partial Volume Correction skipped: missing one or more CAT12 tissue maps (p1-p3)"
+        )
+
+
+
 
 
 
@@ -327,43 +621,10 @@ def _run_single_preprocess(args, subject_id, session):
     #########################################################################
     ########## MRSI-orig PV correction --> MRSI-T1W PV correction ###########
     #########################################################################
-    __path =  mridata.get_mri_filepath(modality="mrsi",space="T1w",desc="signal",
-                                       met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
-    if not exists(__path) or overwrite_pvcorr:
-        debug.info("MRSI-orig PV correction --> MRSI-T1W PV correction")
-        t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
-        mni_ref          = datasets.load_mni152_template(t1_resolution)
-        transform_list   = mridata.get_transform("forward", "mrsi")
-        if not all(exists(path) for path in transform_list):
-            debug.warning("Missing MRSI->T1w transforms; launching registration_mrsi_to_t1.")
-            registration_script = os.path.abspath(
-                join(os.path.dirname(__file__), "registration_mrsi_to_t1.py")
-            )
-            cmd = [
-                sys.executable,
-                registration_script,
-                "--group", GROUP,
-                "--subject_id", subject_id,
-                "--session", session,
-                "--nthreads", str(nthreads),
-                "--b0", str(B0_strength),
-                "--batch", "off",
-                "--corr_orient", str(int(correct_orientation)),
-            ]
-            if t1_path:
-                cmd.extend(["--t1", str(t1_path)])
-            try:
-                subprocess.run(cmd, check=True)
-            except subprocess.CalledProcessError as exc:
-                debug.error("registration_mrsi_to_t1.py failed", exc)
-                return
-            except Exception as exc:
-                debug.error("Unable to start registration_mrsi_to_t1.py", exc)
-                return
-            transform_list = mridata.get_transform("forward", "mrsi")
-            if not all(exists(path) for path in transform_list):
-                debug.error("registration_mrsi_to_t1.py did not produce the expected transforms")
-                return
+    
+    transform_list   = mridata.get_transform("forward", "mrsi")
+    if args.mrsi_t1wspace and all(exists(transform_list)):
+        debug.proc("TRANSFORM MRSI-orig PV correction --> MRSI-T1W")
         with ProcessPoolExecutor(max_workers=nthreads) as executor:
             futures = []
             for component in SIGNAL_LIST:
@@ -382,9 +643,9 @@ def _run_single_preprocess(args, subject_id, session):
                         if not exists(mrsi_orig_corr_path): 
                             # debug.error("\n","PV corrected MRSI orig-space does not exists")
                             # debug.error("\n",split(mrsi_orig_corr_path)[1],"not found ")
-                            log_report.append(f"Transform MRSI-orig PV corrected --> MRSI-T1W PV corrected: no mrsi-space-orig-corr found {component} - {tissue}")
+                            log_report.append(f"no mrsi-space-orig-corr found {component} - {tissue}")
                             continue
-                        if not exists(mrsi_img_corr_t1w_path) or overwrite_pvcorr: 
+                        if not exists(mrsi_img_corr_t1w_path) or args.overwrite_pve: 
                             futures.append(executor.submit(
                                 transform_worker,
                                 t1_path,
@@ -394,30 +655,27 @@ def _run_single_preprocess(args, subject_id, session):
                             ))
                         else: continue
                 except Exception as e:
-                    debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
-
+                    debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
             # As each job completes, update the progress bar
             with Progress() as progress:
-                task = progress.add_task("Correcting...", total=len(futures))
+                task = progress.add_task("\t Correcting...", total=len(futures))
                 for future in as_completed(futures):
                     result = future.result()
                     if isinstance(result, dict) and "error" in result:
-                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
-                    progress.update(task, description=f"Collecting results")
+                        debug.error("\t",f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"\t Collecting results")
                     progress.advance(task)
-    else:
-        debug.success("MRSI orig PV corrected already trasnformed to T1W space")
+
 
 
 
     ################################################################################
-    #################### MRSI-orig --> MRSI-anat ####################
+    #################### MRSI-orig --> MRSI-T1w-anat ####################
     ################################################################################
-    __path =  mridata.get_mri_filepath(modality="mrsi",space="T1w",desc="signal",
-                                       met=METABOLITE_LIST[-1],option=filtoption)
-    debug.info("MRSI-orig --> MRSI-anat")
-    if not exists(__path) or overwrite:
-        transform_list   = mridata.get_transform("forward", "mrsi")
+
+    transform_list   = mridata.get_transform("forward", "mrsi")
+    if all(exists(path) for path in transform_list) and args.tr_mrsi_t1:
+        debug.proc("TRANSFORM MRSI-orig --> MRSI-anat")
         with Progress() as progress:
             task = progress.add_task("Transforming...", total=len(SIGNAL_LIST))
             with ProcessPoolExecutor(max_workers=nthreads) as executor:
@@ -444,61 +702,69 @@ def _run_single_preprocess(args, subject_id, session):
                         ))
                         
                     except Exception as e:
-                        debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+                        debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
                         progress.advance(task)
 
                 # As each job completes, update the progress bar
                 for future in as_completed(futures):
                     result = future.result()
                     if isinstance(result, dict) and "error" in result:
-                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
-                    progress.update(task, description=f"Collecting results")
+                        debug.error("\t",f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"\t Collecting results")
                     progress.advance(task)
-    else:
-        debug.success("Already transformed: SKIP")
+    elif args.tr_mrsi_t1 and not all(exists(path) for path in transform_list):
+        debug.proc("TRANSFORM MRSI-orig --> MRSI-anat")
+        debug.error("\t","No MRSI->T1w transform found: SKIP")
+    else: pass
 
 
 
     ############################################################
     #################### MRSI-anat --> MRSI-MNI ####################
     ################################################################################
-    debug.info("MRSI-anat --> MRSI-MNI")
-    __path =  mridata.get_mri_filepath(modality="mrsi",space="mni",desc="signal",
-                                       met=METABOLITE_LIST[-1],option=filtoption)
-    if not exists(__path) or overwrite:
-        t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
-        mni_ref          = datasets.load_mni152_template(t1_resolution)
-        transform_list   = mridata.get_transform("forward", "anat")
+    debug.proc("REGISTRATION: Anatomical T1w --> MNI")
+    t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
+    mni_ref          = datasets.load_mni152_template(t1_resolution)
+    transform_list   = mridata.get_transform("forward", "anat")
+    if not all(exists(path) for path in transform_list) or args.overwrite_mni_reg:
+        if args.overwrite_mni_reg:
+            debug.warning("\t","Overwriting existing transforms")
+        debug.warning("\t","Missing T1w->MNI transforms; launching registration_t1_to_MNI.")
+        registration_script = os.path.abspath(
+            join(os.path.dirname(__file__), "registration_t1_to_MNI.py")
+        )
+        cmd = [
+            sys.executable,
+            registration_script,
+            "--group", GROUP,
+            "--subject_id", subject_id,
+            "--session", session,
+            "--nthreads", str(nthreads),
+            "--batch", "off",
+        ]
+        if t1_path:
+            cmd.extend(["--t1", str(t1_path)])
+        if args.overwrite_mni_reg:
+            cmd.extend(["--overwrite", "1"])
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as exc:
+            debug.error("\t","registration_t1_to_MNI.py failed", exc)
+            return
+        except Exception as exc:
+            debug.error("\t","Unable to start registration_t1_to_MNI.py", exc)
+            return
+        transform_list = mridata.get_transform("forward", "anat")
         if not all(exists(path) for path in transform_list):
-            debug.warning("Missing T1w->MNI transforms; launching registration_t1_to_MNI.")
-            registration_script = os.path.abspath(
-                join(os.path.dirname(__file__), "registration_t1_to_MNI.py")
-            )
-            cmd = [
-                sys.executable,
-                registration_script,
-                "--group", GROUP,
-                "--subject_id", subject_id,
-                "--session", session,
-                "--nthreads", str(nthreads),
-                "--batch", "off",
-            ]
-            if t1_path:
-                cmd.extend(["--t1", str(t1_path)])
-            if overwrite:
-                cmd.extend(["--overwrite", "1"])
-            try:
-                subprocess.run(cmd, check=True)
-            except subprocess.CalledProcessError as exc:
-                debug.error("registration_t1_to_MNI.py failed", exc)
-                return
-            except Exception as exc:
-                debug.error("Unable to start registration_t1_to_MNI.py", exc)
-                return
-            transform_list = mridata.get_transform("forward", "anat")
-            if not all(exists(path) for path in transform_list):
-                debug.error("registration_t1_to_MNI.py did not produce the expected transforms")
-                return
+            debug.error("\t","registration_t1_to_MNI.py did not produce the expected transforms")
+            return
+    else:
+        debug.success("\t","Registration already computed: SKIP")
+
+    if args.mni_no_pvc:
+        transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
+        transform_t1_to_mni_list  = mridata.get_transform("forward", "anat")
+        transform_list            = transform_t1_to_mni_list + transform_mrsi_to_t1_list
         with Progress() as progress:
             task = progress.add_task("Transforming...", total=len(SIGNAL_LIST))
             with ProcessPoolExecutor(max_workers=nthreads) as executor:
@@ -506,48 +772,55 @@ def _run_single_preprocess(args, subject_id, session):
                 for component in SIGNAL_LIST:
                     met, desc, option = component
                     try:
-                        mrsi_anat_path = mridata.get_mri_filepath(
-                            modality="mrsi", space="T1w", desc=desc, met=met, option=option
+                        mrsi_orig_path = mridata.get_mri_filepath(
+                            modality="mrsi", space="orig", desc=desc, met=met, option=option
                         )
                         mrsi_img_mni_path = mridata.get_mri_filepath(
                             modality="mrsi", space="mni", desc=desc, met=met, option=option
                         )
-                        if not exists(mrsi_anat_path): 
-                            log_report.append(f"MRSI-anat --> MRSI-MNI: no mrsi-space-t1w found {component}")
+                        if not exists(mrsi_orig_path): 
+                            log_report.append(f"MRSI-anat --> MRSI-MNI: no mrsi-orig-space found {component}")
                             continue
                         futures.append(executor.submit(
                             transform_worker,
                             mni_ref,
-                            mrsi_anat_path,
+                            mrsi_orig_path,
                             transform_list,
                             mrsi_img_mni_path
                         ))
                     except Exception as e:
-                        debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+                        debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
                         progress.advance(task)
 
                 # As each job completes, update the progress bar
                 for future in as_completed(futures):
                     result = future.result()
                     if isinstance(result, dict) and "error" in result:
-                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
-                    progress.update(task, description=f"Collecting results")
+                        debug.error("\t",f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"\t Collecting results")
                     progress.advance(task)
-    else:
-        debug.success("Already transformed: SKIP")
+
         
 
 
     #########################################################################
-    ########## MRSI-anat PV correction --> MRSI-MNI PV correction ###########
+    ########## MRSI-orig PV correction --> MRSI-MNI PV correction ###########
     #########################################################################
-    __path =  mridata.get_mri_filepath(modality="mrsi",space="mni",desc="signal",
+    t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
+    mni_ref          = datasets.load_mni152_template(t1_resolution)
+    __path =  mridata.get_mri_filepath(modality="mrsi",space="mni",desc="signal",res=t1_resolution,
                                        met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
-    if not exists(__path) or overwrite_pvcorr:
-        debug.info("Transform MRSI-anat PV corrected --> MRSI-MNI PV corrected")
-        t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
-        mni_ref          = datasets.load_mni152_template(t1_resolution)
-        transform_list   = mridata.get_transform("forward", "anat")
+
+    if t1_resolution<1:
+        t1_resolution_str = f"{int(t1_resolution * 10):02d}"
+    else:
+        t1_resolution_str = str(t1_resolution)
+    
+    if not exists(__path) or args.overwrite_pve:
+        debug.proc("TRANSFORM: MRSI-orig PV corrected --> MRSI-MNI ")   
+        transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
+        transform_t1_to_mni_list  = mridata.get_transform("forward", "anat")
+        transform_list            = transform_t1_to_mni_list + transform_mrsi_to_t1_list
 
         with ProcessPoolExecutor(max_workers=nthreads) as executor:
             futures = []
@@ -557,53 +830,55 @@ def _run_single_preprocess(args, subject_id, session):
                 try:
                     for tissue in TISSUE_LIST:
                         preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
-                        mrsi_anat_corr_path = mridata.get_mri_filepath(
-                            modality="mrsi", space="T1w", desc=desc, met=met, option=preproc_str
+                        mrsi_orig_corr_path = mridata.get_mri_filepath(
+                            modality="mrsi", space="orig", desc=desc, 
+                            met=met, option=preproc_str,
                         )
                         mrsi_img_corr_mni_path = mridata.get_mri_filepath(
-                            modality="mrsi", space="mni", desc=desc, met=met, option=preproc_str
+                            modality="mrsi", space="mni", desc=desc, 
+                            met=met, option=preproc_str,res=t1_resolution_str,
                         )
-                        # debug.info(exists(mrsi_anat_corr_nifti),split(mrsi_anat_corr_nifti)[1])
-                        if not exists(mrsi_anat_corr_path): 
-                            # debug.error("\n","PV corrected MRSI t1w-space does not exists")
-                            log_report.append(f"Transform MRSI-anat PV corrected --> MRSI-MNI PV corrected: no mrsi-space-t1w-corr found {component}-{tissue}")
+                        if not exists(mrsi_orig_corr_path): 
+                            log_report.append(f"No mrsi-origspace-corr found {component}-{tissue}")
                             continue
-                        if not exists(mrsi_img_corr_mni_path) or overwrite_pvcorr: 
+                        if not exists(mrsi_img_corr_mni_path) or args.overwrite_pve: 
                             futures.append(executor.submit(
                                 transform_worker,
                                 mni_ref,
-                                mrsi_anat_corr_path,
+                                mrsi_orig_corr_path,
                                 transform_list,
                                 mrsi_img_corr_mni_path
                             ))
                         else:
-                            debug.info("mrsi_img_corr_mni_path already exists")
                             continue
                 except Exception as e:
-                    debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+                    debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
 
             # As each job completes, update the progress bar
             with Progress() as progress:
-                task = progress.add_task("Correcting...", total=len(futures))
+                task = progress.add_task("\t Correcting...", total=len(futures))
                 for future in as_completed(futures):
                     result = future.result()
                     if isinstance(result, dict) and "error" in result:
-                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
-                    progress.update(task, description=f"Collecting results")
+                        debug.error("\t",f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"\t Collecting results")
                     progress.advance(task)
     else:
-        debug.success("Partial Volume effect already corrected in MNI space")
+        debug.success("\t","Already processed")
 
 
     #########################################################################
     # MRSI-orig PV correction --> MRSI-MNI PV correction @ Orig Resolution ##
     #########################################################################
-    __path =  mridata.get_mri_filepath(modality="mrsi",space="orig",desc="signal",
+    __ogres_path =  mridata.get_mri_filepath(modality="mrsi",space="orig",desc="signal",
                                        met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
-
+    orig_resolution           = np.array(nib.load(__ogres_path).header.get_zooms()[:3]).mean()
+    orig_resolution_int       = int(round(orig_resolution))
+    __path =  mridata.get_mri_filepath(modality="mrsi",space="mni",desc="signal",res=orig_resolution_int,
+                                       met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
+    
     if not exists(__path) or args.overwrite_mni:
-        debug.info("MRSI-orig PV correction --> MRSI-MNI PV correction @ Orig Resolution")
-        orig_resolution           = np.array(nib.load(__path).header.get_zooms()[:3]).mean()
+        debug.proc(f"TRANSFORM MRSI-orig PV correction --> MRSI-MNI @ Orig {orig_resolution_int}mm")
         mni_ref                   = datasets.load_mni152_template(orig_resolution)
         transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
         transform_t1_to_mni_list  = mridata.get_transform("forward", "anat")
@@ -621,12 +896,12 @@ def _run_single_preprocess(args, subject_id, session):
                         )
                         mrsi_img_corr_mni_origres_path = mridata.get_mri_filepath(
                             modality="mrsi", space="mni", desc=desc, met=met, option=preproc_str,
-                            res = round(orig_resolution),
+                            res = orig_resolution_int,
                         )
                         # debug.info(exists(mrsi_anat_corr_nifti),split(mrsi_anat_corr_nifti)[1])
                         if not exists(mrsi_orig_corr_path): 
                             # debug.error("\n","PV corrected MRSI t1w-space does not exists")
-                            log_report.append(f"MRSI-orig PV correction --> MRSI-MNI PV correction @ Orig Resolution: no mrsi-origspace-corr found {component}-{tissue}")
+                            log_report.append(f"MRSI-orig PV correction --> MRSI-MNI PV correction @ {orig_resolution_int}mm: no mrsi-origspace-corr found {component}-{tissue}")
                             continue
                         if not exists(mrsi_img_corr_mni_origres_path) or args.overwrite_mni: 
                             futures.append(executor.submit(
@@ -637,22 +912,22 @@ def _run_single_preprocess(args, subject_id, session):
                                 mrsi_img_corr_mni_origres_path
                             ))
                         else:
-                            debug.info("mrsi_img_corr_mni_origres_path already exists")
+                            debug.info("\t","mrsi_img_corr_mni_origres_path already exists")
                             continue
                 except Exception as e:
-                    debug.error(f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+                    debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
 
             # As each job completes, update the progress bar
             with Progress() as progress:
-                task = progress.add_task("Correcting...", total=len(futures))
+                task = progress.add_task("\t Correcting...", total=len(futures))
                 for future in as_completed(futures):
                     result = future.result()
                     if isinstance(result, dict) and "error" in result:
-                        debug.error(f"Transform failed: {result['outpath']}", result["error"])
-                    progress.update(task, description=f"Collecting results")
+                        debug.error("\t",f"Transform failed: {result['outpath']}", result["error"])
+                    progress.update(task, description=f"\t Collecting results")
                     progress.advance(task)
     else:
-        debug.success("Partial Volume effect already corrected in MNI space")
+        debug.success("\t","Already Processed")
 
 
 
@@ -663,7 +938,6 @@ def _run_single_preprocess(args, subject_id, session):
         debug.info("---------------- LOG REPORT ----------------")
         for i in log_report:
             debug.error(i)
-    debug.separator()
     return
 
 
@@ -677,17 +951,20 @@ def main():
     parser.add_argument('--spikepc', type=float, default=99, help="Percentile for MRSI signal spike detection  [default=98]")
     parser.add_argument('--t1', type=str, default=None, help="Anatomical T1w file path")
     parser.add_argument('--b0', type=float, default=3, choices=[3, 7], help="MRI B0 field strength in Tesla [default=3]")
-    parser.add_argument('--overwrite', type=int, default=0, choices=[1, 0], help="Overwrite existing parcellation (default: 0)")
+    parser.add_argument('--tr_mrsi_t1', type=int, default=0, choices=[1, 0], help="Generate intermdiairy T1w-space files (default: 0)")
     parser.add_argument('--overwrite_filt', type=int, default=0, choices=[1, 0], help="Overwrite MRSI filtering output (default: 0)")
     parser.add_argument('--overwrite_pve', type=int, default=0, choices=[1, 0], help="Overwrite partial volume correction (default: 0)")
-    parser.add_argument('--overwrite_mni', type=int, default=0, choices=[1, 0], help="Overwrite trasnform to MNI orig res (default: 0)")
+    parser.add_argument('--overwrite_t1_reg', type=int, default=0, choices=[1, 0], help="Overwrite MRSI -> T1w registration (default: 0)")
+    parser.add_argument('--overwrite_mni_reg', type=int, default=0, choices=[1, 0], help="Overwrite T1w -> MNI registration (default: 0)")
+    parser.add_argument('--overwrite_mni', type=int, default=0, choices=[1, 0], help="Overwrite transform to MNI orig res (default: 0)")
+    parser.add_argument('--mni_no_pvc', type=int, default=0, choices=[1, 0], help="Get non-partial-volume-corrected MNI maps (default: 0)")
+    parser.add_argument('--mrsi_t1wspace', type=int, default=0, choices=[1, 0], help="Get MRSI maps in T1w space (default: 0)")
     parser.add_argument('--v', type=int, default=0, choices=[1, 0], help="Verbose")
     parser.add_argument('--participants', type=str, default=None,
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
     parser.add_argument('--corr_orient', type=int, default=0, help="Correct for oblique FOV orientation [default=0]")
-
     args = parser.parse_args()
 
     if args.batch == 'off':
@@ -711,19 +988,46 @@ def main():
         debug.error("No subject-session pairs to process.")
         return
 
+    if args.batch != 'off':
+        if not _preflight_batch_inputs(args, pair_list):
+            return
+
     total = len(pair_list)
     for index, (subject_id, session) in enumerate(pair_list, start=1):
+        requirements = _gather_input_requirements(args, subject_id, session)
+        if not requirements["t1"]["status"]:
+            debug.warning(
+                f"Skipping sub-{subject_id}_ses-{session}: missing T1 reference "
+                f"({requirements['t1']['path'] or 'Not found'})"
+            )
+            continue
+        mrsi_present = any(
+            req["status"] and not req.get("autogen") for req in requirements["mrsi"]
+        )
+        if not mrsi_present:
+            debug.warning(
+                f"Skipping sub-{subject_id}_ses-{session}: no MRSI files detected"
+            )
+            continue
+        debug.title(f"Processing sub-{subject_id}_ses-{session}")
+        debug.separator()
+        pair_start = time.time()
         run_args = argparse.Namespace(**vars(args))
         run_args.subject_id = subject_id
         run_args.session = session
         if args.batch != 'off':
-            debug.title(f"Batch item {index}/{total}: sub-{subject_id}_ses-{session}")
+            debug.info(f"Batch item {index}/{total}: sub-{subject_id}_ses-{session}")
         try:
             _run_single_preprocess(run_args, subject_id, session)
+            duration = time.time() - pair_start
+            minutes, seconds = divmod(int(duration), 60)
+            debug.success(f"Completion time: {minutes:02d} min {seconds:02d} sec")
+            debug.separator();debug.separator()
         except Exception as exc:
-            debug.error(f"Processing sub-{subject_id}_ses-{session} failed: {exc}")
+            debug.error("\t",f"Processing sub-{subject_id}_ses-{session} failed: {exc}")
 
 if __name__=="__main__":
+    debug.separator()
     main()
 
 

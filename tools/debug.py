@@ -12,38 +12,54 @@ class Debug:
             "warning": "yellow",
             "info": "blue",
             "failure": "bold red",
-            "debug": "magenta"
+            "debug": "magenta",
+            "proc": "violet"
         })
         self.console = Console(theme=custom_theme)
         self.verbose = verbose
 
-    def concatenate(self, *messages):
-        return ' '.join(str(message) for message in messages)
+    def _prepare_message(self, *messages):
+        if not messages:
+            return "", ""
+        prefix = ""
+        items = list(messages)
+        first = str(items[0])
+        if first.strip() == "":
+            prefix = first
+            items = items[1:]
+        text = ' '.join(str(message) for message in items) if items else ""
+        return prefix, text
 
     def success(self, *messages):
         if self.verbose:
-            message = self.concatenate(*messages)
-            self.console.print(f"[success][ SUCCESS ][/success] {escape(message)}")
+            prefix, message = self._prepare_message(*messages)
+            self.console.print(f"{prefix}[success][ SUCCESS ][/success] {escape(message)}")
 
     def error(self, *messages):
         if self.verbose:
-            message = self.concatenate(*messages)
-            self.console.print(f"[error][  ERROR  ][/error] {escape(message)}")
+            prefix, message = self._prepare_message(*messages)
+            self.console.print(f"{prefix}[error][  ERROR  ][/error] {escape(message)}")
 
     def warning(self, *messages):
         if self.verbose:
-            message = self.concatenate(*messages)
-            self.console.print(f"[warning][ WARNING ][/warning] {escape(message)}")
+            prefix, message = self._prepare_message(*messages)
+            self.console.print(f"{prefix}[warning][ WARNING ][/warning] {escape(message)}")
 
     def failure(self, *messages):
         if self.verbose:
-            message = self.concatenate(*messages)
-            self.console.print(f"[failure][ FAILURE ][/failure] {escape(message)}")
+            prefix, message = self._prepare_message(*messages)
+            self.console.print(f"{prefix}[failure][ FAILURE ][/failure] {escape(message)}")
 
     def info(self, *messages):
         if self.verbose:
-            message = self.concatenate(*messages)
-            self.console.print(f"[info][   INFO  ][/info] {escape(message)}")
+            prefix, message = self._prepare_message(*messages)
+            self.console.print(f"{prefix}[info][   INFO  ][/info] {escape(message)}")
+
+    def proc(self, *messages):
+        if self.verbose:
+            prefix, message = self._prepare_message(*messages)
+            self.console.print()
+            self.console.print(f"{prefix}[proc][  PROC  ][/proc] {escape(message)}")
 
     def separator(self):
         if self.verbose:
