@@ -8,7 +8,7 @@ display_help() {
     echo
     echo "Options:"
     echo "  -i, --input     Path to the BIDS directory containing multivisit MRI data."
-    echo "  -s, --subject   Process only the specified subject (e.g., S001 -> sub-S001)."
+    echo "  -s,    Process only the specified subject (e.g., S001 -> sub-S001)."
     echo "      --t1        Glob pattern (without subject/ses prefix) to locate T1 files."
     echo "      --mni       Path to the MNI reference brain."
     echo "  -h, --help      Display this help message."
