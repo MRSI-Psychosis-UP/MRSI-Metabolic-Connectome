@@ -8,6 +8,9 @@ display_help() {
     echo
     echo "Options:"
     echo "  -i, --input     Path to the BIDS directory containing multivisit MRI data."
+    echo "  -s, --subject   Process only the specified subject (e.g., S001 -> sub-S001)."
+    echo "      --t1        Glob pattern (without subject/ses prefix) to locate T1 files."
+    echo "      --mni       Path to the MNI reference brain."
     echo "  -h, --help      Display this help message."
     echo
 }
@@ -46,6 +49,9 @@ run_step() {
 }
 
 BIDSDIR=""
+SUBJECT_FILTER=""
+T1_PATTERN="*_desc-brain_T1w.nii.gz"
+MNI_TEMPLATE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -61,6 +67,30 @@ while [[ $# -gt 0 ]]; do
         BIDSDIR="$2"
         shift 2
         ;;
+    -s | --subject)
+        if [[ -z $2 || $2 == -* ]]; then
+            echo "Error: --subject requires a non-empty argument."
+            exit 1
+        fi
+        SUBJECT_FILTER="$2"
+        shift 2
+        ;;
+    --t1)
+        if [[ -z $2 || $2 == -* ]]; then
+            echo "Error: --t1 requires a non-empty argument."
+            exit 1
+        fi
+        T1_PATTERN="$2"
+        shift 2
+        ;;
+    --mni)
+        if [[ -z $2 || $2 == -* ]]; then
+            echo "Error: --mni requires a non-empty argument."
+            exit 1
+        fi
+        MNI_TEMPLATE="$2"
+        shift 2
+        ;;
     *)
         echo "Unknown option: $1"
         display_help
@@ -71,6 +101,16 @@ done
 
 if [[ -z "${BIDSDIR}" ]]; then
     echo "Error: --input <BIDSDIR> is required."
+    exit 1
+fi
+
+if [[ -z "${MNI_TEMPLATE}" ]]; then
+    echo "Error: --mni <path> is required."
+    exit 1
+fi
+
+if [[ ! -f "${MNI_TEMPLATE}" ]]; then
+    echo "Error: MNI reference not found at ${MNI_TEMPLATE}"
     exit 1
 fi
 
@@ -98,8 +138,29 @@ fi
 
 run_step "Change directory to ${T1W_DIR}" cd "${T1W_DIR}"
 
+subject_dirs=()
+if [[ -n "${SUBJECT_FILTER}" ]]; then
+    if [[ "${SUBJECT_FILTER}" != sub-* ]]; then
+        SUBJECT_FILTER="sub-${SUBJECT_FILTER}"
+    fi
+    SUBJECT_PATH="${T1W_DIR}/${SUBJECT_FILTER}"
+    if [[ ! -d "${SUBJECT_PATH}" ]]; then
+        log_error "Specified subject directory not found: ${SUBJECT_FILTER}"
+        exit 1
+    fi
+    subject_dirs=( "${SUBJECT_PATH}" )
+else
+    for SUBJECT_DIR in "${T1W_DIR}"/sub-*; do
+        [[ -d "${SUBJECT_DIR}" ]] && subject_dirs+=( "${SUBJECT_DIR}" )
+    done
+    if [[ ${#subject_dirs[@]} -eq 0 ]]; then
+        log_error "No subject directories found in ${T1W_DIR}"
+        exit 1
+    fi
+fi
+
 # Loop through each subject
-for SUBJECT_DIR in ${T1W_DIR}/sub-*; do
+for SUBJECT_DIR in "${subject_dirs[@]}"; do
     [[ -d "${SUBJECT_DIR}" ]] || continue
     SUBJECT_ID=$(basename "${SUBJECT_DIR}")
     log_info "Processing subject: ${SUBJECT_ID}"
@@ -115,7 +176,7 @@ for SUBJECT_DIR in ${T1W_DIR}/sub-*; do
             continue
         fi
         log_info "Found visit ${VISIT_ID} for ${SUBJECT_ID}"
-        visit_files=( ${VISIT_DIR}/${SUBJECT_ID}_${VISIT_ID}_*_desc-brain_T1w.nii.gz )
+        visit_files=( ${VISIT_DIR}/${SUBJECT_ID}_${VISIT_ID}_${T1_PATTERN} )
         if [[ ${#visit_files[@]} -eq 0 ]]; then
             log_error "No T1w file found for ${SUBJECT_ID} ${VISIT_ID}; skipping visit."
             continue
@@ -127,7 +188,7 @@ for SUBJECT_DIR in ${T1W_DIR}/sub-*; do
 
     run_step "Enter ses-all directory for ${SUBJECT_ID}" cd ses-all
 
-    ses_all_files=( *T1w.nii.gz )
+    ses_all_files=( ${SUBJECT_ID}_ses-*_${T1_PATTERN} )
     if [[ ${#ses_all_files[@]} -eq 0 ]]; then
         log_error "No T1w files were aggregated for ${SUBJECT_ID}; skipping subject."
         run_step "Return to subject directory ${SUBJECT_DIR}" cd "${SUBJECT_DIR}"
@@ -137,10 +198,10 @@ for SUBJECT_DIR in ${T1W_DIR}/sub-*; do
 
     # Perform registrations using ANTs
     run_step "Construct template for ${SUBJECT_ID}" \
-        antsMultivariateTemplateConstruction2.sh -d 3 -i 4 -g 0.2 -k 1 -r 1 -v 16 -o "${SUBJECT_ID}_template_" *T1w.nii.gz
+        antsMultivariateTemplateConstruction2.sh -d 3 -i 4 -g 0.2 -k 1 -r 1 -v 16 -o "${SUBJECT_ID}_template_" "${ses_all_files[@]}"
 
     run_step "Register ${SUBJECT_ID} template to MNI" \
-        antsRegistrationSyN.sh -d 3 -f "${BIDSDIR}/derivatives/group/mni/brain_space-mni152.nii.gz" \
+        antsRegistrationSyN.sh -d 3 -f "${MNI_TEMPLATE}" \
         -m "${SUBJECT_ID}_template_template0.nii.gz" -o "${SUBJECT_ID}_ses-all_desc-template_to_mni" -t s -n 16
 
     # Move registration to template in good directory
@@ -164,11 +225,11 @@ for SUBJECT_DIR in ${T1W_DIR}/sub-*; do
         fi
 
         run_step "Move affine transform for ${SUBJECT_ID} ${VISIT_ID}" \
-            mv "${affine_files[0]}" "${BIDSDIR}/derivatives/transforms/ants/${SUBJECT_ID}/${VISIT_ID}/anat/${SUBJECT_ID}_${VISIT_ID}_desc-T1w_to_template.affine.mat"
+            mv "${affine_files[0]}" "${BIDSDIR}/derivatives/transforms/ants/${SUBJECT_ID}/${VISIT_ID}/anat/${SUBJECT_ID}_${VISIT_ID}_desc-t1w_to_template.affine.mat"
         run_step "Move warp transform for ${SUBJECT_ID} ${VISIT_ID}" \
-            mv "${warp_files[0]}" "${BIDSDIR}/derivatives/transforms/ants/${SUBJECT_ID}/${VISIT_ID}/anat/${SUBJECT_ID}_${VISIT_ID}_desc-T1w_to_template.syn.nii.gz"
+            mv "${warp_files[0]}" "${BIDSDIR}/derivatives/transforms/ants/${SUBJECT_ID}/${VISIT_ID}/anat/${SUBJECT_ID}_${VISIT_ID}_desc-t1w_to_template.syn.nii.gz"
         run_step "Move inverse warp transform for ${SUBJECT_ID} ${VISIT_ID}" \
-            mv "${invwarp_files[0]}" "${BIDSDIR}/derivatives/transforms/ants/${SUBJECT_ID}/${VISIT_ID}/anat/${SUBJECT_ID}_${VISIT_ID}_desc-T1w_to_template.syn_inv.nii.gz"
+            mv "${invwarp_files[0]}" "${BIDSDIR}/derivatives/transforms/ants/${SUBJECT_ID}/${VISIT_ID}/anat/${SUBJECT_ID}_${VISIT_ID}_desc-t1w_to_template.syn_inv.nii.gz"
     done
 
     template_affine=( ${SUBJECT_ID}_ses-all_desc-template_to_mni0GenericAffine.mat )

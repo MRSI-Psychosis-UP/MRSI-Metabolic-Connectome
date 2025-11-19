@@ -50,13 +50,12 @@ class  MRIData:
         Returns the path of an MRI file using BIDS keys with a standardized naming pattern.
 
         Expected filename patterns:
-        - MRSI:  sub-<sub>_ses-<ses>_space-<space>[_met-<met>]_desc-<desc>_mrsi.nii.gz
         - T1w:   sub-<sub>_ses-<ses>_run-<run>_acq-<acq>_desc-<desc>[_T1w].nii.gz
         - DWI:   Depending on the specified dwi_options ("bval", "bvec", "mean_b0", "dwi.mif", "dwi.nii")
 
         Args:
             modality (str): Modality type ("mrsi", "t1w", "dwi", "func").
-            space (str): Image space (e.g., "orig", "T1w", "mni").
+            space (str): Image space (e.g., "orig", "T1w", "mni","mni152long").
             res (int): Image isotropic resolution, defaults to original resolution if set to None.
             desc (str): Descriptor (e.g., "signal", "crlb","fwhm","snr", "brainmask", "brain").
             met (str, optional): Metabolite name (e.g., "CrPCr", "GluGln", etc.). Defaults to None.
@@ -290,23 +289,76 @@ class  MRIData:
             filename = f"{self.prefix}_atlas-chimera{parc_scheme}_scale{scale}_desc-connectivity_dwi.npz"
         return join(dirpath,filename)
 
-    def get_transform(self,direction,space):
-        transform_dir_path            = join(self.TRANSFORM_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",space)
+    def get_transform(self, direction, space):
+        """
+        Return the list of transform files for a given direction/space pair.
 
-        if space=="mrsi":
-            transform_prefix  = f"sub-{self.subject_id}_ses-{self.session}_desc-mrsi_to_t1w"
-        elif  space=="t1w" or space=="anat":
-            transform_prefix  = f"sub-{self.subject_id}_ses-{self.session}_desc-t1w_to_mni"
-        elif  space=="dwi":
-            transform_prefix  = f"sub-{self.subject_id}_ses-{self.session}_desc-dwi_to_t1w"
+        Supported spaces:
+            - "mrsi"                  :    MRSI -> T1w.
+            - "anat"/"t1w"            :    T1w -> MNI (single visit).
+            - "dwi"                   :    DWI -> T1w.
+            - "t1-template"/"template":    T1w -> subject-specific template
+                                          produced by registration_multivisit.sh.
+            - "template-mni"/"ses-all":    Subject template (ses-all) -> MNI
+                                          from registration_multivisit.sh.
 
-        transform_list = list()
-        if direction=="forward":  
-            transform_list.append(join(transform_dir_path,f"{transform_prefix}.syn.nii.gz"))
-            transform_list.append(join(transform_dir_path,f"{transform_prefix}.affine.mat"))
-        elif  direction=="inverse":
-            transform_list.append(join(transform_dir_path,f"{transform_prefix}.affine_inv.mat"))
-            transform_list.append(join(transform_dir_path,f"{transform_prefix}.syn_inv.nii.gz"))
+        Args:
+            direction (str): "forward" or "inverse".
+            space (str): See list above (case-insensitive).
+        """
+        subject_label = f"sub-{self.subject_id}"
+        session_label = f"ses-{self.session}"
+        direction = direction.lower()
+        space_key = space.lower()
+
+        base_subject_dir = join(self.TRANSFORM_PATH, subject_label)
+
+        def _build(space_dir_segments, prefix, has_affine_inverse=True):
+            dir_path = join(*space_dir_segments)
+            return dir_path, prefix, has_affine_inverse
+
+        if space_key == "mrsi":
+            transform_dir_path, transform_prefix, has_affine_inv = _build(
+                (base_subject_dir, session_label, "mrsi"),
+                f"{subject_label}_{session_label}_desc-mrsi_to_t1w",
+            )
+        elif space_key in {"t1w", "anat"}:
+            transform_dir_path, transform_prefix, has_affine_inv = _build(
+                (base_subject_dir, session_label, "anat"),
+                f"{subject_label}_{session_label}_desc-t1w_to_mni",
+            )
+        elif space_key == "dwi":
+            transform_dir_path, transform_prefix, has_affine_inv = _build(
+                (base_subject_dir, session_label, "dwi"),
+                f"{subject_label}_{session_label}_desc-dwi_to_t1w",
+            )
+        elif space_key in {"t1-template", "anat-template", "template"}:
+            transform_dir_path, transform_prefix, has_affine_inv = _build(
+                (base_subject_dir, session_label, "anat"),
+                f"{subject_label}_{session_label}_desc-t1w_to_template",
+                has_affine_inverse=False,
+            )
+        elif space_key in {"template-mni", "template_to_mni", "ses-all", "ses_all"}:
+            transform_dir_path, transform_prefix, has_affine_inv = _build(
+                (base_subject_dir, "ses-all", "anat"),
+                f"{subject_label}_ses-all_desc-template_to_mni",
+                has_affine_inverse=False,
+            )
+        else:
+            raise ValueError(f"Unsupported transform space '{space}'.")
+
+        if direction not in {"forward", "inverse"}:
+            raise ValueError(f"Unsupported transform direction '{direction}'.")
+
+        transform_list = []
+        if direction == "forward":
+            transform_list.append(join(transform_dir_path, f"{transform_prefix}.syn.nii.gz"))
+            transform_list.append(join(transform_dir_path, f"{transform_prefix}.affine.mat"))
+        else:
+            affine_inv_path = join(transform_dir_path, f"{transform_prefix}.affine_inv.mat")
+            if has_affine_inv or exists(affine_inv_path):
+                transform_list.append(affine_inv_path)
+            transform_list.append(join(transform_dir_path, f"{transform_prefix}.syn_inv.nii.gz"))
         return transform_list
   
     def get_tractography_path(self,filtered=True):
@@ -410,4 +462,7 @@ if __name__=="__main__":
 
     filename = "/media/veracrypt2/Connectome/Data/LPN-Project/derivatives/chimera-atlases/sub-CHUVA013_ses-V4_space-orig_res-5mm_met-GluGln_desc-signal_filtbiharmonic_mrsi.nii.gz"
     meta = mrsiData.extract_metadata(filename)
-    print(meta)
+    # print(meta)
+
+    t_list = mrsiData.get_transform( "forward","t1-template" )
+    print(t_list)
