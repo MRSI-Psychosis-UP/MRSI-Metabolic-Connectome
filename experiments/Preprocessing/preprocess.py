@@ -10,6 +10,8 @@ from tools.mridata import MRIData
 from nilearn import datasets
 import nibabel as nib
 from rich.progress import Progress, TaskID
+from rich.table import Table
+from rich import box
 import threading
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from filters.pve import PVECorrection
@@ -22,6 +24,15 @@ reg      = Registration()
 ftools   = FileTools()
 pvc      = PVECorrection()
 bhfilt   = BiHarmonic()
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_candidate_log_dirs = [join(PROJECT_ROOT, "log"), join(PROJECT_ROOT, "logs")]
+for _log_dir in _candidate_log_dirs:
+    if exists(_log_dir):
+        LOG_DIR = _log_dir
+        break
+else:
+    LOG_DIR = _candidate_log_dirs[0]
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 def _read_pairs_from_file(path):
@@ -153,6 +164,25 @@ def _build_signal_list(metabolites, filtoption):
     return signal_list
 
 
+def _warn_missing_forward_transforms(mridata, recording_id):
+    """Log warnings for missing forward transforms that will be generated later."""
+    checks = [
+        ("mrsi", "MRSI→T1w (mrsi forward)"),
+        ("anat", "T1w→MNI (anat forward)"),
+        ("template-mni", "Template→MNI152 (template-mni forward)"),
+        ("t1-template", "T1w→Template (t1-template forward)"),
+    ]
+    for stage_key, label in checks:
+        stage_paths = mridata.get_transform("forward", stage_key) or []
+        missing = [path for path in stage_paths if not exists(path)]
+        if missing:
+            missing_str = ", ".join(missing)
+            debug.warning(
+                f"{recording_id}: missing {label} transform(s): {missing_str}. "
+                "They will be computed during runtime."
+            )
+
+
 def _run_multivisit_registration(mni_ref_img, group, subject_id):
     """Run the longitudinal registration script to regenerate key transforms."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -249,11 +279,14 @@ def _gather_input_requirements(args, subject_id, session):
             "path": path,
             "status": status,
             "autogen": is_brainmask,
+            "met": met,
+            "desc": desc,
         }
         mrsi_entries.append(entry)
         requirements.append(entry)
 
     pv_entries = []
+    tissue_lookup = {1: "GM", 2: "WM", 3: "CSF"}
     for idx in (1, 2, 3):
         pattern = f"_desc-p{idx}_T1w"
         pv_path = None
@@ -267,11 +300,20 @@ def _gather_input_requirements(args, subject_id, session):
             "label": f"T1w partial volume map p{idx}",
             "path": pv_path,
             "status": status,
+            "tissue": tissue_lookup[idx],
         }
         if message:
             pv_entry["message"] = message
         pv_entries.append(pv_entry)
         requirements.append(pv_entry)
+
+    transform_entries = {}
+    for stage_key in ("mrsi", "anat", "template-mni", "t1-template"):
+        stage_paths = mridata.get_transform("forward", stage_key) or []
+        transform_entries[stage_key] = {
+            "paths": stage_paths,
+            "status": bool(stage_paths) and all(exists(path) for path in stage_paths),
+        }
 
     missing_any = any(not req["status"] for req in requirements)
     missing_non_autogen = any(
@@ -283,6 +325,7 @@ def _gather_input_requirements(args, subject_id, session):
         "t1": t1_entry,
         "mrsi": mrsi_entries,
         "pv": pv_entries,
+        "transforms": transform_entries,
         "missing": missing_any,
         "missing_non_autogen": missing_non_autogen,
     }
@@ -291,86 +334,95 @@ def _gather_input_requirements(args, subject_id, session):
 def _preflight_batch_inputs(args, pair_list):
     """Check availability of inputs for every batch item and prompt before running."""
     debug.separator()
-    debug.title("Preanalysis: required inputs")
+    debug.title("Preanalysis: checking for required inputs")
     results = [_gather_input_requirements(args, sub, ses) for sub, ses in pair_list]
+
+    CHECK_MARK = "[green]✔[/green]"
+    CROSS_MARK = "[red]X[/red]"
+    PROC_MARK = "[orange3]PROC[/orange3]"
+    transform_columns = [
+        ("mrsi", "MRSI→T1"),
+        ("anat", "T1→MNI"),
+        ("template-mni", "Template→MNI"),
+        ("t1-template", "T1→Template"),
+    ]
+    table = Table(box=box.SIMPLE_HEAVY, show_lines=False, title="Input availability summary")
+    table.add_column("Recording", style="cyan", no_wrap=True)
+    table.add_column("T1w ref", justify="center")
+    table.add_column("MRSI files", justify="center")
+    table.add_column("Brainmask", justify="center")
+    table.add_column("Tissue files", justify="center")
+    for _, label in transform_columns:
+        table.add_column(label, justify="center")
 
     missing_count = 0
     total_missing_files = 0
+    missing_recordings = []
+    log_lines = []
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    log_header = f"Preanalysis summary generated {timestamp}"
+    log_lines.append(log_header)
+    log_lines.append("=" * len(log_header))
+
     for result in results:
-        debug.separator()
-        debug.info(result["recording_id"])
         t1_entry = result["t1"]
-        if t1_entry["status"]:
-            debug.success("T1w reference (--t1)")
-        else:
-            path_display = t1_entry["path"] or "Not found"
-            debug.error(f"T1w reference (--t1): {path_display}")
-            if t1_entry.get("message"):
-                debug.error("  ↪", t1_entry["message"])
+        t1_cell = CHECK_MARK if t1_entry["status"] else CROSS_MARK
+        countable_entries = [entry for entry in result["mrsi"] if not entry.get("autogen")]
+        total_expected = len(countable_entries)
+        found_count = sum(1 for entry in countable_entries if entry["status"])
+        missing_mrsi_entries = [entry for entry in countable_entries if not entry["status"]]
+        mrsi_color = "green" if found_count == total_expected else "red"
+        mrsi_cell = f"[{mrsi_color}]{found_count}/{total_expected}[/{mrsi_color}]"
 
-        def _summarize_group(title, entries):
-            is_mrsi_group = title.lower().startswith("mrsi")
-            if not entries:
-                debug.warning(f"{title}: no files expected")
-                return
-            found_entries = [entry for entry in entries if entry["status"]]
-            if found_entries:
-                if is_mrsi_group:
-                    brainmask_found = [
-                        entry for entry in found_entries
-                        if entry.get("autogen")
-                    ]
-                    other_found = [
-                        entry for entry in found_entries
-                        if entry not in brainmask_found
-                    ]
-                    if other_found:
-                        debug.success(
-                            f"{title}: found "
-                            f"{len(other_found)} ({', '.join(entry['label'] for entry in other_found)})"
-                        )
-                    if brainmask_found:
-                        debug.warning(
-                            "MRSI brainmask present; will reuse or regenerate if needed "
-                            f"({', '.join(entry['label'] for entry in brainmask_found)})"
-                        )
-                else:
-                    debug.success(f"{title}: {len(found_entries)} found")
+        brainmask_entries = [entry for entry in result["mrsi"] if entry.get("autogen")]
+        brainmask_status = bool(brainmask_entries and brainmask_entries[0]["status"])
+        brainmask_cell = CHECK_MARK if brainmask_status else PROC_MARK
 
-            missing_entries = [entry for entry in entries if not entry["status"]]
-            if not missing_entries:
-                return
-            warn_entries = []
-            error_entries = []
-            for entry in missing_entries:
-                if is_mrsi_group and entry.get("autogen"):
-                    warn_entries.append(entry)
-                else:
-                    error_entries.append(entry)
+        pv_entries = result["pv"]
+        cat12_segments = []
+        cat12_states = []
+        for tissue in ("GM", "WM", "CSF"):
+            tissue_entry = next((entry for entry in pv_entries if entry.get("tissue") == tissue), None)
+            tissue_status = bool(tissue_entry and tissue_entry["status"])
+            color = "green" if tissue_status else "red"
+            cat12_segments.append(f"[{color}]{tissue}[/{color}]")
+            cat12_states.append(f"{tissue}:{'OK' if tissue_status else 'MISS'}")
+        cat12_cell = " ".join(cat12_segments)
 
-            def _format_entries(entries):
-                formatted = []
-                for entry in entries:
-                    path_display = entry["path"] or "Not found"
-                    text = f"{entry['label']} -> {path_display}"
-                    if entry.get("message"):
-                        text += f" ({entry['message']})"
-                    formatted.append(text)
-                return formatted
+        row_cells = [
+            result["recording_id"],
+            t1_cell,
+            mrsi_cell,
+            brainmask_cell,
+            cat12_cell,
+        ]
+        transform_text_parts = []
+        for stage_key, label in transform_columns:
+            transform_info = result["transforms"].get(stage_key, {})
+            is_ready = transform_info.get("status")
+            row_cells.append(CHECK_MARK if is_ready else PROC_MARK)
+            state_text = "READY" if is_ready else "PROC"
+            transform_text_parts.append(f"{label}={state_text}")
 
-            if error_entries:
-                details = _format_entries(error_entries)
-                debug.error(
-                    f"{title}: missing {len(error_entries)}/{len(entries)} | " + "; ".join(details)
-                )
-            if warn_entries:
-                details = _format_entries(warn_entries)
-                debug.warning(
-                    f"{title}: will generate {len(warn_entries)} brainmask file(s) | " + "; ".join(details)
-                )
+        table.add_row(*row_cells)
 
-        _summarize_group("MRSI files", result["mrsi"])
-        _summarize_group("T1w partial volume maps", result["pv"])
+        missing_component_text = "none"
+        if missing_mrsi_entries:
+            missing_component_text = ", ".join(
+                f"{(entry.get('met') or 'global')}:{entry.get('desc')}"
+                for entry in missing_mrsi_entries
+            )
+
+        log_line = (
+            f"{result['recording_id']}: "
+            f"T1={'FOUND' if t1_entry['status'] else 'MISSING'}, "
+            f"MRSI={found_count}/{total_expected}, "
+            f"Brainmask={'FOUND' if brainmask_status else 'PROC'}, "
+            f"CAT12={'/'.join(cat12_states)}, "
+            + ", ".join(transform_text_parts)
+            + f", MRSI-missing={missing_component_text}"
+        )
+        log_lines.append(log_line)
 
         non_autogen_missing = [
             req for req in result["requirements"]
@@ -379,14 +431,27 @@ def _preflight_batch_inputs(args, pair_list):
         if non_autogen_missing:
             missing_count += 1
             total_missing_files += len(non_autogen_missing)
+            missing_recordings.append(result["recording_id"])
 
     debug.separator()
+    debug.console.print(table)
     if missing_count:
-        debug.warning(
-            f"Detected {total_missing_files} missing files across {missing_count}/{len(results)} batch items."
+        affected = ", ".join(missing_recordings)
+        debug.error(
+            f"Detected {total_missing_files} missing files across {missing_count}/{len(results)} batch items. "
+            f"Skipping processing for: {affected}"
         )
     else:
         debug.success("All required inputs found for every batch item.")
+
+    log_filename = f"preflight_{timestamp}.log"
+    log_path = join(LOG_DIR, log_filename)
+    try:
+        with open(log_path, "w") as handle:
+            handle.write("\n".join(log_lines) + "\n")
+        debug.info(f"Preanalysis log saved to {log_path}")
+    except Exception as exc:
+        debug.warning(f"Unable to write preanalysis log to {log_path}: {exc}")
 
     if not sys.stdin.isatty():
         debug.warning("Non-interactive session detected; continuing without confirmation prompt.")
@@ -467,6 +532,7 @@ def _run_single_preprocess(args, subject_id, session):
         debug.error(str(exc))
         return
 
+    _warn_missing_forward_transforms(mridata, recording_id)
 
     log_report = []
     ################################################################################
