@@ -335,16 +335,21 @@ def _preflight_batch_inputs(args, pair_list):
     """Check availability of inputs for every batch item and prompt before running."""
     debug.separator()
     debug.title("Preanalysis: checking for required inputs")
-    results = [_gather_input_requirements(args, sub, ses) for sub, ses in pair_list]
+    results = []
+    with debug.console.status("[bold]Gathering requirements...[/bold]", spinner="dots") as status:
+        for sub, ses in pair_list:
+            status.update(f"[cyan]Checking sub-{sub}_ses-{ses}[/cyan]")
+            results.append(_gather_input_requirements(args, sub, ses))
 
     CHECK_MARK = "[green]✔[/green]"
     CROSS_MARK = "[red]X[/red]"
     PROC_MARK = "[orange3]PROC[/orange3]"
+    NA_MARK = "[grey58]N/A[/grey58]"
     transform_columns = [
         ("mrsi", "MRSI→T1"),
         ("anat", "T1→MNI"),
-        ("template-mni", "Template→MNI"),
         ("t1-template", "T1→Template"),
+        ("template-mni", "Template→MNI"),
     ]
     table = Table(box=box.SIMPLE_HEAVY, show_lines=False, title="Input availability summary")
     table.add_column("Recording", style="cyan", no_wrap=True)
@@ -358,6 +363,9 @@ def _preflight_batch_inputs(args, pair_list):
     missing_count = 0
     total_missing_files = 0
     missing_recordings = []
+    subject_session_counts = {}
+    for subject_id, _ in pair_list:
+        subject_session_counts[subject_id] = subject_session_counts.get(subject_id, 0) + 1
     log_lines = []
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     log_header = f"Preanalysis summary generated {timestamp}"
@@ -397,11 +405,20 @@ def _preflight_batch_inputs(args, pair_list):
             cat12_cell,
         ]
         transform_text_parts = []
+        recording_subject = result["recording_id"].split("_")[0].replace("sub-", "", 1)
+        subject_sessions = subject_session_counts.get(recording_subject, 1)
         for stage_key, label in transform_columns:
             transform_info = result["transforms"].get(stage_key, {})
             is_ready = transform_info.get("status")
-            row_cells.append(CHECK_MARK if is_ready else PROC_MARK)
-            state_text = "READY" if is_ready else "PROC"
+            if stage_key == "t1-template" and subject_sessions <= 1:
+                row_cells.append(NA_MARK)
+                state_text = "N/A"
+            elif stage_key == "template-mni" and subject_sessions <= 1:
+                row_cells.append(NA_MARK)
+                state_text = "N/A"
+            else:
+                row_cells.append(CHECK_MARK if is_ready else PROC_MARK)
+                state_text = "READY" if is_ready else "PROC"
             transform_text_parts.append(f"{label}={state_text}")
 
         table.add_row(*row_cells)
