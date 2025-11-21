@@ -236,7 +236,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 - Prints a preflight availability table per subject/session: existing files are marked with a green check, missing ones with a red X, and items marked **PROC** (orange) are auto-generated during preprocessing (e.g., transforms or masks).
 - Optionally reorients oblique FOVs (`--corr_orient 1`).
 - Filters MRSI spikes (`--filtoption`, `--spikepc`) and builds brain masks if present.
-- Runs/refreshes MRSI→T1w registration and T1w→MNI registration as needed; supports intermediate T1w outputs, MNI (PVC and non-PVC), and MNI152-longitudinal.
+- Runs/refreshes MRSI→T1w registration and T1w→MNI registration as needed; supports intermediate T1w outputs, MNI (PVC and non-PVC), and MNI152-longitudinal via multi-session T1w template creation.
 - Applies partial volume correction when p1/p2/p3 maps exist; otherwise PVC is skipped with a warning.
 
 > **Batch mode semantics**
@@ -268,19 +268,20 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 | Argument | Default | Purpose |
 | -------- | ------- | ------- |
-| `--t1` | `None` | Required T1w path or pattern (resolved per subject/session). |
+| `--t1`   | `None` | Required T1w path or pattern (resolved per subject/session). |
 | `--group` | `Mindfulness-Project` | BIDS project under `$BIDSDATAPATH`. |
-| `--b0` | `3` (`3`/`7`) | Sets metabolite list (3T vs 7T). |
+| `--b0`   | `3` (`3`/`7`) | Sets metabolite list (3T vs 7T). |
 | `--filtoption` | `filtbiharmonic` | Spike filtering strategy. |
 | `--spikepc` | `99` | Percentile for spike removal. |
 | `--nthreads` | `4` | CPU threads for filtering, PVC, and transforms. |
 | `--batch` | `off` (`all`/`file`/`off`) | Process all pairs, a TSV/CSV list (`--participants`), or a single pair. |
-| `--overwrite_filt`, `--overwrite_pve` | `0` | Recompute filtering or PVC outputs. |
+| `--overwrite_filt` | `0` | Recompute filtering or PVC outputs. |
+| `--overwrite_pve` | `0` | Recompute partial volume correction outputs. |
 | `--overwrite_t1_reg`, `--overwrite_mni_reg` | `0` | Force regeneration of MRSI→T1w or T1w→MNI transforms. |
 | `--overwrite_mni`, `--overwrite_mnilong` | `0` | Rerun MNI outputs at orig resolution or MNI152-longitudinal. |
 | `--tr_mrsi_t1`, `--mrsi_t1wspace` | `0` | Write intermediate T1w-space outputs (raw/PVC respectively). |
 | `--mni_no_pvc` | `0` | Also export non-PVC maps in MNI space. |
-| `--proc_mnilong` | `0` | Generate MNI152-longitudinal outputs (requires template transforms). |
+| `--proc_mnilong` | `0` | Generate MNI152-longitudinal outputs (requires template transforms, generated if not available). |
 | `--corr_orient` | `0` | Correct oblique FOV orientation for MRSI and masks. |
 
 Input notes: `--participants` can be TSV/CSV (columns like `participant_id`, `session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). PVC needs CAT12 p1/p2/p3 maps; if absent, PVC is skipped and logged.
