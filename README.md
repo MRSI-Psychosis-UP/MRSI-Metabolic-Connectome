@@ -94,12 +94,12 @@ To access the full dataset, contact the authors with a detailed research proposa
 ### Anatomical Files
 
 - **Chimera Anatomical Parcellation Files:**
-   - Example for all subjects found in `Dummy-Project`:
+   - Example for subjects T1w filenames stores in found in `t1s.txt` with chimera atlas LFMIHISIFF using the Lausanne cortical parcellation at scale 3 :
       ```bash
       chimera -b data/BIDS/Dummy-Project/ \
               -d data/BIDS/Dummy-Project/derivatives/ \
               --freesurferdir data/BIDS/Dummy-Project/derivatives/freesurfer/ \
-              -p LFMFIIFIS -g 2
+              -p LFMIHISIFF -g 2 -s 3 -ids t1s.txt --nthreads 28
       ```
    - Parcellations saved in `PROJECT_NAME/derivatives/chimera-atlases`.
 
@@ -229,75 +229,89 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ## 🔧 Pre-Processing Pipeline for Voxel-Based Analysis
 
+`experiments/Preprocessing/preprocess.py` now runs the full voxel-wise chain end-to-end: preflight checks, optional orientation correction, spike filtering, partial volume correction, and all registrations (MRSI→T1w, T1w→MNI, optional MNI152-long). Missing transforms are generated automatically; overwrite flags force regeneration.
+
+**What it does**
+- Checks required inputs (T1w, MRSI signals/CRLB/SNR/FWHM, CAT12 p1–p3 where available) and batches subject–session pairs from `participants_allsessions.tsv` or a custom TSV/CSV.
+- Prints a preflight availability table per subject/session: existing files are marked with a green check, missing ones with a red X, and items marked **PROC** (orange) are auto-generated during preprocessing (e.g., transforms or masks).
+- Optionally reorients oblique FOVs (`--corr_orient 1`).
+- Filters MRSI spikes (`--filtoption`, `--spikepc`) and builds brain masks if present.
+- Runs/refreshes MRSI→T1w registration and T1w→MNI registration as needed; supports intermediate T1w outputs, MNI (PVC and non-PVC), and MNI152-longitudinal.
+- Applies partial volume correction when p1/p2/p3 maps exist; otherwise PVC is skipped with a warning.
+
 > **Batch mode semantics**
 >
-> * `--batch file` **requires** `--participants` to point to a `.tsv` file listing the subject–session pairs to process.
-> * `--batch off` **requires** both `--subject_id` and `--session` and processes **one** acquisition (a single subject–session pair).
+> * `--batch file` **requires** `--participants` to point to a `.tsv`/`.csv` listing the subject–session pairs to process.
+> * `--batch off` **requires** both `--subject_id` and `--session` and processes **one** acquisition.
 > * `--batch all` processes all discoverable subject–session pairs in the group.
 
-* **Create MRSI-to-T1w Transforms (batch)**
+**Quick start**
 
+- Single subject (filtering → PVC → registrations)
   ```bash
-  python experiments/Preprocess/registration_mrsi_to_t1.py \
+  python experiments/Preprocessing/preprocess.py \
+    --group Dummy-Project --subject_id S001 --session V1 \
+    --t1 acq-memprage_desc-brain_T1w --b0 3 --nthreads 16 \
+    --mrsi_t1wspace 1 --mni_no_pvc 0
+  ```
+- Batch (participants TSV/CSV)
+  ```bash
+  python experiments/Preprocessing/preprocess.py \
+    --group Dummy-Project --b0 3 --nthreads 16 \
+    --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE \
+    --t1 acq-memprage_desc-brain_T1w \
+    --mrsi_t1wspace 1 --proc_mnilong 0
+  ```
+- Optional add-ons: `--corr_orient 1` to fix oblique FOV; `--mni_no_pvc 1` to also export non-PVC MNI maps.
+
+**Key `preprocess.py` options**
+
+| Argument | Default | Purpose |
+| -------- | ------- | ------- |
+| `--t1` | `None` | Required T1w path or pattern (resolved per subject/session). |
+| `--group` | `Mindfulness-Project` | BIDS project under `$BIDSDATAPATH`. |
+| `--b0` | `3` (`3`/`7`) | Sets metabolite list (3T vs 7T). |
+| `--filtoption` | `filtbiharmonic` | Spike filtering strategy. |
+| `--spikepc` | `99` | Percentile for spike removal. |
+| `--nthreads` | `4` | CPU threads for filtering, PVC, and transforms. |
+| `--batch` | `off` (`all`/`file`/`off`) | Process all pairs, a TSV/CSV list (`--participants`), or a single pair. |
+| `--overwrite_filt`, `--overwrite_pve` | `0` | Recompute filtering or PVC outputs. |
+| `--overwrite_t1_reg`, `--overwrite_mni_reg` | `0` | Force regeneration of MRSI→T1w or T1w→MNI transforms. |
+| `--overwrite_mni`, `--overwrite_mnilong` | `0` | Rerun MNI outputs at orig resolution or MNI152-longitudinal. |
+| `--tr_mrsi_t1`, `--mrsi_t1wspace` | `0` | Write intermediate T1w-space outputs (raw/PVC respectively). |
+| `--mni_no_pvc` | `0` | Also export non-PVC maps in MNI space. |
+| `--proc_mnilong` | `0` | Generate MNI152-longitudinal outputs (requires template transforms). |
+| `--corr_orient` | `0` | Correct oblique FOV orientation for MRSI and masks. |
+
+Input notes: `--participants` can be TSV/CSV (columns like `participant_id`, `session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). PVC needs CAT12 p1/p2/p3 maps; if absent, PVC is skipped and logged.
+
+**Population quality mask**
+
+```bash
+python experiments/Preprocessing/compute_pop_qmask.py \
+  --group Dummy-Project --participants $PATH2_PARTICIPANT-SESSION_FILE \
+  --snr 4 --crlb 20 --fwhm 0.1 --alpha 0.68 --b0 3
+```
+
+**Registration helpers (optional)**  
+All registration is triggered automatically by `preprocess.py`. Run these directly only for debugging or bespoke registration:
+
+- MRSI→T1w (batch capable)
+  ```bash
+  python experiments/Preprocessing/registration_mrsi_to_t1.py \
     --group Dummy-Project --ref_met CrPCr --nthreads 16 \
     --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE \
     --t1 acq-memprage_desc-brain_T1w
   ```
-
-* **Create T1w-to-MNI Transforms (batch)**
-
+- T1w→MNI (batch capable)
   ```bash
-  python experiments/Preprocess/registration_t1_to_MNI.py \
+  python experiments/Preprocessing/registration_t1_to_MNI.py \
     --group Dummy-Project --nthreads 16 \
     --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE
   ```
 
-* **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (single subject)**
-
-  ```bash
-  python experiments/Preprocess/preprocess.py \
-    --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1 \
-    --batch off --subject_id S001 --session V1
-  ```
-
-* **Preprocess All MRSI Metabolites to T1 & MNI + partial volume correction (batch)**
-
-  ```bash
-  python experiments/Preprocess/preprocess.py \
-    --group Dummy-Project --nthreads 16 --b0 3 --overwrite 1 \
-    --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE
-  ```
-
-* **Create population quality mask**
-
-  ```bash
-  python experiments/Preprocess/compute_pop_qmask.py \
-    --group Dummy-Project --participants $PATH2_PARTICIPANT-SESSION_FILE \
-    --snr 4 --crlb 20 --fwhm 0.1 --alpha 0.68 --b0 3
-  ```
-
-### Command-Line Arguments
-
-| Argument         | Type  | Default                               | Description                                                                                                                                                     |
-| ---------------- | ----- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--group`        | str   | `Dummy-Project`                       | Name of the group/study directory.                                                                                                                              |
-| `--overwrite`    | int   | `0` (choices: `0`, `1`)               | Overwrite existing outputs; set to `1` to enable.                                                                                                               |
-| `--batch`        | str   | `off` (choices: `all`, `file`, `off`) | Batch mode. `file` **requires** `--participants`; `off` **requires** `--subject_id` **and** `--session` (processes a single acquisition); `all` uses all pairs. |
-| `--participants` | path  | `None`                                | Path to a `.tsv` listing subject–session pairs (**required when** `--batch file`; ignored for `--batch off` and `--batch all`).                                 |
-| `--subject_id`   | str   | `None`                                | Subject identifier (**required when** `--batch off`; ignored otherwise).                                                                                        |
-| `--session`      | str   | `None`                                | Session label (**required when** `--batch off`; ignored otherwise).                                                                                             |
-| `--snr`          | float | `4`                                   | SNR threshold above which an MRSI signal is considered significant (per voxel).                                                                                 |
-| `--crlb`         | float | `20`                                  | CRLB threshold below which an MRSI signal is considered significant (per voxel).                                                                                |
-| `--fwhm`         | float | `0.1`                                 | FWHM threshold below which an MRSI signal is considered significant (per voxel).                                                                                |
-| `--alpha`        | float | `0.68`                                | Proportion of significant voxels across participants required to retain a voxel at the group level.                                                             |
-| `--b0`           | float | `3` (choices: `3`, `7`)               | MRI B0 field strength in Tesla.                                                                                                                                 |
-                                                                                                |
-
 
 ![Figure 1](figures/preproc_vba.png)
-
-
-
 
 
 
