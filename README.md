@@ -26,7 +26,7 @@ The repository is distributed under the CHUV license [LICENSE](./LICENSE).
 ---
 ## 📂 Dataset
 
-A demo dataset is available at `data/BIDS/Dummy-Project` and constructed MeSiMs from the Geneva-Study in `data/BIDS/Geneva-Study/derivatives/connectivity`.
+A demo dataset is available at `data/BIDS/Dummy-Project` and constructed MetSiMs from the Geneva-Study in `data/BIDS/Geneva-Study/derivatives/connectivity`.
 
 To access the full dataset, contact the authors with a detailed research proposal explaining your intended use.
 
@@ -136,24 +136,24 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 2. **Map Chimera Parcel Image to MRSI Space**
    ```bash
-   python experiments/MeSiM_pipeline/map_parcel_image_to_mrsi.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3
+   python experiments/MetSiM_pipeline/map_parcel_image_to_mrsi.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3
    ```
 
 3. **Construct within-subject MetSiM**
    ```bash
-   python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 1 --nthreads 16 --analyze 1
+   python experiments/MetSiM_pipeline/construct_MetSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 1 --nthreads 16 --analyze 1
    ```
 
 4. **Construct within-subject MetSiM (batch)**
    ```bash
-   python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE --t1mask acq-memprage_desc-brain_T1w 
+   python experiments/MetSiM_pipeline/construct_MetSiM_subject.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE --t1mask acq-memprage_desc-brain_T1w 
    ```
 
 5. **Construct MetSiM Population Average**
    ```bash
-   python experiments/MeSiM_pipeline/construct_MeSiM_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --participants $PATH2_PARTICIPANT-SESSION_FILE
+   python experiments/MetSiM_pipeline/construct_MetSiM_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --participants $PATH2_PARTICIPANT-SESSION_FILE
 
-- **Outputs**: Transforms, coregistered parcellations, and MeSiMs are saved in the `derivatives/` folder.
+- **Outputs**: Transforms, coregistered parcellations, and MetSiMs are saved in the `derivatives/` folder.
 
 ---
 
@@ -189,28 +189,28 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 1. **Construct Metabolic Similarity Map (Single Subject)**
    ```bash
-   python experiments/MeSiM_analysis/construct_MSI-map_subj.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
+   python experiments/MetSiM_analysis/construct_MSI-map_subj.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
    ```
 
 2. **Construct Metabolic Similarity Map (Population)**
    ```bash
-   python experiments/MeSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne --msiscale -255.0
+   python experiments/MetSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne --msiscale -255.0
    ```
 
 3. **Inverse Map MSI to MRSI Signal (Population)**
    ```bash
-   python experiments/MeSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
+   python experiments/MetSiM_analysis/construct_MSI-map_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --dimalg pca_tsne
    ```
 
 4. **Derive all GM constrained networtk paths**
    ```bash
-   python experiments/MeSiM_analysis/find_all_network_paths.py --group Geneva-Study --parc LFMIHIFIS --scale 3
+   python experiments/MetSiM_analysis/find_all_network_paths.py --group Geneva-Study --parc LFMIHIFIS --scale 3
    --lobe LOBE --hemi HEMI --lpath 13
    ```
 5. **Construct Metabolic Principal Curve (Population)**
 
    ```bash
-   python experiments/MeSiM_analysis/construct_metabolic_principal_path.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --diag group --lpath 13 --lobe ctx --nperm 100 --lobe ctx
+   python experiments/MetSiM_analysis/construct_metabolic_principal_path.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --diag group --lpath 13 --lobe ctx --nperm 100 --lobe ctx
    ```
 - **Note**:  
   - Run first `find_all_network_paths.py` for both hemispheres `lh` and `rh` to construct all possible network paths then select the one which maximizes metabolic entropy and minimizes local metabolic heterogeneity with `construct_metabolic_principal_path.py` followed by comparison with a random geometric network and results figure generation.

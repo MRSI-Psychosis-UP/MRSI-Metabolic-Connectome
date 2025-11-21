@@ -149,27 +149,38 @@ def _run_single_subject(args, subject_id, session):
     if not exists(mrsi_ref_img_path):
         debug.error("No MRSI data found")
         return
+   
 
-    if t1mask_path_arg is None or t1mask_path_arg == "":
-        t1mask_path = mridata.get_mri_filepath(modality="t1w", space="orig", desc="brain")
-    else:
-        t1mask_path = t1mask_path_arg
-
-    if not exists(t1mask_path):
-        debug.error("Specifed t1 mask path does not exists")
+    try:
+        if exists(t1mask_path_arg):
+            t1mask_path = t1mask_path_arg
+        else:
+            t1mask_path = mridata.find_nifti_paths(t1mask_path_arg)
+            if t1mask_path is None:
+                debug.error(f"{t1mask_path} does not exists or no matching pattern for {t1mask_path_arg} found")
+                return 
+    except Exception as e: 
+        debug.error("--t1 argument must be a valid string or path")
         return
+
 
     debug.title(f"Compute Metabolic Simmilarity {prefix}")
 
     mrsi_orig_mask_nifti = mridata.get_mri_nifti(modality="mrsi", space="orig", desc="brainmask")
-    mrsi_orig_mask_np = mrsi_orig_mask_nifti.get_fdata().squeeze()
-    metadata = mridata.extract_metadata(t1mask_path)
+    mrsi_orig_mask_np    = mrsi_orig_mask_nifti.get_fdata().squeeze()
+    metadata             = mridata.extract_metadata(t1mask_path)
+    wmgrow               = metadata["grow"]
  
-    try:
-        parcel_mrsi_ni,parcel_mrsi_path = mridata.get_parcel(space=parc_scheme,parc_scheme=parc_scheme,scale=scale,
-                                                acq=metadata["acq"],run=metadata["run"])
-    except:
-        debug.warning("Parcel image in",parc_scheme,"does not exists, recreating one from atlas")
+    
+    parcel_mrsi_ni,parcel_mrsi_path = mridata.get_parcel(space="mrsi",
+                                                            parc_scheme=parc_scheme,
+                                                            scale=scale,
+                                                            acq=metadata["acq"],
+                                                            run=metadata["run"])
+
+    if not exists(parcel_mrsi_path):
+        debug.warning("Parcel image in",parc_scheme,scale,metadata["acq"],metadata["run"],
+                      "does not exists, recreating one from atlas")
         atlas_str = f"chimera-{parc_scheme}-{scale}" if "cubic" not in parc_scheme else f"cubic-{scale}mm"
         atlas_mni_path = join(dutils.DEVANALYSEPATH,"data","atlas",
                                         f"{atlas_str}",f"{atlas_str}.nii.gz")
@@ -183,14 +194,13 @@ def _run_single_subject(args, subject_id, session):
                                         interpolator_mode="genericLabel").numpy()
         parcel_mrsi_ni   = ftools.numpy_to_nifti(parcel_mrsi_np,header=mrsi_orig_mask_nifti.header)
         parcel_mrsi_path = mridata.get_parcel_path(parc_scheme,parc_scheme,scale,acq=metadata["acq"],run=metadata["run"])
+        parcel_mrsi_path = parcel_mrsi_path.replace("chimera","")
+        parcel_mrsi_path = parcel_mrsi_path.replace(f"_desc-scale{scale}grow{wmgrow}mm_dseg",f"_desc-scale{scale}_dseg")
         ftools.save_nii_file(parcel_mrsi_ni,parcel_mrsi_path)
-        #
+        # TSV
         tsv_source = atlas_mni_path.replace(".nii.gz",".tsv")
         tsv_dest   = parcel_mrsi_path.replace(".nii.gz",".tsv")
         shutil.copy(tsv_source, tsv_dest)         # copies file with metadata (permissions preserved)
-
-        
-
 
 
 
@@ -425,8 +435,8 @@ def main():
     parser.add_argument('--overwrite', type=int, default=0, choices=[1, 0], help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--leave_one_out', type=int, default=0, choices=[1, 0], help="Leave-one-metaobolite-out (default: 0)")
     parser.add_argument('--show_plot', type=int, default=0, choices=[1, 0], help="Display similarity matrix plot (default: 0)")
-    parser.add_argument('--preproc', type=str, default="filtbiharmonic", help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
-    parser.add_argument('--t1mask', type=str, default=None, help="Anatomical T1w brain mask path")
+    parser.add_argument('--preproc', type=str, default="filtbiharmonic_pvcorr_GM", help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
+    parser.add_argument('--t1mask', type=str, default=None, help="Anatomical T1w brain mask path or pattern")
     parser.add_argument('--results_dir_path', type=str, default=None,
                         help=f"Directory path where results figures will be saved (default: {dutils.ANARESULTSPATH})")
     parser.add_argument('--analyze', type=int, default=0, choices=[1, 0], help="Apply RichClub Analysis (default: 0)")

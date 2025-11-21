@@ -298,7 +298,7 @@ def _ensure_paths(hemi, start_node, stop_node, path_length):
     ipath = join(netpathdir, fname)
     if not os.path.exists(ipath):
         debug.warning(f"Paths file not found: {ipath}. Generating...")
-        script = join(dutils.DEVANALYSEPATH, "experiments", "MeSiM_analysis", "find_all_network_paths.py")
+        script = join(dutils.DEVANALYSEPATH, "experiments", "MetSiM_analysis", "find_all_network_paths.py")
         cmd = [
             sys.executable, script,
             "--group", group,
@@ -333,7 +333,7 @@ def _ensure_paths_parallel(hemi_specs, path_length):
         targets[hemi] = ipath
         if not os.path.exists(ipath):
             debug.warning(f"Paths file not found: {ipath}. Generating...")
-            script = join(dutils.DEVANALYSEPATH, "experiments", "MeSiM_analysis", "find_all_network_paths.py")
+            script = join(dutils.DEVANALYSEPATH, "experiments", "MetSiM_analysis", "find_all_network_paths.py")
             cmd = [
                 sys.executable, script,
                 "--group", group,
