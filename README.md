@@ -1,11 +1,11 @@
 # 🧠 MRSI Toolbox Kit
 
-This repository provides tools and preprocessing utilites to construct a within-subject **Metabolic Similarity Matrix (MeSiM)** based on MRSI scans, as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1) and preparing files for a voxel-based analysis as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.06.22.660965v1)
+This repository provides tools and preprocessing utilites to construct a within-subject **Metabolic Similarity Matrix (MetSiM)** based on MRSI scans, as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1) and preparing files for a voxel-based analysis as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.06.22.660965v1)
 
 ## 📚 Table of Contents
 
-- [🧩 Construct a within-subject MeSiM](#-construct-a-within-subject-mesim)
-- [📊 MeSiM Analysis](#-mesim-analysis)
+- [🧩 Construct a within-subject MetSiM](#-construct-a-within-subject-metsim)
+- [📊 MetSiM Analysis](#-metsim-analysis)
 - [🔧 Pre-Processing Pipeline for Voxel-Based Analysis](#-pre-processing-pipeline-for-voxel-based-analysis)
 
 ---
@@ -120,7 +120,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ---
 
-## 🧩 Construct a within-subject MeSiM
+## 🧩 Construct a within-subject MetSiM
 
 > **Batch mode semantics**
 >
@@ -139,17 +139,17 @@ To access the full dataset, contact the authors with a detailed research proposa
    python experiments/MeSiM_pipeline/map_parcel_image_to_mrsi.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3
    ```
 
-3. **Construct within-subject MeSiM**
+3. **Construct within-subject MetSiM**
    ```bash
    python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --subject_id S001 --session V1 --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 1 --nthreads 16 --analyze 1
    ```
 
-4. **Construct within-subject MeSiM (batch)**
+4. **Construct within-subject MetSiM (batch)**
    ```bash
    python experiments/MeSiM_pipeline/construct_MeSiM_subject.py --group Dummy-Project --parc LFMIHIFIS --scale 3 --npert 50 --show_plot 0 --nthreads 16 --analyze 1 --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE --t1mask acq-memprage_desc-brain_T1w 
    ```
 
-5. **Construct MeSiM Population Average**
+5. **Construct MetSiM Population Average**
    ```bash
    python experiments/MeSiM_pipeline/construct_MeSiM_pop.py --group Geneva-Study --parc LFMIHIFIS --scale 3 --npert 50 --participants $PATH2_PARTICIPANT-SESSION_FILE
 
@@ -185,7 +185,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 ---
 
-## 📊 MeSiM Analysis
+## 📊 MetSiM Analysis
 
 1. **Construct Metabolic Similarity Map (Single Subject)**
    ```bash
