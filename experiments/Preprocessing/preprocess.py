@@ -164,7 +164,7 @@ def _build_signal_list(metabolites, filtoption):
     return signal_list
 
 
-def _warn_missing_forward_transforms(mridata, recording_id):
+def _warn_missing_forward_transforms(args,mridata, recording_id):
     """Log warnings for missing forward transforms that will be generated later."""
     checks = [
         ("mrsi", "MRSI→T1w (mrsi forward)"),
@@ -177,6 +177,7 @@ def _warn_missing_forward_transforms(mridata, recording_id):
         missing = [path for path in stage_paths if not exists(path)]
         if missing:
             missing_str = ", ".join(missing)
+            if not args.tr_mrsi_t1 and "template" in label.lower():continue
             debug.warning(
                 f"{recording_id}: missing {label} transform(s): {missing_str}. "
                 "They will be computed during runtime."
@@ -243,6 +244,19 @@ def _resolve_t1_path(mridata, t1_argument):
         f"No anatomical file matching '{t1_candidate}' for {recording_id}"
     )
 
+
+
+def _check_staged_files(mridata,signal_list,filtoption,res_int,tissue_list):
+    __stage_path_list               = list()
+    for met, desc, option in signal_list:
+        if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
+        for tissue in tissue_list:
+            preproc_str = _get_preproc_string(desc,filtoption,tissue)
+            __stage_path_list.append(mridata.get_mri_filepath(modality="mrsi",space="mni",desc=desc,
+                                                res=res_int,
+                                                met=met,
+                                                option=preproc_str))
+    return __stage_path_list
 
 def _gather_input_requirements(args, subject_id, session):
     """Collect presence/absence information for files required by preprocessing."""
@@ -484,6 +498,18 @@ def _preflight_batch_inputs(args, pair_list):
     return True
 
 
+def _get_preproc_string(desc,filtoption,tissue):
+    if desc=="signal": 
+        preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
+    elif desc=="crlb":
+        preproc_str = None
+    elif desc in ["snr","fwhm"]:
+        preproc_str = None; met=None
+    return preproc_str
+
+
+        
+
 def filter_worker(input_path, output_path, mask_path,percentile):
     try:
         image_og_nifti   = nib.load(input_path)
@@ -539,7 +565,7 @@ def _run_single_preprocess(args, subject_id, session):
     recording_id = f"sub-{subject_id}_ses-{session}"
 
     METABOLITE_LIST = _get_metabolite_list(B0_strength)
-    SIGNAL_LIST = _build_signal_list(METABOLITE_LIST, filtoption)
+    SIGNAL_LIST     = _build_signal_list(METABOLITE_LIST, filtoption)
 
     mridata = MRIData(subject_id, session,GROUP)
     # Check if already processed
@@ -549,7 +575,7 @@ def _run_single_preprocess(args, subject_id, session):
         debug.error(str(exc))
         return
 
-    _warn_missing_forward_transforms(mridata, recording_id)
+    _warn_missing_forward_transforms(args,mridata, recording_id)
 
     log_report = []
     ################################################################################
@@ -706,7 +732,8 @@ def _run_single_preprocess(args, subject_id, session):
                         try:
                             if met=="water" and option is None: option=""
                             mrsi_nocorr_path = mridata.get_mri_filepath(
-                                modality="mrsi", space="orig", desc=desc, met=met, option=option
+                                modality="mrsi", space="orig", desc=desc, 
+                                met=met, option=option
                             )
                             if not exists(mrsi_nocorr_path):
                                 log_report.append(f"Partial Volume Correction: no mrsi-space-orig found {component}")
@@ -746,26 +773,26 @@ def _run_single_preprocess(args, subject_id, session):
     #########################################################################
     
     transform_list   = mridata.get_transform("forward", "mrsi")
-    if args.mrsi_t1wspace and all(exists(transform_list)):
+    if args.mrsi_t1wspace and all(exists(path) for path in transform_list):
         debug.proc("TRANSFORM MRSI-orig PV correction --> MRSI-T1W")
         with ProcessPoolExecutor(max_workers=nthreads) as executor:
             futures = []
             for component in SIGNAL_LIST:
                 met, desc, option = component
-                if desc!="signal" or option is None:continue
+                if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
                 try:
                     for tissue in TISSUE_LIST:
-                        preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
+                        preproc_str = _get_preproc_string(desc,filtoption,tissue)
                         mrsi_orig_corr_path = mridata.get_mri_filepath(
-                            modality="mrsi", space="orig", desc=desc, met=met, option=preproc_str
+                            modality="mrsi", space="orig", desc=desc, met=met, 
+                            option=preproc_str
                         )
                         mrsi_img_corr_t1w_path = mridata.get_mri_filepath(
-                            modality="mrsi", space="T1w", desc=desc, met=met, option=preproc_str
+                            modality="mrsi", space="T1w", desc=desc, met=met, 
+                            option=preproc_str
                         )
                         # debug.info(exists(mrsi_anat_corr_nifti),split(mrsi_anat_corr_nifti)[1])
                         if not exists(mrsi_orig_corr_path): 
-                            # debug.error("\n","PV corrected MRSI orig-space does not exists")
-                            # debug.error("\n",split(mrsi_orig_corr_path)[1],"not found ")
                             log_report.append(f"no mrsi-space-orig-corr found {component} - {tissue}")
                             continue
                         if not exists(mrsi_img_corr_t1w_path) or args.overwrite_pve: 
@@ -927,7 +954,7 @@ def _run_single_preprocess(args, subject_id, session):
 
 
     #########################################################################
-    ########## MRSI-orig PV correction --> MRSI-MNI PV correction ###########
+    #### MRSI-orig PV correction --> MRSI-MNI PV correction @ t1res mm ######
     #########################################################################
     t1_resolution    = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
     mni_ref          = datasets.load_mni152_template(t1_resolution)
@@ -939,7 +966,8 @@ def _run_single_preprocess(args, subject_id, session):
     else:
         t1_resolution_str = str(t1_resolution)
     
-    if not exists(__path) or args.overwrite_pve:
+    __stage_path_list = _check_staged_files(mridata,SIGNAL_LIST,filtoption,t1_resolution_str,TISSUE_LIST)
+    if not all(exists(path) for path in __stage_path_list) or args.overwrite_pve:
         debug.proc(f"TRANSFORM: MRSI-orig PV corrected --> MRSI-MNI @ {t1_resolution_str}mm")   
         transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
         transform_t1_to_mni_list  = mridata.get_transform("forward", "anat")
@@ -949,10 +977,10 @@ def _run_single_preprocess(args, subject_id, session):
             futures = []
             for component in SIGNAL_LIST:
                 met, desc, option = component
-                if desc!="signal" or option is None:continue
+                if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
                 try:
                     for tissue in TISSUE_LIST:
-                        preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
+                        preproc_str = _get_preproc_string(desc,filtoption,tissue)
                         mrsi_orig_corr_path = mridata.get_mri_filepath(
                             modality="mrsi", space="orig", desc=desc, 
                             met=met, option=preproc_str,
@@ -997,10 +1025,9 @@ def _run_single_preprocess(args, subject_id, session):
                                        met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
     orig_resolution           = np.array(nib.load(__ogres_path).header.get_zooms()[:3]).mean()
     orig_resolution_int       = int(round(orig_resolution))
-    __path =  mridata.get_mri_filepath(modality="mrsi",space="mni",desc="signal",res=orig_resolution_int,
-                                       met=METABOLITE_LIST[-1],option=f"{filtoption}_pvcorr")
-    
-    if not exists(__path) or args.overwrite_mni:
+         
+    __stage_path_list = _check_staged_files(mridata,SIGNAL_LIST,filtoption,orig_resolution_int,TISSUE_LIST)
+    if not all(exists(path) for path in __stage_path_list) or args.overwrite_mni:
         debug.proc(f"TRANSFORM MRSI-orig PV correction --> MRSI-MNI @ Orig {orig_resolution_int}mm")
         mni_ref                   = datasets.load_mni152_template(orig_resolution)
         transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
@@ -1010,10 +1037,10 @@ def _run_single_preprocess(args, subject_id, session):
             futures = []
             for component in SIGNAL_LIST:
                 met, desc, option = component
-                if desc!="signal" or option is None:continue
+                if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
                 try:
                     for tissue in TISSUE_LIST:
-                        preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
+                        preproc_str = _get_preproc_string(desc,filtoption,tissue)
                         mrsi_orig_corr_path = mridata.get_mri_filepath(
                             modality="mrsi", space="orig", desc=desc, met=met, option=preproc_str
                         )
@@ -1035,7 +1062,7 @@ def _run_single_preprocess(args, subject_id, session):
                                 mrsi_img_corr_mni_origres_path
                             ))
                         else:
-                            debug.info("\t","mrsi_img_corr_mni_origres_path already exists")
+                            # debug.info("\t","mrsi_img_corr_mni_origres_path already exists")
                             continue
                 except Exception as e:
                     debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
@@ -1098,10 +1125,10 @@ def _run_single_preprocess(args, subject_id, session):
                 futures = []
                 for component in SIGNAL_LIST:
                     met, desc, option = component
-                    if desc!="signal" or option is None:continue
-                    try:
+                    if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
+                    try: 
                         for tissue in TISSUE_LIST:
-                            preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
+                            preproc_str = _get_preproc_string(desc,filtoption,tissue)
                             mrsi_orig_corr_path = mridata.get_mri_filepath(
                                 modality="mrsi", space="orig", desc=desc, met=met, option=preproc_str
                             )
@@ -1161,7 +1188,7 @@ def main():
     parser.add_argument('--nthreads', type=int, default=4, help="Number of CPU threads [default=4]")
     parser.add_argument('--filtoption', type=str, default="filtbiharmonic", help="MRSI filter option  [default=filtbihamonic]")
     parser.add_argument('--spikepc', type=float, default=99, help="Percentile for MRSI signal spike detection  [default=98]")
-    parser.add_argument('--t1', type=str, default=None, help="Anatomical T1w file path")
+    parser.add_argument('--t1', type=str, default="desc-brain_T1w", help="Anatomical T1w file path")
     parser.add_argument('--b0', type=float, default=3, choices=[3, 7], help="MRI B0 field strength in Tesla [default=3]")
     parser.add_argument('--tr_mrsi_t1', type=int, default=0, choices=[1, 0], help="Generate intermdiairy T1w-space files (default: 0)")
     parser.add_argument('--overwrite_filt', type=int, default=0, choices=[1, 0], help="Overwrite MRSI filtering output (default: 0)")
