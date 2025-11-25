@@ -252,7 +252,7 @@ To access the full dataset, contact the authors with a detailed research proposa
   python experiments/Preprocessing/preprocess.py \
     --group Dummy-Project --subject_id S001 --session V1 \
     --t1 acq-memprage_desc-brain_T1w --b0 3 --nthreads 16 \
-    --mrsi_t1wspace 1 --mni_no_pvc 0
+    --mrsi_t1wspace --tr_mrsi_mni t1w
   ```
 - Batch (participants TSV/CSV)
   ```bash
@@ -260,9 +260,9 @@ To access the full dataset, contact the authors with a detailed research proposa
     --group Dummy-Project --b0 3 --nthreads 16 \
     --batch file --participants $PATH2_PARTICIPANT-SESSION_FILE \
     --t1 acq-memprage_desc-brain_T1w \
-    --mrsi_t1wspace 1 --proc_mnilong 0
+    --mrsi_t1wspace --tr_mrsi_mni orig
   ```
-- Optional add-ons: `--corr_orient 1` to fix oblique FOV; `--mni_no_pvc 1` to also export non-PVC MNI maps.
+- Optional add-ons: `--corr_orient 1` to fix oblique FOV; `--mni_no_pvc` to also export non-PVC MNI maps; `--proc_mnilong` for MNI152-long outputs.
 
 **Key `preprocess.py` options**
 
@@ -275,13 +275,16 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--spikepc` | `99` | Percentile for spike removal. |
 | `--nthreads` | `4` | CPU threads for filtering, PVC, and transforms. |
 | `--batch` | `off` (`all`/`file`/`off`) | Process all pairs, a TSV/CSV list (`--participants`), or a single pair. |
-| `--overwrite_filt` | `0` | Recompute filtering or PVC outputs. |
-| `--overwrite_pve` | `0` | Recompute partial volume correction outputs. |
-| `--overwrite_t1_reg`, `--overwrite_mni_reg` | `0` | Force regeneration of MRSI→T1w or T1w→MNI transforms. |
-| `--overwrite_mni`, `--overwrite_mnilong` | `0` | Rerun MNI outputs at orig resolution or MNI152-longitudinal. |
-| `--tr_mrsi_t1`, `--mrsi_t1wspace` | `0` | Write intermediate T1w-space outputs (raw/PVC respectively). |
-| `--mni_no_pvc` | `0` | Also export non-PVC maps in MNI space. |
-| `--proc_mnilong` | `0` | Generate MNI152-longitudinal outputs (requires template transforms, generated if not available). |
+| `--participants` | `None` | TSV/CSV path used when `--batch file`. |
+| `--tr_mrsi_mni` | `None` (`orig`/`t1w`) | Normalize MRSI to MNI at original MRSI resolution or upsample to T1w resolution. |
+| `--tr_mrsi_t1` | `False` | Write intermediate MRSI→T1w outputs. |
+| `--mrsi_t1wspace` | `False` | Export PVC outputs in T1w space. |
+| `--mni_no_pvc` | `False` | Also export non-PVC maps in MNI space (uses component option, no tissue loop). |
+| `--overwrite_filt` | `False` | Recompute spike filtering outputs. |
+| `--overwrite_pve` | `False` | Recompute partial volume correction outputs. |
+| `--overwrite_t1_reg`, `--overwrite_mni_reg` | `False` | Force regeneration of MRSI→T1w or T1w→MNI transforms. |
+| `--overwrite_mni`, `--overwrite_mnilong` | `False` | Rerun MNI outputs at orig resolution or MNI152-longitudinal. |
+| `--proc_mnilong` | `False` | Generate MNI152-longitudinal outputs (requires template transforms, generated if not available). |
 | `--corr_orient` | `0` | Correct oblique FOV orientation for MRSI and masks. |
 
 Input notes: `--participants` can be TSV/CSV (columns like `participant_id`, `session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). PVC needs CAT12 p1/p2/p3 maps; if absent, PVC is skipped and logged.
@@ -313,7 +316,6 @@ All registration is triggered automatically by `preprocess.py`. Run these direct
 
 
 ![Figure 1](figures/preproc_vba.png)
-
 
 
 
