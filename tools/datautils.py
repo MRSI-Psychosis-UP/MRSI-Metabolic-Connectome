@@ -45,7 +45,8 @@ class DataUtils:
 
 if __name__=='__main__':
     u = DataUtils()
-
+    debug.info("DEVANALYSEPATH",u.DEVANALYSEPATH)
+    debug.info("BIDSDATAPATH",u.BIDSDATAPATH)
 
 
 

@@ -34,7 +34,6 @@ class  MRIData:
         self.PARCEL_PATH         = join(self.ROOT_PATH,"derivatives","chimera-atlases")
         self.CONNECTIVITY_PATH   = join(self.ROOT_PATH,"derivatives","connectivity")     
         self.DERIVATIVE_PATH     = join(self.ROOT_PATH,"derivatives")
-        self.PARCEL_PATH         = join(self.ROOT_PATH,"derivatives","chimera-atlases")
         self.TRANSFORM_PATH      = join(self.ROOT_PATH,"derivatives","transforms","ants")
         self.MSIDIRPATH          = join(self.DERIVATIVE_PATH,"group","msi","mrsi")     
 
@@ -258,9 +257,13 @@ class  MRIData:
         if os.path.exists(path):
             return path
         else:
-            debug.warning("path does not exists")
-            debug.warning(path)
-            return 
+            path = join(self.PARCEL_PATH.replace("-atlases",""),f"sub-{self.subject_id}",f"ses-{self.session}",modality)
+            if os.path.exists(path):
+                return path
+            else:
+                debug.warning("path does not exists")
+                debug.warning(path)
+                return 
 
     def get_parcel(self,space,parc_scheme,scale,acq="memprage",run="01",grow=2):
         path = self.get_parcel_path(space,parc_scheme,scale,acq,run,grow)

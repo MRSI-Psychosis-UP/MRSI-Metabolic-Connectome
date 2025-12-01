@@ -630,7 +630,7 @@ def _run_single_preprocess(args, subject_id, session):
                 break
 
     if need_filter:
-        with Progress() as progress:
+        with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
             mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
             if correct_orientation:
                 orientation_worker(mask_path,overwrite_og=True)
@@ -752,7 +752,7 @@ def _run_single_preprocess(args, subject_id, session):
                     break
         if needs_pvcorr:
             pvc.create_3tissue_pev(mridata,space="mrsi")
-            with Progress() as progress:
+            with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
                 task = progress.add_task("Partial volume correction...", total=len(METABOLITE_LIST))
                 mridata = MRIData(subject_id, session,GROUP)
                 with ProcessPoolExecutor(max_workers=nthreads) as executor:
@@ -833,7 +833,7 @@ def _run_single_preprocess(args, subject_id, session):
                 except Exception as e:
                     debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
             # As each job completes, update the progress bar
-            with Progress() as progress:
+            with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
                 task = progress.add_task("\t Correcting...", total=len(futures))
                 for future in as_completed(futures):
                     result = future.result()
@@ -953,7 +953,7 @@ def _run_single_preprocess(args, subject_id, session):
                         debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
 
                 # As each job completes, update the progress bar
-                with Progress() as progress:
+                with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
                     task = progress.add_task("\t Correcting...", total=len(futures))
                     for future in as_completed(futures):
                         result = future.result()
@@ -1043,7 +1043,7 @@ def _run_single_preprocess(args, subject_id, session):
                         debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
 
                 # As each job completes, update the progress bar
-                with Progress() as progress:
+                with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
                     task = progress.add_task("\t Correcting...", total=len(futures))
                     for future in as_completed(futures):
                         result = future.result()
