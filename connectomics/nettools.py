@@ -1,16 +1,24 @@
 
+import numpy as np
 from tools.debug import Debug
+
+# Prefer CuPy, but fall back to NumPy if the CUDA toolchain is unavailable or misconfigured.
 try:
-    import cupy as cp
-    import numpy as np
-    # Check if at least one GPU is available
-    if cp.cuda.runtime.getDeviceCount() > 0:
-        USE_GPU = True
+    import cupy as _cupy
+    _cupy.asarray(np.zeros(1))  # basic check
+    if _cupy.cuda.runtime.getDeviceCount() > 0:
+        try:
+            # Trigger a simple elementwise kernel; fails fast if CUDA headers/toolkit missing.
+            _ = (_cupy.asarray(np.array([1.0], dtype=np.float32)) * 2).sum()
+            cp = _cupy
+            USE_GPU = True
+        except Exception:
+            cp = np
+            USE_GPU = False
     else:
         raise RuntimeError("No GPU detected.")
-except (ImportError, RuntimeError):
-    # Fallback to numpy if cupy is not installed or no GPU is available
-    import numpy as cp
+except Exception:
+    cp = np
     USE_GPU = False
 
 import nibabel as nib
@@ -90,23 +98,33 @@ class NetTools:
 
     @staticmethod
     def project_to_3dspace(feature_arr, parcellation_data_np, label_indices):
-        # Convert the input arrays to CuPy arrays
-        parcellation_data_cp  = cp.asarray(parcellation_data_np)
-        nodal_strength_map_cp = cp.zeros(parcellation_data_cp.shape)
-        
-        # Create a dictionary to map label indices to nodal similarity values
-        label_to_similarity = {label: similarity for label, similarity in zip(label_indices, feature_arr)}
-        
-        # Use CuPy to fill the nodal_strength_map_cp using the label-to-similarity mapping
-        for label, similarity in label_to_similarity.items():
-            nodal_strength_map_cp[parcellation_data_cp == label] = similarity
-        
-        # Set values where parcellation_data_cp == 0 to 0
-        nodal_strength_map_cp[parcellation_data_cp == 0] = 0
-        
-        # Convert the result back to a NumPy array if needed
-        nodal_strength_map_np = cp.asnumpy(nodal_strength_map_cp)
-        return nodal_strength_map_np
+        """
+        Map 1D nodal features back to a 3D volume.
+        Uses GPU via CuPy when available; otherwise falls back to NumPy.
+        """
+        def _fill_map(xp_backend):
+            parcellation_backend = xp_backend.asarray(parcellation_data_np)
+            nodal_strength_map = xp_backend.zeros(parcellation_backend.shape)
+            label_to_similarity = {
+                label: similarity for label, similarity in zip(label_indices, feature_arr)
+            }
+            for label, similarity in label_to_similarity.items():
+                nodal_strength_map[parcellation_backend == label] = similarity
+            nodal_strength_map[parcellation_backend == 0] = 0
+            return nodal_strength_map
+
+        try:
+            if USE_GPU:
+                nodal_strength_map = _fill_map(cp)
+                return cp.asnumpy(nodal_strength_map)
+            nodal_strength_map = _fill_map(np)
+            return np.asarray(nodal_strength_map)
+        except Exception as exc:
+            if USE_GPU:
+                debug.warning("GPU projection failed; retrying on CPU", exc)
+                nodal_strength_map = _fill_map(np)
+                return np.asarray(nodal_strength_map)
+            raise
 
 
 
@@ -127,7 +145,7 @@ class NetTools:
         """
         if method == 'pca_tsne':
             premodel = PCA(n_components=50)
-            model = TSNE(n_components=output_dim, method="exact", n_iter=5000,perplexity=perplexity)
+            model = TSNE(n_components=output_dim, method="exact",perplexity=perplexity)
         elif method == 'umap':
             from umap import UMAP
             premodel = PCA(n_components=50)
