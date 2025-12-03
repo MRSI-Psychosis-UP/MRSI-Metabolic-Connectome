@@ -112,7 +112,18 @@ class Registration():
         return syn_tx, elapsed_time
 
     def transform(self,fixed_image,moving_image,transform,interpolator_mode="linear"):
-        # Apply the transformations to align the T1w image to the MNI template
+        """
+        Apply a sequence of ANTs transforms to resample a moving image into the fixed image space.
+
+        Args:
+            fixed_image: Path to or ANTs/Nifti image defining the target (reference) space.
+            moving_image: Path to or ANTs/Nifti image that will be warped into the fixed space.
+            transform: Ordered list of transform filenames (or ANTs transform objects) passed to `ants.apply_transforms`.
+            interpolator_mode: Interpolation mode for resampling (e.g., "linear", "nearestNeighbor", "genericLabel").
+
+        Returns:
+            ants.ANTsImage of the warped moving image, or None if inputs cannot be loaded.
+        """
         fixed_image = self.__load_ants_image(fixed_image)
         if fixed_image is None: return  
         moving_image = self.__load_ants_image(moving_image)
@@ -158,6 +169,5 @@ class Registration():
         debug.success("Saved all transforms to ",split(dir_prefix_path)[1])
 
             
-
 
 

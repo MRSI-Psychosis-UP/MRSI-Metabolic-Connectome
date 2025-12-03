@@ -1,4 +1,4 @@
-import os, sys, argparse, csv, subprocess, time, tempfile
+import os, sys, argparse, csv, subprocess, time, tempfile, traceback
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from registration.registration import Registration
@@ -155,12 +155,14 @@ def _build_signal_list(metabolites, filtoption):
     for met in metabolites:
         signal_list.append([met, "signal", filtoption])
         signal_list.append([met, "crlb", None])
+        signal_list.append([met, "spikemask", None])
     signal_list.extend([
         ["water", "signal", None],
         [None, "snr", None],
         [None, "fwhm", None],
         [None, "brainmask", None],
     ])
+    # signal_list = list(np.unique(np.array(signal_list)))
     return signal_list
 
 
@@ -250,7 +252,7 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
     """Return expected MNI-stage file paths for the provided signal list."""
     __stage_path_list = []
     for met, desc, option in signal_list:
-        if desc not in ["signal", "crlb", "snr", "fwhm"] or met == "water":
+        if desc not in ["signal", "crlb", "snr", "fwhm","spikemask"] or met == "water":
             continue
         if tissue_list is not None:
             for tissue in tissue_list:
@@ -523,7 +525,7 @@ def _preflight_batch_inputs(args, pair_list):
 def _get_preproc_string(desc,filtoption,tissue):
     if desc=="signal": 
         preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
-    elif desc=="crlb":
+    elif desc=="crlb" or desc=="spikemask":
         preproc_str = None
     elif desc in ["snr","fwhm"]:
         preproc_str = None; met=None
@@ -537,7 +539,11 @@ def filter_worker(input_path, output_path, mask_path,percentile):
         image_og_nifti   = nib.load(input_path)
         brain_mask       = nib.load(mask_path)
         image_filt_nifti = bhfilt.proc(image_og_nifti,brain_mask,fwhm=None,percentile=percentile)
+        spike_mask       = bhfilt.spike_mask
         ftools.save_nii_file(image_filt_nifti, outpath=output_path)
+        output_spike_path = output_path.replace("signal","spikemask")
+        output_spike_path = output_spike_path.replace("_filtbiharmonic","")
+        ftools.save_nii_file(spike_mask, outpath=output_spike_path,header=image_og_nifti.header)
         return output_path  # success marker
     except Exception as e:
         return {"filter_worker error": str(e), "outpath": output_path}
@@ -545,7 +551,9 @@ def filter_worker(input_path, output_path, mask_path,percentile):
 def transform_worker(fixed_image, moving_image, transform_list, outpath):
     # debug.info(moving_image,"-->",outpath)
     try:
-        out_nifti = reg.transform(fixed_image, moving_image, transform_list).to_nibabel()
+        interpolator = "linear" if "spikemask" not in outpath else "genericLabel"
+        out_nifti = reg.transform(fixed_image, moving_image, transform_list,
+                                  interpolator_mode=interpolator).to_nibabel()
         # debug.info(out_nifti)
         os.makedirs(split(outpath)[0], exist_ok=True)
         ftools.save_nii_file(out_nifti, outpath=outpath)
@@ -598,7 +606,7 @@ def _run_single_preprocess(args, subject_id, session):
         return
     
     t1w_res     = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
-    t1w_res_str = f"{int(t1w_res * 10):02d}" if t1w_res<1 else str(t1w_res)
+    t1w_res_str = f"{int(t1w_res * 10):02d}" if t1w_res<1 else str(round(t1w_res))
 
     __ogres_path  =  mridata.get_mri_filepath(modality="mrsi",space="orig",desc="signal",
                                     met=METABOLITE_LIST[-1])
@@ -797,7 +805,7 @@ def _run_single_preprocess(args, subject_id, session):
     #########################################################################
     ########## MRSI-orig PV correction --> MRSI-T1W PV correction ###########
     #########################################################################
-    
+    import traceback
     transform_list   = mridata.get_transform("forward", "mrsi")
     if args.mrsi_t1wspace and all(exists(path) for path in transform_list):
         debug.proc("TRANSFORM MRSI-orig PV correction --> MRSI-T1W")
@@ -809,6 +817,7 @@ def _run_single_preprocess(args, subject_id, session):
                 try:
                     for tissue in TISSUE_LIST:
                         preproc_str = _get_preproc_string(desc,filtoption,tissue)
+                        # debug.info(component,preproc_str)
                         mrsi_orig_corr_path = mridata.get_mri_filepath(
                             modality="mrsi", space="orig", desc=desc, met=met, 
                             option=preproc_str
@@ -817,7 +826,6 @@ def _run_single_preprocess(args, subject_id, session):
                             modality="mrsi", space="T1w", desc=desc, met=met, 
                             option=preproc_str
                         )
-                        # debug.info(exists(mrsi_anat_corr_nifti),split(mrsi_anat_corr_nifti)[1])
                         if not exists(mrsi_orig_corr_path): 
                             log_report.append(f"no mrsi-space-orig-corr found {component} - {tissue}")
                             continue
@@ -907,6 +915,8 @@ def _run_single_preprocess(args, subject_id, session):
             tissue_iter,
             use_component_option=args.mni_no_pvc,
         )
+        __stage_path_list = list(np.unique(np.array(__stage_path_list)))
+
         mni_ref    = datasets.load_mni152_template(final_res)
         if not all(exists(path) for path in __stage_path_list) or args.overwrite_mni:
             if args.mni_no_pvc:
@@ -917,12 +927,11 @@ def _run_single_preprocess(args, subject_id, session):
             transform_mrsi_to_t1_list = mridata.get_transform("forward", "mrsi")
             transform_t1_to_mni_list  = mridata.get_transform("forward", "anat")
             transform_list            = transform_t1_to_mni_list + transform_mrsi_to_t1_list
-
             with ProcessPoolExecutor(max_workers=nthreads) as executor:
                 futures = []
                 for component in SIGNAL_LIST:
                     met, desc, option = component
-                    if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
+                    if desc not in ["signal","crlb","snr","fwhm","spikemask"] or "water"==met: continue
                     try:
                         tissue_loop = [None] if args.mni_no_pvc else tissue_iter
                         for tissue in tissue_loop:
@@ -1080,9 +1089,9 @@ def main():
     parser.add_argument('--mni_no_pvc', action='store_true', help="Skip partial volume correction MNI normalization")
     parser.add_argument('--overwrite_filt', action='store_true', help="Overwrite MRSI filtering output")
     parser.add_argument('--overwrite_pve', action='store_true', help="Overwrite partial volume correction")
+    parser.add_argument('--overwrite_mni', action='store_true', help="Overwrite transform to MNI orig res")
     parser.add_argument('--overwrite_t1_reg', action='store_true', help="Overwrite MRSI -> T1w registration")
     parser.add_argument('--overwrite_mni_reg', action='store_true', help="Overwrite T1w -> MNI registration")
-    parser.add_argument('--overwrite_mni', action='store_true', help="Overwrite transform to MNI orig res")
     parser.add_argument('--overwrite_mnilong', action='store_true', help="Overwrite transform to MNI-Longitudinal orig res")
     parser.add_argument('--proc_mnilong', action='store_true', help="Process transform to MNI-Longitudinal orig res")
     parser.add_argument('--mrsi_t1wspace', action='store_true', help="Get MRSI maps in T1w space")
@@ -1150,7 +1159,7 @@ def main():
             debug.success(f"Completion time: {minutes:02d} min {seconds:02d} sec")
             debug.separator();debug.separator()
         except Exception as exc:
-            debug.error("\t",f"Processing sub-{subject_id}_ses-{session} failed: {exc}")
+            debug.error("\t",f"Processing sub-{subject_id}_ses-{session} failed: {exc}",traceback.format_exc())
 
 if __name__=="__main__":
     debug.separator()

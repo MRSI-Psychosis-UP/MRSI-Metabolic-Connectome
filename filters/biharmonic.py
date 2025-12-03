@@ -55,6 +55,7 @@ class BiHarmonic:
         
         # Detect spikes based on a sigma threshold converted to a percentile.
         spike_mask    = self.get_spike_mask(image_og_np, percentile=percentile, bnd_np=None)
+        self.spike_mask = spike_mask
         image_unspiked_np   = self.inpaint_voxels_with_median(image_og_np, spike_mask)
         # Detect holes (NaNs) in the image.
         nan_mask = np.isnan(image_unspiked_np)

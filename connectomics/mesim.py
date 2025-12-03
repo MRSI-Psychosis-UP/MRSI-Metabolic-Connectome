@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import linregress, spearmanr
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import warnings, copy, time, itertools
+from concurrent.futures import ProcessPoolExecutor
+import warnings, copy, time
 from rich.progress import Progress,track
 from tools.debug import Debug
 from sklearn.linear_model import LinearRegression
@@ -11,43 +11,121 @@ debug  = Debug()
 
 class MeSiM(object):
     def __init__(self):
-        pass
+        """Helper class to compute metabolic similarity matrices."""
 
-    def compute_simmatrix(self,mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore=[],N_PERT=50,corr_mode = "spearman",
-                            rescale="mean",n_permutations=10,return_parcel_conc=True,n_proc=16):
+    def compute_simmatrix(
+        self,
+        mrsirand,
+        parcel_mrsi_np,
+        parcel_header_dict,
+        parcel_label_ids_ignore=None,
+        N_PERT=50,
+        corr_mode="spearman",
+        rescale="mean",
+        n_permutations=10,
+        return_parcel_conc=True,
+        n_proc=16,
+    ):
+        """
+        Compute parcel-wise metabolic similarity matrix from perturbed MRSI data.
+
+        Parameters
+        ----------
+        mrsirand : Randomize
+            Randomized MRSI generator that provides noisy 4D volumes.
+        parcel_mrsi_np : np.ndarray
+            Parcellation volume in MRSI space.
+        parcel_header_dict : dict
+            Parcel metadata keyed by parcel id.
+        parcel_label_ids_ignore : list, optional
+            Parcel ids to skip in similarity computation.
+        N_PERT : int
+            Number of perturbations to draw.
+        corr_mode : str
+            Correlation mode ('spearman' or 'pearson').
+        rescale : str
+            Rescaling strategy for intensities before parcellation.
+        n_permutations : int
+            Reserved for future use; kept for API compatibility.
+        return_parcel_conc : bool
+            Whether to return parcel concentrations array.
+        n_proc : int
+            Number of worker processes.
+        """
+        parcel_label_ids_ignore = parcel_label_ids_ignore or []
+        parcel_concentrations = None
+        self.metabolites = mrsirand.metabolites
+        self.npert = N_PERT
+        for _ in track(range(N_PERT), description="Parcellate MRSI maps..."):
+            met_image4D_data = mrsirand.sample_noisy_img4D()
+            parcel_concentrations = self.parcellate_vectorized(
+                met_image4D_data,
+                parcel_mrsi_np,
+                parcel_header_dict,
+                rescale=rescale,
+                parcel_concentrations=parcel_concentrations,
+            )
+
+        simmatrix, pvalue = self._compute_simmatrix_parallel(
+            parcel_concentrations,
+            parcel_label_ids_ignore,
+            corr_mode=corr_mode,
+            show_progress=True,
+            n_permutations=n_permutations,
+            n_workers=n_proc,
+        )
+
+        parcel_concentrations_np = None
+        if return_parcel_conc:
             parcel_concentrations = None
-            self.metabolites      = mrsirand.metabolites
-            self.npert            = N_PERT
-            for i in track(range(N_PERT), description="Map parcellation image to MRSI space..."):
-                met_image4D_data           = mrsirand.sample_noisy_img4D()
-                parcel_concentrations      = self.parcellate_vectorized(met_image4D_data,parcel_mrsi_np,
-                                                                        parcel_header_dict,rescale=rescale,
-                                                                        parcel_concentrations=parcel_concentrations)
-            simmatrix, pvalue         = self.__compute_simmatrix_parallel(parcel_concentrations,
-                                                                        parcel_label_ids_ignore,
-                                                                        corr_mode = corr_mode,
-                                                                        show_progress=True,
-                                                                        n_permutations=n_permutations,
-                                                                        n_workers=n_proc)
-            
-            
-            parcel_concentrations_np = None
-            if return_parcel_conc:
-                parcel_concentrations = None
-                for i in track(range(N_PERT), description="Retrieve MRSI levels..."):
-                    met_image4D_data      = mrsirand.sample_noisy_img4D()
-                    parcel_concentrations = self.parcellate_vectorized(
-                        met_image4D_data,
-                        parcel_mrsi_np,
-                        parcel_header_dict,
-                        rescale="raw",
-                        parcel_concentrations=parcel_concentrations,
-                    )
-                parcel_concentrations_np = self.map_mrsi_to_parcel(parcel_concentrations)
-            return simmatrix, pvalue, parcel_concentrations_np
+            for _ in track(range(N_PERT), description="Retrieve MRSI levels..."):
+                met_image4D_data = mrsirand.sample_noisy_img4D()
+                parcel_concentrations = self.parcellate_vectorized(
+                    met_image4D_data,
+                    parcel_mrsi_np,
+                    parcel_header_dict,
+                    rescale="raw",
+                    parcel_concentrations=parcel_concentrations,
+                )
+            parcel_concentrations_np = self.map_mrsi_to_parcel(parcel_concentrations)
+        return simmatrix, pvalue, parcel_concentrations_np
+
+
+    def compute_simmatrix_with_leaveout(self, mrsirand, parcel_mrsi_np, parcel_header_dict, parcel_label_ids_ignore=None,
+                                        N_PERT=50, corr_mode="spearman", rescale="mean", n_permutations=10,
+                                        n_proc=16, leave_one_out=False):
+        """
+        Convenience wrapper to compute similarity and (optionally) leave-one-out sensitivity.
+        """
+        simmatrix, pvalue, parcel_concentrations = self.compute_simmatrix(
+            mrsirand,
+            parcel_mrsi_np,
+            parcel_header_dict,
+            parcel_label_ids_ignore=parcel_label_ids_ignore,
+            N_PERT=N_PERT,
+            corr_mode=corr_mode,
+            rescale=rescale,
+            n_permutations=n_permutations,
+            return_parcel_conc=True,
+            n_proc=n_proc,
+        )
+        simmatrix_leave_out = None
+        if leave_one_out:
+            simmatrix_leave_out = self.leave_one_out(
+                mrsirand,
+                parcel_mrsi_np,
+                parcel_header_dict,
+                parcel_label_ids_ignore=parcel_label_ids_ignore,
+                N_PERT=N_PERT,
+                corr_mode=corr_mode,
+                rescale=rescale,
+                n_proc=n_proc,
+            )
+        return simmatrix, pvalue, parcel_concentrations, simmatrix_leave_out
 
 
     def map_mrsi_to_parcel(self,parcel_concentrations):
+        """Convert parcel concentration dict to ndarray [parcel, metabolite, perturbation]."""
         n_parcels                = len(list(parcel_concentrations.keys()))
         parcel_concentrations_np = np.zeros([n_parcels,len(self.metabolites),self.npert])
         for idx,parcel_id in enumerate(parcel_concentrations):
@@ -110,9 +188,12 @@ class MeSiM(object):
 
         return parcel_concentrations
 
-    def __compute_simmatrix_parallel(self, parcel_concentrations, parcel_labels_ignore=[], corr_mode="pearson", show_progress=False, n_permutations=10, n_workers=32):
+    def _compute_simmatrix_parallel(self, parcel_concentrations, parcel_labels_ignore=None, corr_mode="pearson", show_progress=False, n_permutations=10, n_workers=32):
+        """
+        Compute similarity matrix in parallel over parcels.
+        """
+        parcel_labels_ignore = parcel_labels_ignore or []
         parcel_labels_ids = list(parcel_concentrations.keys())
-        parcel_indices    = list(range(len(parcel_labels_ids)))
         n_parcels         = len(parcel_labels_ids)
         simmatrix         = np.zeros((n_parcels, n_parcels))
         simmatrix_pvalue  = np.zeros((n_parcels, n_parcels))
@@ -133,7 +214,7 @@ class MeSiM(object):
                     sub_parcel_ids.append(parcel_labels_ids[idx])
                 if start_idx >= n_parcels:
                     break
-                futures.append(executor.submit(self.compute_submatrix,k, start_idx, end_idx, 
+                futures.append(executor.submit(_compute_submatrix,k, start_idx, end_idx, 
                                                sub_parcel_ids, parcel_concentrations, parcel_labels_ignore, 
                                                corr_mode, n_permutations))
             
@@ -151,9 +232,12 @@ class MeSiM(object):
 
 
     def extract_metabolite_per_parcel(self,array):
+        """
+        Reformat flat metabolite list into [metabolite, perturbation] array.
+        """
         N_metabolites = len(self.metabolites)
         if len(array) % N_metabolites != 0:
-            raise ValueError("The length of the array must be a multiple of 5.")
+            raise ValueError(f"The length of the array must be a multiple of {N_metabolites}.")
         # N_pert = len(array) // N_metabolites
         N_pert = self.npert
         metabolite_conc = np.zeros([N_metabolites,N_pert])
@@ -163,82 +247,78 @@ class MeSiM(object):
             metabolite_conc[met_pos,el_pos] = el
         return metabolite_conc
 
-
-    def compute_submatrix(self,worker_id,start_idx, end_idx, sub_parcel_indices, parcel_concentrations, parcel_labels_ignore, corr_mode, n_permutations):
-        submatrix_size        = len(sub_parcel_indices)
-        all_parcel_labels_ids = list(parcel_concentrations.keys())
-        n_parcels             = len(all_parcel_labels_ids)
-        submatrix             = np.zeros((submatrix_size, n_parcels))
-        submatrix_pvalue      = np.zeros((submatrix_size, n_parcels))
-        for i, parcel_idx_i in enumerate(sub_parcel_indices):
-            if parcel_idx_i in parcel_labels_ignore:
+    def leave_one_out(self,mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore=None,N_PERT=50,corr_mode = "spearman",rescale="zscore",n_proc=16):
+        """
+        Recompute similarity matrices leaving out each metabolite in turn.
+        """
+        parcel_label_ids_ignore = parcel_label_ids_ignore or []
+        metabolites = list(mrsirand.metabolites)
+        simmatrix_arr = []
+        for metabolite_to_remove in metabolites:
+            filtered_metabolites = [met for met in metabolites if met != metabolite_to_remove]
+            if not filtered_metabolites:
                 continue
-            parcel_x = np.array(parcel_concentrations[parcel_idx_i]).flatten()
-            for j, parcel_idx_j in enumerate(all_parcel_labels_ids):
-                if parcel_idx_j in parcel_labels_ignore:
-                    continue
-                parcel_y = np.array(parcel_concentrations[parcel_idx_j]).flatten()
-                if np.isnan(np.mean(parcel_x)) or np.isnan(np.mean(parcel_y)):
-                    continue
-                elif parcel_x.sum() == 0 or parcel_y.sum() == 0:
-                    continue
-                try:
-                    if corr_mode == "spearman":
-                        result = spearmanr(parcel_x, parcel_y, alternative="two-sided")
-                        corr = result.statistic
-                        pvalue = result.pvalue
-                    elif corr_mode == "pearson":
-                        result = linregress(parcel_x, parcel_y)
-                        corr = result.rvalue
-                        pvalue = result.pvalue
-                    elif corr_mode == "spearman2":
-                        result = self.speanman_corr_quadratic(parcel_x, parcel_y)
-                        corr = result["corr"]
-                        pvalue = result["pvalue"]
-                    submatrix[i, j]        = corr
-                    submatrix_pvalue[i, j] = pvalue
-                    try:
-                        submatrix[j, i]        = corr
-                        submatrix_pvalue[j, i] = pvalue
-                    except:pass
-                except Exception as e:
-                    debug.warning(f"compute_submatrix: {e}, parcel X {parcel_idx_i} - parcel Y {parcel_idx_j}")
-                    continue
-        return start_idx, end_idx, submatrix, submatrix_pvalue
-
-    def leave_one_out(self,simmatrix_ref,mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore,N_PERT,corr_mode = "spearman",rescale="zscore"):
-        METABOLITES           = ["NAANAAG", "Ins", "GPCPCh", "GluGln", "CrPCr"]
-        pairwise_combinations = list(itertools.combinations(METABOLITES, 2))
-        mets_remove_list      = [[a] for a in METABOLITES]
-        # mets_remove_list.extend([[a,b] for a, b in pairwise_combinations])
-        delta_arr = np.zeros(len(mets_remove_list))
-        simmatrix_arr = list()
-        for ids,mets_remove in enumerate(mets_remove_list):
-            ids_to_remove  = list()
-            metabolite_arr = copy.deepcopy(np.array(METABOLITES))
-            for target in mets_remove:
-                _ids = np.where(metabolite_arr==target)[0][0]
-                ids_to_remove.append(_ids)
-            # debug.warning("ids_to_remove",ids_to_remove)
-            metabolite_arr = np.delete(metabolite_arr, ids_to_remove)
-            # debug.warning("leave_one_out: Remove",METABOLITES[ids_to_remove[0]])
-            mrsirand.metabolites   = metabolite_arr
-            simmatrix, pvalue,_    = self.compute_simmatrix(mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore,N_PERT,
-                                                            corr_mode = "spearman",rescale="zscore",return_parcel_conc=False)
-            simmatrix[pvalue>0.005] = 0
-            delta = np.abs(simmatrix-simmatrix_ref).mean()
-            delta_arr[ids] = delta
+            rand_subset = mrsirand.subset(filtered_metabolites)
+            simmatrix, pvalue,_    = self.compute_simmatrix(rand_subset,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore,N_PERT,
+                                                            corr_mode = corr_mode,rescale=rescale,return_parcel_conc=False,n_proc=n_proc)
+            simmatrix[pvalue>0.05/N_PERT] = 0
             simmatrix_arr.append(simmatrix)
         return np.array(simmatrix_arr)
 
     def speanman_corr_quadratic(self,X, Y):
+        """
+        Compute Spearman correlation after fitting a quadratic term.
+        """
         model = LinearRegression()
         model.fit(X.reshape(-1, 1), Y)
         slope = model.coef_[0]
         intercept = model.intercept_
-        # Compute Spearman's rank correlation for second-order (quadratic) relationship
         spearman_corr_quadratic, spearman_pvalue_quadratic = spearmanr(X**2, Y-slope*X-intercept)
         return {
             "corr": spearman_corr_quadratic,
             "pvalue": spearman_pvalue_quadratic
         }
+
+
+def _compute_submatrix(worker_id,start_idx, end_idx, sub_parcel_indices, parcel_concentrations, parcel_labels_ignore, corr_mode, n_permutations):
+    """
+    Worker function used by ProcessPoolExecutor to compute a similarity submatrix.
+    """
+    parcel_labels_ignore = parcel_labels_ignore or []
+    submatrix_size        = len(sub_parcel_indices)
+    all_parcel_labels_ids = list(parcel_concentrations.keys())
+    n_parcels             = len(all_parcel_labels_ids)
+    submatrix             = np.zeros((submatrix_size, n_parcels))
+    submatrix_pvalue      = np.zeros((submatrix_size, n_parcels))
+    for i, parcel_idx_i in enumerate(sub_parcel_indices):
+        if parcel_idx_i in parcel_labels_ignore:
+            continue
+        parcel_x = np.array(parcel_concentrations[parcel_idx_i]).flatten()
+        for j, parcel_idx_j in enumerate(all_parcel_labels_ids):
+            if parcel_idx_j in parcel_labels_ignore:
+                continue
+            parcel_y = np.array(parcel_concentrations[parcel_idx_j]).flatten()
+            if np.isnan(np.mean(parcel_x)) or np.isnan(np.mean(parcel_y)):
+                continue
+            elif parcel_x.sum() == 0 or parcel_y.sum() == 0:
+                continue
+            try:
+                if corr_mode == "spearman":
+                    result = spearmanr(parcel_x, parcel_y, alternative="two-sided")
+                    corr = result.statistic
+                    pvalue = result.pvalue
+                elif corr_mode == "pearson":
+                    result = linregress(parcel_x, parcel_y)
+                    corr = result.rvalue
+                    pvalue = result.pvalue
+                submatrix[i, j]        = corr
+                submatrix_pvalue[i, j] = pvalue
+                try:
+                    submatrix[j, i]        = corr
+                    submatrix_pvalue[j, i] = pvalue
+                except:  # symmetric fill best-effort
+                    pass
+            except Exception as e:
+                debug.warning(f"_compute_submatrix: {e}, parcel X {parcel_idx_i} - parcel Y {parcel_idx_j}")
+                continue
+    return start_idx, end_idx, submatrix, submatrix_pvalue

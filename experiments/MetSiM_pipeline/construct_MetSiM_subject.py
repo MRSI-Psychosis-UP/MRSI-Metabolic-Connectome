@@ -65,6 +65,44 @@ def _read_pairs_from_file(path):
     return list(dict.fromkeys(pairs))
 
 
+def _get_metabolite_list(b0_strength):
+    """Return ordered list of metabolites expected for the specified B0."""
+    if b0_strength == 3:
+        return ["CrPCr", "GluGln", "GPCPCh", "NAANAAG", "Ins"]
+    if b0_strength == 7:
+        return ["NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
+    raise ValueError(f"Unsupported B0 strength: {b0_strength}")
+
+
+def _resolve_b0_argument(b0_argument):
+    """
+    Interpret the --b0 argument which can be either a B0 strength (3 or 7)
+    or a custom list of metabolite names.
+    Returns a tuple of (b0_strength or None, metabolite_list).
+    """
+    if b0_argument is None:
+        return 3, _get_metabolite_list(3)
+
+    values = b0_argument if isinstance(b0_argument, (list, tuple)) else [b0_argument]
+    if len(values) == 1 and isinstance(values[0], str) and "," in values[0]:
+        # Support comma-separated list passed as a single CLI token.
+        values = [item.strip() for item in values[0].split(",") if item.strip()]
+
+    if len(values) == 1:
+        raw_value = values[0]
+        try:
+            b0_strength = float(raw_value)
+        except (TypeError, ValueError):
+            # Single non-numeric value → treat as custom metabolite list
+            return None, [str(raw_value)]
+        if b0_strength in (3, 7):
+            return b0_strength, _get_metabolite_list(b0_strength)
+        raise ValueError("--b0 numeric value must be either 3 or 7.")
+
+    # Multiple values → custom metabolite list
+    return None, [str(item) for item in values]
+
+
 def _discover_all_pairs(group):
     """Return all subject-session pairs available for a group."""
     dataset_root = join(dutils.BIDSDATAPATH, group)
@@ -115,6 +153,7 @@ def _run_single_subject(args, subject_id, session):
     t1mask_path_arg = args.t1mask
     outDirfigure_path = args.results_dir_path
     analyze_bool = bool(args.analyze)
+    metabolites_list = getattr(args, "metabolites", METABOLITES)
 
     debug.info(f"GM Parcellation: {parc_scheme}")
     debug.info(f"Group: {GROUP}")
@@ -130,7 +169,7 @@ def _run_single_subject(args, subject_id, session):
     ]
 
     prefix = f"sub-{subject_id}_ses-{session}"
-    mridata = MRIData(subject_id, session, group=GROUP)
+    mridata = MRIData(subject_id, session, group=GROUP, metabolites=metabolites_list)
     outfilepath = mridata.get_connectivity_path(
         "mrsi", parc_scheme, scale, npert, filtoption=preproc_string.replace("filt", "")
     )
@@ -167,16 +206,17 @@ def _run_single_subject(args, subject_id, session):
     debug.title(f"Compute Metabolic Simmilarity {prefix}")
 
     mrsi_orig_mask_nifti = mridata.get_mri_nifti(modality="mrsi", space="orig", desc="brainmask")
-    mrsi_orig_mask_np    = mrsi_orig_mask_nifti.get_fdata().squeeze()
-    metadata             = mridata.extract_metadata(t1mask_path)
-    wmgrow               = metadata["grow"]
- 
+    mrsi_orig_mask_np = mrsi_orig_mask_nifti.get_fdata().squeeze()
+    metadata = mridata.extract_metadata(t1mask_path)
+    growmm   = args.grow
     
-    parcel_mrsi_ni,parcel_mrsi_path = mridata.get_parcel(space="mrsi",
+    
+    parcel_mrsi_path = mridata.get_parcel_path(space="mrsi",
                                                             parc_scheme=parc_scheme,
                                                             scale=scale,
                                                             acq=metadata["acq"],
-                                                            run=metadata["run"])
+                                                            run=metadata["run"],
+                                                            grow=growmm)
 
     if not exists(parcel_mrsi_path):
         debug.warning("Parcel image in",parc_scheme,scale,metadata["acq"],metadata["run"],
@@ -193,9 +233,8 @@ def _run_single_subject(args, subject_id, session):
         parcel_mrsi_np = reg.transform(mrsi_orig_mask_nifti,parcel_t1_ants,transform_list,
                                         interpolator_mode="genericLabel").numpy()
         parcel_mrsi_ni   = ftools.numpy_to_nifti(parcel_mrsi_np,header=mrsi_orig_mask_nifti.header)
-        parcel_mrsi_path = mridata.get_parcel_path(parc_scheme,parc_scheme,scale,acq=metadata["acq"],run=metadata["run"])
-        parcel_mrsi_path = parcel_mrsi_path.replace("chimera","")
-        parcel_mrsi_path = parcel_mrsi_path.replace(f"_desc-scale{scale}grow{wmgrow}mm_dseg",f"_desc-scale{scale}_dseg")
+        parcel_mrsi_path = mridata.get_parcel_path("mrsi",parc_scheme,scale,acq=metadata["acq"],run=metadata["run"],mode="atlas")
+        debug.info("Saving MRSI space parcellation to",parcel_mrsi_path)
         ftools.save_nii_file(parcel_mrsi_ni,parcel_mrsi_path)
         # TSV
         tsv_source = atlas_mni_path.replace(".nii.gz",".tsv")
@@ -204,10 +243,14 @@ def _run_single_subject(args, subject_id, session):
 
 
 
+    ########################################################################
+    ##################### Discard low coverage parcels #####################
+    ########################################################################
+    debug.proc("Discard low coverage parcels")
+    parcel_mrsi_ni = nib.load(parcel_mrsi_path)
     parcel_mrsi_np = parcel_mrsi_ni.get_fdata()
     parcel_mrsi_header = parcel_mrsi_ni.header
     parcel_header_dict = parc.get_parcel_header(parcel_mrsi_path.replace(".nii.gz", ".tsv"))
-
     transform_list = mridata.get_transform("inverse", "mrsi")
     t1mask_mrsi_img = reg.transform(mrsi_ref_img_path, t1mask_path, transform_list).numpy()
     parcel_header_dict = parc.count_voxels_per_parcel(
@@ -220,30 +263,27 @@ def _run_single_subject(args, subject_id, session):
     label_list_concat = ["-".join(sublist) for sublist in all_labels_list]
     parcel_labels_ignore_concat = ["-".join(sublist) for sublist in parcel_labels_ignore]
     os.makedirs(connectome_dir_path, exist_ok=True)
-
+    ########################################################################
+    ######################### Metabolic Similarity #########################
+    ########################################################################
+    debug.proc("Metabolic Similarity")
     mrsirand = Randomize(mridata, space="orig", option=preproc_string)
-    simmatrix_sp, pvalue_sp, parcel_concentrations = mesim.compute_simmatrix(
-        mrsirand,
-        parcel_mrsi_np,
-        parcel_header_dict,
-        parcel_label_ids_ignore,
-        npert,
+    simmatrix_kwargs = dict(
+        parcel_mrsi_np=parcel_mrsi_np,
+        parcel_header_dict=parcel_header_dict,
+        parcel_label_ids_ignore=parcel_label_ids_ignore,
+        N_PERT=npert,
         corr_mode="spearman",
         rescale="zscore",
         n_proc=NPROC,
+        leave_one_out=LEAVE_ONE_OUT,
     )
-    simmatrix_sp_leave_out = None
-    if LEAVE_ONE_OUT:
-        simmatrix_sp_leave_out = mesim.leave_one_out(
-            simmatrix_sp,
-            mrsirand,
-            parcel_mrsi_np,
-            parcel_header_dict,
-            parcel_label_ids_ignore,
-            npert,
-            corr_mode="spearman",
-            rescale="zscore",
-        )
+    (
+        simmatrix_sp,
+        pvalue_sp,
+        parcel_concentrations,
+        simmatrix_sp_leave_out,
+    ) = mesim.compute_simmatrix_with_leaveout(mrsirand, **simmatrix_kwargs)
 
     del parcel_header_dict[0]
     labels_indices = np.array(list(parcel_header_dict.keys()))
@@ -267,12 +307,30 @@ def _run_single_subject(args, subject_id, session):
         labels_indices=labels_indices,
         parcel_labels_ignore=parcel_labels_ignore_concat,
         simmatrix_ids_to_delete=simmatrix_ids_to_delete,
-        metabolites_leaveout=METABOLITES,
+        metabolites_leaveout=metabolites_list,
     )
 
     ftools.save_dict(parcel_header_dict, outfilepath.replace(".npz", ".json"))
     debug.success(f"Results Saved to {outfilepath}")
     debug.separator()
+
+    if args.msmode:
+        # Dim-Reduction and project to MNI
+        debug.proc("Metabolic Similarity Mode")
+        features_1D  = nettools.dimreduce_matrix(simmatrix_sp,method='pca_tsne',output_dim=1,
+                                                scale_factor=255.0)
+
+        parcellation_img     = nib.load(parcel_mrsi_path.replace("space-mrsi","space-mni152"))
+        header_mni152        = parcellation_img.header
+        debug.proc("Projection to MNI152")
+        label_indices_gm =  labels_indices[labels_indices<3000]
+        projected_data_3D = nettools.project_to_3dspace(features_1D,
+                                                    parcellation_img.get_fdata().astype(int),
+                                                    label_indices_gm)
+        outfilepath  = outfilepath.replace("desc-connectivity_mrsi.npz","desc-3Dmetabsim_mrsi.nii.gz")
+        outpath      = outfilepath.replace("connectivty","msmode")
+        ftools.save_nii_file(projected_data_3D,outpath=outpath,header=header_mni152)
+        debug.info("MS mode NIFTI saved to ",outpath)
 
     if not analyze_bool:
         return
@@ -420,32 +478,56 @@ def _run_single_subject(args, subject_id, session):
     except Exception as e:
         debug.error("Failed creating results", e)
         return
+    
+
 
 
 def main():
+    global METABOLITES
     parser = argparse.ArgumentParser(description="Process some input parameters.")
-    parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS', 'LFMIHIFIF', 'LFIIIIFIS'],
+    parser.add_argument('--parc', type=str, default="LFMIHIFIS", choices=['LFMIHIFIS', 'LFMIHIFIF', 'LFIIIIFIS','LFMIHISIFF'],
                         help='Chimera parcellation scheme, choice must be one of: LFMIHIFIS [default], LFMIHIFIF')
     parser.add_argument('--scale', type=int, default=3, help="Cortical parcellation scale (default: 3)")
+    parser.add_argument('--grow',type=int,default=2,help="Gyral WM grow into GM in mm (default: 2)")
     parser.add_argument('--nthreads', type=int, default=4, help="Number of parallel threads (default: 4)")
     parser.add_argument('--npert', type=int, default=50, help='Number of perturbations (default: 50)')
+    parser.add_argument(
+        '--b0',
+        nargs='+',
+        default=["3"],
+        help=(
+            "Either specify 3 or 7 to auto-select metabolites for that B0 field "
+            "strength, or provide a custom list of metabolite names (comma-separated or space-separated)."
+        ),
+    )
+
     parser.add_argument('--group', type=str, default="Mindfulness-Project")
     parser.add_argument('--subject_id', type=str, help='subject id', default="S002")
-    parser.add_argument('--session', type=str, help='recording session', choices=['V1', 'V2', 'V3', 'V4', 'V5'], default="V3")
-    parser.add_argument('--overwrite', type=int, default=0, choices=[1, 0], help="Overwrite existing parcellation (default: 0)")
-    parser.add_argument('--leave_one_out', type=int, default=0, choices=[1, 0], help="Leave-one-metaobolite-out (default: 0)")
-    parser.add_argument('--show_plot', type=int, default=0, choices=[1, 0], help="Display similarity matrix plot (default: 0)")
+    parser.add_argument('--session', type=str, help='recording session', default="V3")
+    parser.add_argument('--overwrite', action='store_true', help="Overwrite existing parcellation (default: 0)")
+    parser.add_argument('--leave_one_out', action='store_true', help="Leave-one-metaobolite-out (default: 0)")
+    parser.add_argument('--show_plot',action='store_true', help="Display similarity matrix plot (default: 0)")
     parser.add_argument('--preproc', type=str, default="filtbiharmonic_pvcorr_GM", help="Preprocessing of orig MRSI files (default: filtbiharmonic)")
-    parser.add_argument('--t1mask', type=str, default=None, help="Anatomical T1w brain mask path or pattern")
+    parser.add_argument('--t1mask', type=str, default="desc-brainmask_T1w", help="Anatomical T1w brain mask path or pattern")
     parser.add_argument('--results_dir_path', type=str, default=None,
                         help=f"Directory path where results figures will be saved (default: {dutils.ANARESULTSPATH})")
-    parser.add_argument('--analyze', type=int, default=0, choices=[1, 0], help="Apply RichClub Analysis (default: 0)")
+    parser.add_argument('--analyze', action='store_true', help="Apply RichClub Analysis (default: 0)")
+    parser.add_argument('--msmode', action='store_true', help="Compute 1st Metabolic Similarity Mode")
     parser.add_argument('--participants', type=str, default=None,
                         help="Path to TSV/CSV containing subject-session pairs to process in batch.")
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-session pairs; 'file' uses --participants; 'off' processes a single couplet.")
 
     args = parser.parse_args()
+
+    try:
+        b0_strength, metabolites = _resolve_b0_argument(args.b0)
+    except ValueError as exc:
+        debug.error(str(exc))
+        return
+    METABOLITES = metabolites
+    args.b0_strength = b0_strength
+    args.metabolites = metabolites
 
     if args.batch == 'off':
         pair_list = [(args.subject_id, args.session)]
@@ -478,6 +560,8 @@ def main():
         try:
             _run_single_subject(run_args, subject_id, session)
         except Exception as exc:
+            import traceback
+            debug.error(traceback.format_exc())
             debug.error(f"Processing sub-{subject_id}_ses-{session} failed: {exc}")
 
 

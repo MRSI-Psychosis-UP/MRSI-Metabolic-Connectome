@@ -17,7 +17,8 @@ reg    = Registration()
 ftools = FileTools()
 
 STRUCTURE_PATH = dutils.BIDS_STRUCTURE_PATH
-METABOLITES         = ["NAANAAG", "Ins", "GPCPCh", "GluGln", "CrPCr"]
+# METABOLITES_3T         = ["NAANAAG", "Ins", "GPCPCh", "GluGln", "CrPCr"]
+# METABOLITES_7T         = ["NAANAAG", "Ins", "GPCPCh", "GluGln", "CrPCr"]
 
 
 class DynamicData:
@@ -28,7 +29,7 @@ class DynamicData:
             setattr(self, key, value)
 
 class  MRIData:
-    def __init__(self, subject_id="",session="",group="Dummy-Project"):
+    def __init__(self, subject_id="",session="",group="Dummy-Project",metabolites=["CrPCr", "GluGln", "GPCPCh", "NAANAAG", "Ins"]):
         debug.info("dutils.BIDSDATAPATH",dutils.BIDSDATAPATH)
         self.ROOT_PATH           = join(dutils.BIDSDATAPATH,group)
         self.PARCEL_PATH         = join(self.ROOT_PATH,"derivatives","chimera-atlases")
@@ -36,8 +37,7 @@ class  MRIData:
         self.DERIVATIVE_PATH     = join(self.ROOT_PATH,"derivatives")
         self.TRANSFORM_PATH      = join(self.ROOT_PATH,"derivatives","transforms","ants")
         self.MSIDIRPATH          = join(self.DERIVATIVE_PATH,"group","msi","mrsi")     
-
-        self.metabolites         = np.array(METABOLITES)
+        self.metabolites         = metabolites
         self.session             = session
         self.subject_id          = subject_id
         self.prefix              = f"sub-{self.subject_id}_ses-{self.session}"
@@ -225,11 +225,11 @@ class  MRIData:
 
         return join(dir_path, best_fname)
     
-    def get_parcel_path(self,space,parc_scheme,scale,acq=None,run="01",grow=2):
+    def get_parcel_path(self,space,parc_scheme,scale,acq=None,run="01",grow=2,mode="chimera"):
         """""
-        Returns the path to the Chimera parcellation file.
+        Returns the path to the Chimera or atlas based parcellation file.
         Args:
-            parc_scheme : chimera parcellation scheme: LFMIHIFIF, LFMIHIFIS,cubic
+            parc_scheme : chimera parcellation scheme: LFMIHIFIF, LFMIHIFIS, cubic
             scale       : cortical parcellation scale or cube width if schema="cubic"
             space (str): Image space (e.g., "orig", "t1w", "mni").
             acq (str, optional): Acquisition parameter. Defaults to "memprage".
@@ -243,14 +243,31 @@ class  MRIData:
         # prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{space}_atlas-{parc_scheme}_dseg.nii.gz"
         if "cubic" in parc_scheme:
             prefix_name  = f"{self.prefix}_space-{_space}_atlas-{parc_scheme}{scale}mm_dseg.nii.gz"
+            return join(dirpath,prefix_name) 
         else:
-            if acq is not None and run is not None:
-                prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"
-            elif acq is None and run is not None:
-                prefix_name  = f"{self.prefix}_run-{run}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"    
-            elif acq is None and run is None:
-                prefix_name  = f"{self.prefix}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"                  
-        return join(dirpath,prefix_name)     
+            if mode=="chimera":
+                if   acq is not None and run is not None:
+                    prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"
+                elif acq is not None and run is     None:
+                    prefix_name  = f"{self.prefix}_acq-{acq}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"
+                elif acq is None     and run is not None:
+                    prefix_name  = f"{self.prefix}_run-{run}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"    
+                elif acq is None     and run is     None:
+                    prefix_name  = f"{self.prefix}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"    
+                if grow is None:
+                    prefix_name = prefix_name.replace("growNonemm","")        
+                return join(dirpath,prefix_name) 
+            elif mode=="atlas":
+                if   acq is not None and run is not None:
+                    prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{_space}_atlas-{parc_scheme}_desc-scale{scale}_dseg.nii.gz"
+                elif acq is not None and run is     None:
+                    prefix_name  = f"{self.prefix}_acq-{acq}_space-{_space}_atlas-{parc_scheme}_desc-scale{scale}_dseg.nii.gz"
+                elif acq is None     and run is not None:
+                    prefix_name  = f"{self.prefix}_run-{run}_space-{_space}_atlas-{parc_scheme}_desc-scale{scale}_dseg.nii.gz"    
+                elif acq is None     and run is     None:
+                    prefix_name  = f"{self.prefix}_space-{_space}_atlas-{parc_scheme}_desc-scale{scale}_dseg.nii.gz"    
+
+                return join(dirpath,prefix_name) 
 
     def get_mri_parcel_dir_path(self,modality="anat"):
         path = join(self.PARCEL_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",modality)
