@@ -17,10 +17,6 @@ reg    = Registration()
 ftools = FileTools()
 
 STRUCTURE_PATH = dutils.BIDS_STRUCTURE_PATH
-# METABOLITES_3T         = ["NAANAAG", "Ins", "GPCPCh", "GluGln", "CrPCr"]
-# METABOLITES_7T         = ["NAANAAG", "Ins", "GPCPCh", "GluGln", "CrPCr"]
-
-
 class DynamicData:
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -73,11 +69,14 @@ class  MRIData:
         if not modality=="mrsi":
             imagepath = self.__get_mri_filepath( modality, space, 
                                                 desc, met, option, 
-                                                acq, run, dwi_options)
+                                                acq, run, dwi_options,
+                                                res)
+            debug.warning("__get_mri_filepath",imagepath)
         else:
             imagepath = self.__get_mri_filepath(modality, space, 
                                                 desc, met, option, 
-                                                acq, run, dwi_options)
+                                                acq, run, dwi_options,
+                                                res)
             if not exists(imagepath):
                 path_list = list()
                 if any(met == _m for _m in ["Glx","GluGln"]):
@@ -93,7 +92,8 @@ class  MRIData:
                 for metind in metlist:
                     _path = self.__get_mri_filepath(modality, space, 
                                                     desc, metind, option, 
-                                                    acq, run, dwi_options)
+                                                    acq, run, dwi_options,
+                                                    res)
                     path_list.append(_path)
                 return path_list
             else:
@@ -173,7 +173,8 @@ class  MRIData:
 
 
 
-    def get_mri_nifti(self,modality, space, desc, met=None,option=None,acq="memprage",run="01",res=None):
+    def get_mri_nifti(self,modality, space, desc, met=None,option=None,
+                      acq="memprage",run="01",res=None):
         """
         Returns the nibabel Nifti1Image for an MRI file based on BIDS keys.
         
@@ -196,7 +197,8 @@ class  MRIData:
         Raises:
             FileNotFoundError: If the file does not exist.
         """
-        path = self.get_mri_filepath(modality, space, desc, met, option, acq, run,res)
+        path = self.get_mri_filepath(modality, space, desc, met, option, 
+                         acq=acq, run=run, res = res)
         if path is None:
             raise FileNotFoundError(f"{path} does not exist")
 
