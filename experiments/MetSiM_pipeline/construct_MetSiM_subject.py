@@ -102,6 +102,19 @@ def _resolve_b0_argument(b0_argument):
     # Multiple values → custom metabolite list
     return None, [str(item) for item in values]
 
+def _build_met_suffix(b0_strength, metabolites):
+    """Return filename suffix for custom metabolite lists; empty for default B0 values."""
+    if b0_strength in (3, 7):
+        return None
+    tokens = []
+    for met in metabolites:
+        cleaned = "".join(ch for ch in str(met).lower() if ch.isalnum())
+        if cleaned:
+            tokens.append(cleaned)
+    if not tokens:
+        return None
+    return "_".join(tokens)
+
 
 def _discover_all_pairs(group):
     """Return all subject-session pairs available for a group."""
@@ -154,6 +167,7 @@ def _run_single_subject(args, subject_id, session):
     outDirfigure_path = args.results_dir_path
     analyze_bool = bool(args.analyze)
     metabolites_list = getattr(args, "metabolites", METABOLITES)
+    metabolite_suffix = getattr(args, "metabolite_suffix", None)
 
     debug.info(f"GM Parcellation: {parc_scheme}")
     debug.info(f"Group: {GROUP}")
@@ -171,7 +185,12 @@ def _run_single_subject(args, subject_id, session):
     prefix = f"sub-{subject_id}_ses-{session}"
     mridata = MRIData(subject_id, session, group=GROUP, metabolites=metabolites_list)
     outfilepath = mridata.get_connectivity_path(
-        "mrsi", parc_scheme, scale, npert, filtoption=preproc_string.replace("filt", "")
+        "mrsi",
+        parc_scheme,
+        scale,
+        npert,
+        filtoption=preproc_string.replace("filt", ""),
+        metabolite_suffix=metabolite_suffix,
     )
     connectome_dir_path = split(outfilepath)[0]
 
@@ -185,6 +204,7 @@ def _run_single_subject(args, subject_id, session):
     mrsi_ref_img_path = mridata.get_mri_filepath(
         modality="mrsi", space="orig", desc="signal", met="Ins", option=preproc_string
     )
+    debug.warning(mrsi_ref_img_path)
     if not exists(mrsi_ref_img_path):
         debug.error("No MRSI data found")
         return
@@ -269,21 +289,21 @@ def _run_single_subject(args, subject_id, session):
     debug.proc("Metabolic Similarity")
     mrsirand = Randomize(mridata, space="orig", option=preproc_string)
     simmatrix_kwargs = dict(
-        parcel_mrsi_np=parcel_mrsi_np,
-        parcel_header_dict=parcel_header_dict,
-        parcel_label_ids_ignore=parcel_label_ids_ignore,
-        N_PERT=npert,
-        corr_mode="spearman",
-        rescale="zscore",
-        n_proc=NPROC,
-        leave_one_out=LEAVE_ONE_OUT,
+        parcel_mrsi_np          = parcel_mrsi_np,
+        parcel_header_dict      = parcel_header_dict,
+        parcel_label_ids_ignore = parcel_label_ids_ignore,
+        N_PERT                  = npert,
+        corr_mode               = "spearman",
+        rescale                 = "zscore",
+        n_proc                  = NPROC,
+        leave_one_out           = LEAVE_ONE_OUT,
     )
     (
         simmatrix_sp,
         pvalue_sp,
         parcel_concentrations,
         simmatrix_sp_leave_out,
-    ) = mesim.compute_simmatrix_with_leaveout(mrsirand, **simmatrix_kwargs)
+    ) = mesim.compute_metsim(mrsirand, **simmatrix_kwargs)
 
     del parcel_header_dict[0]
     labels_indices = np.array(list(parcel_header_dict.keys()))
@@ -502,8 +522,8 @@ def main():
     )
 
     parser.add_argument('--group', type=str, default="Mindfulness-Project")
-    parser.add_argument('--subject_id', type=str, help='subject id', default="S002")
-    parser.add_argument('--session', type=str, help='recording session', default="V3")
+    parser.add_argument('--sub', type=str, help='subject id', default="S002")
+    parser.add_argument('--ses', type=str, help='recording session', default="V3")
     parser.add_argument('--overwrite', action='store_true', help="Overwrite existing parcellation (default: 0)")
     parser.add_argument('--leave_one_out', action='store_true', help="Leave-one-metaobolite-out (default: 0)")
     parser.add_argument('--show_plot',action='store_true', help="Display similarity matrix plot (default: 0)")
@@ -528,9 +548,10 @@ def main():
     METABOLITES = metabolites
     args.b0_strength = b0_strength
     args.metabolites = metabolites
+    args.metabolite_suffix = _build_met_suffix(b0_strength, metabolites)
 
     if args.batch == 'off':
-        pair_list = [(args.subject_id, args.session)]
+        pair_list = [(args.sub, args.ses)]
     elif args.batch == 'file':
         if not args.participants:
             debug.error("--batch=file requires --participants to be provided.")

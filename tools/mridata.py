@@ -43,6 +43,10 @@ class  MRIData:
         self.prefix              = f"sub-{self.subject_id}_ses-{self.session}"
 
             
+
+
+
+
     def get_mri_filepath(self, modality, space, desc, met=None, option=None, 
                          acq="memprage", run="01", dwi_options=None, res=None):
         """
@@ -66,6 +70,39 @@ class  MRIData:
         Returns:
             str: The file path matching the pattern if found; otherwise returns a fallback path or None.
         """
+        if not modality=="mrsi":
+            imagepath = self.__get_mri_filepath( modality, space, 
+                                                desc, met, option, 
+                                                acq, run, dwi_options)
+        else:
+            imagepath = self.__get_mri_filepath(modality, space, 
+                                                desc, met, option, 
+                                                acq, run, dwi_options)
+            if not exists(imagepath):
+                path_list = list()
+                if any(met == _m for _m in ["Glx","GluGln"]):
+                    metlist =  ["Glu","Gln"]
+                elif any(met == _m for _m in ["tNAA","NAANAAG"]):
+                    metlist = ["NAA","NAAG"]
+                elif any(met == _m for _m in ["tNAA","NAANAAG"]):
+                    metlist  =  ["NAA","NAAG"]
+                elif any(met == _m for _m in ["tCr","CrPCr"]):
+                    metlist = ["CrPCr"]
+                elif any(met == _m for _m in ["Cho","GPCPCh"]):    
+                    metlist =  ["GPCPCh"]
+                for metind in metlist:
+                    _path = self.__get_mri_filepath(modality, space, 
+                                                    desc, metind, option, 
+                                                    acq, run, dwi_options)
+                    path_list.append(_path)
+                return path_list
+            else:
+                return imagepath
+        
+
+    def __get_mri_filepath(self, modality, space, desc, met=None, option=None, 
+                         acq="memprage", run="01", dwi_options=None, res=None):
+        
         bids_root = self.ROOT_PATH
         sub, ses = self.subject_id, self.session
         res_str  = "" if res is None else f"_res-{res}mm"
@@ -153,17 +190,34 @@ class  MRIData:
             res (int): Image isotropic resolution, defaults to original resolution if set to None.
             
         Returns:
-            nibabel.Nifti1Image: The loaded image if found.
+            nibabel.Nifti1Image: The loaded image if found. If get_mri_filepath
+            returns a list (composite metabolites), their data are summed.
             
         Raises:
             FileNotFoundError: If the file does not exist.
         """
         path = self.get_mri_filepath(modality, space, desc, met, option, acq, run,res)
-        if path is not None:
-            if exists(path):
-                return nib.load(path)
-        else:
-            raise FileNotFoundError(f"{split(path)} does not exist")
+        if path is None:
+            raise FileNotFoundError(f"{path} does not exist")
+
+        if isinstance(path, list):
+            if not all([exists(_p) for _p in path]):
+                raise FileNotFoundError("One or mor NIFTI images not found for requested metabolite.")
+            else:
+                images = []
+                for p in path:
+                    images.append(nib.load(p))
+                base_img = images[0]
+                data_sum = np.zeros_like(base_img.get_fdata())
+                for img in images:
+                    if img.shape != base_img.shape:
+                        raise ValueError(f"Composite metabolites require matching shapes, got {img.shape} vs {base_img.shape}")
+                    data_sum += img.get_fdata()
+                return nib.Nifti1Image(data_sum, base_img.affine, base_img.header)
+
+        if exists(path):
+            return nib.load(path)
+        return None
 
 
     def get_pv_filepath(self, desc, acq=None, run=None):
@@ -301,10 +355,23 @@ class  MRIData:
             os.makedirs(path,exist_ok=True)
             return path
 
-    def get_connectivity_path(self,mode,parc_scheme,scale,npert=50,filtoption=""):
+    def get_connectivity_path(self,mode,parc_scheme,scale,npert=50,filtoption="",metabolite_suffix=None):
         dirpath     = self.get_connectivity_dir_path(mode)
         if mode=="mrsi":
-            filename = f"{self.prefix}_atlas-chimera{parc_scheme}_scale{scale}_npert-{npert}_filt-{filtoption}_desc-connectivity_mrsi.npz"
+            met_tag = ""
+            if metabolite_suffix:
+                if isinstance(metabolite_suffix, (list, tuple)):
+                    tokens = [
+                        re.sub(r"[^A-Za-z0-9]+", "", str(met)).lower()
+                        for met in metabolite_suffix
+                    ]
+                    tokens = [tok for tok in tokens if tok]
+                    suffix = "_".join(tokens)
+                else:
+                    suffix = re.sub(r"[^A-Za-z0-9_]+", "", str(metabolite_suffix)).strip("_")
+                if suffix:
+                    met_tag = f"_met-{suffix}"
+            filename = f"{self.prefix}_atlas-chimera{parc_scheme}_scale{scale}_npert-{npert}_filt-{filtoption}{met_tag}_desc-connectivity_mrsi.npz"
         elif mode == "dwi": 
             filename = f"{self.prefix}_atlas-chimera{parc_scheme}_scale{scale}_desc-connectivity_dwi.npz"
         return join(dirpath,filename)
@@ -486,3 +553,10 @@ if __name__=="__main__":
 
     t_list = mrsiData.get_transform( "forward","t1-template" )
     print(t_list)
+
+    mrsiData = MRIData(subject_id="5741",session="V6",group="22q11-Project")
+    pathlist = mrsiData.get_mri_filepath( "mrsi", "orig", "signal", met="GluGln")
+    print(pathlist)                    
+
+    nifti = mrsiData.get_mri_nifti( "mrsi", "orig", "signal", met="GluGln")
+    print(nifti)

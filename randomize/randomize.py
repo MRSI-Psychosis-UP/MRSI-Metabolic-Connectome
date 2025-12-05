@@ -44,7 +44,13 @@ class Randomize:
         """
         sigma = image3D * crlb3D / 100
         MAX   = image3D.mean() + 3*image3D.std()
-        noisy_image3D = np.random.normal(image3D, sigma * sigma_scale)
+        # debug.info("\n image3D",image3D.shape,)
+        # debug.info("sigma",sigma.min()*sigma_scale,sigma.max()*sigma_scale,"MAX",MAX)
+        # debug.info("MAX",MAX)
+        # debug.info("sigma_scale",sigma_scale)
+        scale = np.nan_to_num(sigma * sigma_scale, nan=0.0)
+        scale = np.clip(scale, 0, None)
+        noisy_image3D = np.random.normal(image3D, scale)
         noisy_image3D = np.clip(noisy_image3D, 0, MAX)  # Clip values to stay within 0 and MAX
         noisy_image3D[self.mask==0]=0
         return noisy_image3D

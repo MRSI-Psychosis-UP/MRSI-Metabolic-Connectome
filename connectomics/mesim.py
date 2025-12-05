@@ -13,7 +13,7 @@ class MeSiM(object):
     def __init__(self):
         """Helper class to compute metabolic similarity matrices."""
 
-    def compute_simmatrix(
+    def __compute_metsim(
         self,
         mrsirand,
         parcel_mrsi_np,
@@ -25,6 +25,9 @@ class MeSiM(object):
         n_permutations=10,
         return_parcel_conc=True,
         n_proc=16,
+        hide_progress  = False,
+        show_elapsed_t = True,
+        progress_msg   = None,
     ):
         """
         Compute parcel-wise metabolic similarity matrix from perturbed MRSI data.
@@ -56,7 +59,7 @@ class MeSiM(object):
         parcel_concentrations = None
         self.metabolites = mrsirand.metabolites
         self.npert = N_PERT
-        for _ in track(range(N_PERT), description="Parcellate MRSI maps..."):
+        for _ in track(range(N_PERT), description="Parcellate MRSI maps...",disable=hide_progress):
             met_image4D_data = mrsirand.sample_noisy_img4D()
             parcel_concentrations = self.parcellate_vectorized(
                 met_image4D_data,
@@ -66,13 +69,14 @@ class MeSiM(object):
                 parcel_concentrations=parcel_concentrations,
             )
 
-        simmatrix, pvalue = self._compute_simmatrix_parallel(
+        metsimatrix, pvalue = self._compute_metsim_parallel(
             parcel_concentrations,
             parcel_label_ids_ignore,
-            corr_mode=corr_mode,
-            show_progress=True,
-            n_permutations=n_permutations,
-            n_workers=n_proc,
+            corr_mode      = corr_mode,
+            n_permutations = n_permutations,
+            n_workers      = n_proc,
+            show_elapsed_t = show_elapsed_t,
+            progress_msg   = progress_msg,
         )
 
         parcel_concentrations_np = None
@@ -88,16 +92,44 @@ class MeSiM(object):
                     parcel_concentrations=parcel_concentrations,
                 )
             parcel_concentrations_np = self.map_mrsi_to_parcel(parcel_concentrations)
-        return simmatrix, pvalue, parcel_concentrations_np
+        return metsimatrix, pvalue, parcel_concentrations_np
 
 
-    def compute_simmatrix_with_leaveout(self, mrsirand, parcel_mrsi_np, parcel_header_dict, parcel_label_ids_ignore=None,
+    def compute_metsim(self, mrsirand, parcel_mrsi_np, parcel_header_dict, parcel_label_ids_ignore=None,
                                         N_PERT=50, corr_mode="spearman", rescale="mean", n_permutations=10,
                                         n_proc=16, leave_one_out=False):
         """
-        Convenience wrapper to compute similarity and (optionally) leave-one-out sensitivity.
+        Public entry point to compute metabolic similarity matrices.
+
+        Parameters
+        ----------
+        mrsirand : Randomize
+            Noise sampler that returns perturbed 4D metabolite volumes.
+        parcel_mrsi_np : np.ndarray
+            Parcellation labels in MRSI space.
+        parcel_header_dict : dict
+            Parcel metadata keyed by parcel id.
+        parcel_label_ids_ignore : list, optional
+            Parcel ids to skip when computing correlations.
+        N_PERT : int
+            Number of perturbations to draw.
+        corr_mode : str
+            Correlation metric, "spearman" (default) or "pearson".
+        rescale : str
+            Rescaling strategy passed to `parcellate_vectorized`.
+        n_permutations : int
+            Reserved for future use; kept for API compatibility.
+        n_proc : int
+            Number of worker processes for similarity computation.
+        leave_one_out : bool
+            If True, also returns matrices recomputed while leaving out each metabolite.
+
+        Returns
+        -------
+        tuple
+            metsimatrix, pvalue, parcel_concentrations, metsimatrix_leave_out (or None).
         """
-        simmatrix, pvalue, parcel_concentrations = self.compute_simmatrix(
+        metsimatrix, pvalue, parcel_concentrations = self.__compute_metsim(
             mrsirand,
             parcel_mrsi_np,
             parcel_header_dict,
@@ -109,23 +141,47 @@ class MeSiM(object):
             return_parcel_conc=True,
             n_proc=n_proc,
         )
-        simmatrix_leave_out = None
+        metsimatrix_leave_out = None
         if leave_one_out:
-            simmatrix_leave_out = self.leave_one_out(
-                mrsirand,
-                parcel_mrsi_np,
-                parcel_header_dict,
-                parcel_label_ids_ignore=parcel_label_ids_ignore,
-                N_PERT=N_PERT,
-                corr_mode=corr_mode,
-                rescale=rescale,
-                n_proc=n_proc,
-            )
-        return simmatrix, pvalue, parcel_concentrations, simmatrix_leave_out
+            parcel_label_ids_ignore = parcel_label_ids_ignore or []
+            metabolites = list(mrsirand.metabolites)
+            metsimatrix_arr = []
+            for metabolite_to_remove in metabolites:
+                progress_msg = f"Leave-out {metabolite_to_remove}"
+                filtered_metabolites = [met for met in metabolites if met != metabolite_to_remove]
+                if not filtered_metabolites:
+                    continue
+                rand_subset = mrsirand.subset(filtered_metabolites)
+                metsimatrix, pvalue,_    = self.__compute_metsim(rand_subset,parcel_mrsi_np,parcel_header_dict,
+                                                                 parcel_label_ids_ignore,N_PERT,
+                                                                corr_mode = corr_mode,
+                                                                rescale   = rescale,
+                                                                return_parcel_conc=False,
+                                                                n_proc         = n_proc,
+                                                                hide_progress  = False,
+                                                                show_elapsed_t = False,
+                                                                progress_msg   = progress_msg)
+                metsimatrix[pvalue>0.05/N_PERT] = 0
+                metsimatrix_arr.append(metsimatrix)
+            metsimatrix_leave_out=  np.array(metsimatrix_arr)
+
+        return metsimatrix, pvalue, parcel_concentrations, metsimatrix_leave_out
 
 
     def map_mrsi_to_parcel(self,parcel_concentrations):
-        """Convert parcel concentration dict to ndarray [parcel, metabolite, perturbation]."""
+        """
+        Convert parcel concentration dict to ndarray [parcel, metabolite, perturbation].
+
+        Parameters
+        ----------
+        parcel_concentrations : dict
+            Keys are parcel ids, values are flat lists of concentrations.
+
+        Returns
+        -------
+        np.ndarray
+            Array indexed as [parcel, metabolite, perturbation].
+        """
         n_parcels                = len(list(parcel_concentrations.keys()))
         parcel_concentrations_np = np.zeros([n_parcels,len(self.metabolites),self.npert])
         for idx,parcel_id in enumerate(parcel_concentrations):
@@ -188,15 +244,38 @@ class MeSiM(object):
 
         return parcel_concentrations
 
-    def _compute_simmatrix_parallel(self, parcel_concentrations, parcel_labels_ignore=None, corr_mode="pearson", show_progress=False, n_permutations=10, n_workers=32):
+    def _compute_metsim_parallel(self, parcel_concentrations, 
+                                 parcel_labels_ignore=None, corr_mode="pearson", 
+                                 n_permutations=10, n_workers=32,
+                                 show_elapsed_t=True,progress_msg=None):
         """
         Compute similarity matrix in parallel over parcels.
+
+        Parameters
+        ----------
+        parcel_concentrations : dict
+            Parcel id -> list of averaged concentrations (flattened over metabolites/perturbations).
+        parcel_labels_ignore : list, optional
+            Parcel ids to skip.
+        corr_mode : str
+            "spearman", "pearson", or "mi" (discretized mutual information surrogate).
+        show_progress : bool
+            Whether to render a progress bar while gathering futures.
+        n_permutations : int
+            Placeholder to match API; not used.
+        n_workers : int
+            Number of processes to dispatch for chunked computation.
+
+        Returns
+        -------
+        tuple
+            metsimatrix (np.ndarray), metsimatrix_pvalue (np.ndarray).
         """
         parcel_labels_ignore = parcel_labels_ignore or []
         parcel_labels_ids = list(parcel_concentrations.keys())
         n_parcels         = len(parcel_labels_ids)
-        simmatrix         = np.zeros((n_parcels, n_parcels))
-        simmatrix_pvalue  = np.zeros((n_parcels, n_parcels))
+        metsimatrix         = np.zeros((n_parcels, n_parcels))
+        metsimatrix_pvalue  = np.zeros((n_parcels, n_parcels))
         if corr_mode=="mi":
             for idp in parcel_concentrations.keys():
                 parcel_conc = parcel_concentrations[idp] 
@@ -219,16 +298,18 @@ class MeSiM(object):
                                                corr_mode, n_permutations))
             
             with Progress() as progress:
-                task = progress.add_task(f"Collecting results", total=len(futures))
+                msg = progress_msg if progress_msg else "Collecting results"
+                task = progress.add_task(f"{msg}", total=len(futures))
                 for future in futures:
                     start_idx, end_idx, submatrix, submatrix_pvalue = future.result()
-                    simmatrix[start_idx:end_idx, :]                 = submatrix
-                    simmatrix_pvalue[start_idx:end_idx, :]          = submatrix_pvalue
+                    metsimatrix[start_idx:end_idx, :]                 = submatrix
+                    metsimatrix_pvalue[start_idx:end_idx, :]          = submatrix_pvalue
                     progress.update(task, advance=1)
 
-        simmatrix = np.nan_to_num(simmatrix, nan=0.0)
-        debug.success(f"Time elapsed: {round(time.time()-start)} sec")
-        return simmatrix, simmatrix_pvalue
+        metsimatrix = np.nan_to_num(metsimatrix, nan=0.0)
+        if show_elapsed_t:
+            debug.success(f"Time elapsed: {round(time.time()-start)} sec")
+        return metsimatrix, metsimatrix_pvalue
 
 
     def extract_metabolite_per_parcel(self,array):
@@ -247,27 +328,21 @@ class MeSiM(object):
             metabolite_conc[met_pos,el_pos] = el
         return metabolite_conc
 
-    def leave_one_out(self,mrsirand,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore=None,N_PERT=50,corr_mode = "spearman",rescale="zscore",n_proc=16):
-        """
-        Recompute similarity matrices leaving out each metabolite in turn.
-        """
-        parcel_label_ids_ignore = parcel_label_ids_ignore or []
-        metabolites = list(mrsirand.metabolites)
-        simmatrix_arr = []
-        for metabolite_to_remove in metabolites:
-            filtered_metabolites = [met for met in metabolites if met != metabolite_to_remove]
-            if not filtered_metabolites:
-                continue
-            rand_subset = mrsirand.subset(filtered_metabolites)
-            simmatrix, pvalue,_    = self.compute_simmatrix(rand_subset,parcel_mrsi_np,parcel_header_dict,parcel_label_ids_ignore,N_PERT,
-                                                            corr_mode = corr_mode,rescale=rescale,return_parcel_conc=False,n_proc=n_proc)
-            simmatrix[pvalue>0.05/N_PERT] = 0
-            simmatrix_arr.append(simmatrix)
-        return np.array(simmatrix_arr)
 
     def speanman_corr_quadratic(self,X, Y):
         """
         Compute Spearman correlation after fitting a quadratic term.
+
+        Parameters
+        ----------
+        X, Y : np.ndarray
+            Vectors to correlate. A linear fit is removed from Y before
+            computing Spearman correlation with X**2 to capture curvature.
+
+        Returns
+        -------
+        dict
+            Dictionary with 'corr' and 'pvalue' entries.
         """
         model = LinearRegression()
         model.fit(X.reshape(-1, 1), Y)
