@@ -1,6 +1,6 @@
 # 🧠 MRSI Toolbox Kit
 
-This repository provides tools and preprocessing utilites to construct a within-subject **Metabolic Similarity Matrix (MetSiM)** based on MRSI scans, as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.03.10.642332v1) and preparing files for a voxel-based analysis as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.06.22.660965v1)
+This repository provides tools and preprocessing utilites to construct a within-subject **Metabolic Similarity Matrix (MetSiM)** based on MRSI scans, as detailed in [Nature Communications 2025](https://www.nature.com/articles/s41467-025-66124-w) and preparing files for a voxel-based analysis as detailed in [biorxiv](https://www.biorxiv.org/content/10.1101/2025.06.22.660965v1)
 
 ## 📚 Table of Contents
 
