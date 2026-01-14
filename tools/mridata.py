@@ -44,7 +44,8 @@ class  MRIData:
 
 
     def get_mri_filepath(self, modality, space, desc, met=None, option=None, 
-                         acq="memprage", run="01", dwi_options=None, res=None):
+                         acq="memprage", run="01", dwi_options=None, res=None,
+                         construct_path=False):
         """
         Returns the path of an MRI file using BIDS keys with a standardized naming pattern.
 
@@ -62,6 +63,7 @@ class  MRIData:
             acq (str, optional): Acquisition type (default "memprage").
             run (str, optional): Run number (default "01").
             dwi_options (str, optional): Option for DWI file ("bval", "bvec", "mean_b0", "dwi.mif", "dwi.nii"). Defaults to None.
+            construct_path (bool): Returns constructed path, does not need to exist. Default to False
 
         Returns:
             str: The file path matching the pattern if found; otherwise returns a fallback path or None.
@@ -73,29 +75,28 @@ class  MRIData:
                                                 res)
             debug.warning("__get_mri_filepath",imagepath)
         else:
+            debug.info("Case 1 Looking for",space,desc, met, option,acq, run, dwi_options,res)
             imagepath = self.__get_mri_filepath(modality, space, 
                                                 desc, met, option, 
                                                 acq, run, dwi_options,
                                                 res)
+            debug.warning(" Case 1 Found",imagepath,"but exists?", exists(imagepath))
+            if construct_path: return imagepath
             if not exists(imagepath):
-                path_list = list()
                 if any(met == _m for _m in ["Glx","GluGln"]):
-                    metlist =  ["Glu","Gln"]
+                    metind =  "GluGln"
                 elif any(met == _m for _m in ["tNAA","NAANAAG"]):
-                    metlist = ["NAA","NAAG"]
-                elif any(met == _m for _m in ["tNAA","NAANAAG"]):
-                    metlist  =  ["NAA","NAAG"]
+                    metind = "NAANAAG"
                 elif any(met == _m for _m in ["tCr","CrPCr"]):
-                    metlist = ["CrPCr"]
+                    metind = "CrPCr"
                 elif any(met == _m for _m in ["Cho","GPCPCh"]):    
-                    metlist =  ["GPCPCh"]
-                for metind in metlist:
-                    _path = self.__get_mri_filepath(modality, space, 
-                                                    desc, metind, option, 
-                                                    acq, run, dwi_options,
-                                                    res)
-                    path_list.append(_path)
-                return path_list
+                    metind =  "GPCPCh"
+                _path = self.__get_mri_filepath(modality, space, 
+                                                desc, metind, option, 
+                                                acq, run, dwi_options,
+                                                res)
+                debug.info("case 2",_path)
+                return _path
             else:
                 return imagepath
         
@@ -174,7 +175,7 @@ class  MRIData:
 
 
     def get_mri_nifti(self,modality, space, desc, met=None,option=None,
-                      acq="memprage",run="01",res=None):
+                      acq="memprage",run="01",res=None,compose=False):
         """
         Returns the nibabel Nifti1Image for an MRI file based on BIDS keys.
         
@@ -189,6 +190,7 @@ class  MRIData:
             acq (str, optional): Acquisition parameter. Defaults to "memprage".
             run (str, optional): Run identifier. Defaults to "01".
             res (int): Image isotropic resolution, defaults to original resolution if set to None.
+            compose (bool): Compose Nifti1Image from multiple single metabolite images (Default False)
             
         Returns:
             nibabel.Nifti1Image: The loaded image if found. If get_mri_filepath
@@ -202,20 +204,21 @@ class  MRIData:
         if path is None:
             raise FileNotFoundError(f"{path} does not exist")
 
-        if isinstance(path, list):
-            if not all([exists(_p) for _p in path]):
-                raise FileNotFoundError("One or mor NIFTI images not found for requested metabolite.")
-            else:
-                images = []
-                for p in path:
-                    images.append(nib.load(p))
-                base_img = images[0]
-                data_sum = np.zeros_like(base_img.get_fdata())
-                for img in images:
-                    if img.shape != base_img.shape:
-                        raise ValueError(f"Composite metabolites require matching shapes, got {img.shape} vs {base_img.shape}")
-                    data_sum += img.get_fdata()
-                return nib.Nifti1Image(data_sum, base_img.affine, base_img.header)
+        if compose:
+            if isinstance(path, list):
+                if not all([exists(_p) for _p in path]):
+                    raise FileNotFoundError("One or mor NIFTI images not found for requested metabolite.")
+                else:
+                    images = []
+                    for p in path:
+                        images.append(nib.load(p))
+                    base_img = images[0]
+                    data_sum = np.zeros_like(base_img.get_fdata())
+                    for img in images:
+                        if img.shape != base_img.shape:
+                            raise ValueError(f"Composite metabolites require matching shapes, got {img.shape} vs {base_img.shape}")
+                        data_sum += img.get_fdata()
+                    return nib.Nifti1Image(data_sum, base_img.affine, base_img.header)
 
         if exists(path):
             return nib.load(path)

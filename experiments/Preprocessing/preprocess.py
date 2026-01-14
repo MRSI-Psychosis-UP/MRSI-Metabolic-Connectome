@@ -145,7 +145,7 @@ def _get_metabolite_list(b0_strength):
     if b0_strength == 3:
         return ["CrPCr", "GluGln", "GPCPCh", "NAANAAG", "Ins"]
     if b0_strength == 7:
-        return ["NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
+        return ["NAANAAG","GluGln","NAA", "NAAG", "Ins", "GPCPCh", "Glu", "Gln", "CrPCr", "GABA", "GSH"]
     raise ValueError(f"Unsupported B0 strength: {b0_strength}")
 
 
@@ -155,7 +155,6 @@ def _build_signal_list(metabolites, filtoption):
     for met in metabolites:
         signal_list.append([met, "signal", filtoption])
         signal_list.append([met, "crlb", None])
-        signal_list.append([met, "spikemask", None])
     signal_list.extend([
         ["water", "signal", None],
         [None, "snr", None],
@@ -164,6 +163,37 @@ def _build_signal_list(metabolites, filtoption):
     ])
     # signal_list = list(np.unique(np.array(signal_list)))
     return signal_list
+
+
+def _is_valid_nifti(path, label=None):
+    """Return True when a NIfTI exists and contains non-zero, finite data."""
+    if not path:
+        return False
+    if isinstance(path, (list, tuple)):
+        if len(path) != 1:
+            return False
+        path = path[0]
+    if not exists(path):
+        return False
+    try:
+        img = nib.load(path)
+        data = np.asanyarray(img.dataobj)
+    except Exception as exc:
+        debug.warning(f"{label or path}: unable to read NIfTI ({exc})")
+        return False
+    if np.issubdtype(data.dtype, np.floating):
+        if np.isnan(data).any():
+            debug.warning(f"{label or path}: contains NaN values")
+            return False
+    try:
+        data_max = np.max(data)
+    except ValueError:
+        debug.warning(f"{label or path}: empty data")
+        return False
+    if data_max == 0:
+        debug.warning(f"{label or path}: max value is 0")
+        return False
+    return True
 
 
 def _warn_missing_forward_transforms(args,mridata, recording_id):
@@ -252,25 +282,28 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
     """Return expected MNI-stage file paths for the provided signal list."""
     __stage_path_list = []
     for met, desc, option in signal_list:
-        if desc not in ["signal", "crlb", "snr", "fwhm","spikemask"] or met == "water":
+        if desc not in ["signal", "crlb", "snr", "fwhm"] or met == "water":
             continue
         if tissue_list is not None:
             for tissue in tissue_list:
                 preproc_str = option if use_component_option else _get_preproc_string(desc, filtoption, tissue)
-                __stage_path_list.append(
-                    mridata.get_mri_filepath(
+                _path = mridata.get_mri_filepath(
                         modality="mrsi",
                         space="mni",
                         desc=desc,
                         res=res_int,
                         met=met,
                         option=preproc_str,
+                        construct_path=True,
                     )
-                )
+                if isinstance(_path, (list, tuple)):
+                    if len(_path)==1:
+                        _path = _path[0] if _path else None
+                __stage_path_list.append(_path)
+                # debug.error(_path)
         else:
             preproc_str = option if use_component_option else filtoption
-            __stage_path_list.append(
-                mridata.get_mri_filepath(
+            _path = mridata.get_mri_filepath(
                     modality="mrsi",
                     space="mni",
                     desc=desc,
@@ -278,7 +311,8 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
                     met=met,
                     option=preproc_str,
                 )
-            )
+            __stage_path_list.append(_path)
+            # debug.warning(_path)
 
     return __stage_path_list
 
@@ -309,6 +343,7 @@ def _gather_input_requirements(args, sub, ses):
     mrsi_entries = []
     for met, desc, _ in signal_list:
         label = f"MRSI {desc}" + (f" ({met})" if met else "")
+        # debug.info("_gather_input_requirements",met, desc, _)
         path = mridata.get_mri_filepath(modality="mrsi", space="orig", desc=desc, met=met)
         status = bool(path) and exists(path)
         is_brainmask = desc == "brainmask"
@@ -525,7 +560,7 @@ def _preflight_batch_inputs(args, pair_list):
 def _get_preproc_string(desc,filtoption,tissue):
     if desc=="signal": 
         preproc_str = f"{filtoption}_pvcorr_{tissue}" if tissue is not None else f"{filtoption}_pvcorr"
-    elif desc=="crlb" or desc=="spikemask":
+    elif desc=="crlb":
         preproc_str = None
     elif desc in ["snr","fwhm"]:
         preproc_str = None; met=None
@@ -541,7 +576,7 @@ def filter_worker(input_path, output_path, mask_path,percentile):
         image_filt_nifti = bhfilt.proc(image_og_nifti,brain_mask,fwhm=None,percentile=percentile)
         spike_mask       = bhfilt.spike_mask
         ftools.save_nii_file(image_filt_nifti, outpath=output_path)
-        output_spike_path = output_path.replace("signal","spikemask")
+        output_spike_path = output_path.replace("signal")
         output_spike_path = output_spike_path.replace("_filtbiharmonic","")
         ftools.save_nii_file(spike_mask, outpath=output_spike_path,header=image_og_nifti.header)
         return output_path  # success marker
@@ -584,10 +619,6 @@ def _run_single_preprocess(args, sub, ses):
     correct_orientation = args.corr_orient
 
 
-    if verbose:
-        arg_dict = vars(args).copy()
-        arg_dict.update({"sub": sub, "ses": ses})
-        debug.display_dict(arg_dict,"MRSI Preprocessing Pipeline")
 
     os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(nthreads)
     sub = str(sub)
@@ -633,7 +664,7 @@ def _run_single_preprocess(args, sub, ses):
                 met=met,
                 option=filtoption,
             )
-            if not exists(target):
+            if not _is_valid_nifti(target):
                 need_filter = True
                 break
 
@@ -709,7 +740,7 @@ def _run_single_preprocess(args, sub, ses):
                         met=met,
                         option=pvcorr_option,
                     )
-                    if not exists(candidate):
+                    if not _is_valid_nifti(candidate):
                         needs_pvcorr = True
                         break
             if needs_pvcorr:
@@ -832,10 +863,12 @@ def _run_single_preprocess(args, sub, ses):
                 tissue_iter,
                 use_component_option=args.no_pvc,
             )
-            __stage_path_list = list(np.unique(np.array(__stage_path_list)))
+            __stage_path_list = list(dict.fromkeys(__stage_path_list))
+
+
 
             
-            if not all(exists(path) for path in __stage_path_list) or args.overwrite_transform:
+            if not all(_is_valid_nifti(path) for path in __stage_path_list) or args.overwrite_transform:
                 if args.no_pvc:
                     debug.proc(f"TRANSFORM: MRSI-orig  --> MRSI-{final_space} @ {final_res_str}mm resolution")   
                 else:
@@ -845,7 +878,7 @@ def _run_single_preprocess(args, sub, ses):
                     futures = []
                     for component in SIGNAL_LIST:
                         met, desc, option = component
-                        if desc not in ["signal","crlb","snr","fwhm","spikemask"] or "water"==met: continue
+                        if desc not in ["signal","crlb","snr","fwhm"] or "water"==met: continue
                         try:
                             tissue_loop = [None] if args.no_pvc else tissue_iter
                             for tissue in tissue_loop:
@@ -854,15 +887,17 @@ def _run_single_preprocess(args, sub, ses):
                                     modality="mrsi", space="orig", desc=desc, 
                                     met=met, option=preproc_str,
                                 )
+                                # debug.info("Looking for ",met)
                                 output_img_path = mridata.get_mri_filepath(
                                     modality="mrsi", space=final_space, desc = desc, 
                                     met = met, option = preproc_str,
-                                    res = final_res_str,
+                                    res = final_res_str,construct_path=True,
                                 )
+                                # debug.info("Transforming",input_img_path)
                                 if not exists(input_img_path): 
                                     log_report.append(f"No mrsi-origspace-corr found {component}-{tissue}")
                                     continue
-                                if not exists(output_img_path) or args.overwrite_transform: 
+                                if not _is_valid_nifti(output_img_path) or args.overwrite_transform: 
                                     futures.append(executor.submit(
                                         transform_worker,
                                         fixed_image,
@@ -873,7 +908,7 @@ def _run_single_preprocess(args, sub, ses):
                                 else:
                                     continue
                         except Exception as e:
-                            debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e)
+                            debug.error("\t",f"Error preparing task: {recording_id} - {met, desc, option} Exception", e,traceback.format_exc())
                     # As each job completes, update the progress bar
                     with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
                         task = progress.add_task("\t Correcting...", total=len(futures))
@@ -907,7 +942,7 @@ def _run_single_preprocess(args, sub, ses):
                                         res=orig_resolution_int, met=METABOLITE_LIST[-1],
                                         option=f"{filtoption}_pvcorr")
         
-        if not exists(__path):
+        if not _is_valid_nifti(__path):
             mni_ref           = datasets.load_mni152_template(orig_resolution)
             transform_list = []
             transform_stages = [
@@ -945,9 +980,9 @@ def _run_single_preprocess(args, sub, ses):
                             mrsi_orig_corr_path = mridata.get_mri_filepath(
                                 modality="mrsi", space="orig", desc=desc, met=met, option=preproc_str
                             )
-                            mrsi_img_corr_mnilong_origres_path = mridata.get_mri_filepath(
+                            output_path = mridata.get_mri_filepath(
                                 modality="mrsi", space="mni152long", desc=desc, met=met, option=preproc_str,
-                                res = orig_resolution_int,
+                                res = orig_resolution_int,construct_path=True,
                             )
                             if not exists(mrsi_orig_corr_path): 
                                 debug.error("\n","PV corrected MRSI t1w-space does not exists")
@@ -956,13 +991,13 @@ def _run_single_preprocess(args, sub, ses):
                                     f"; {orig_resolution_int}mm: no mrsi-origspace-corr found {component}-{tissue}"
                                 )
                                 continue
-                            if not exists(mrsi_img_corr_mnilong_origres_path) or args.overwrite_mnilong: 
+                            if not _is_valid_nifti(output_path) or args.overwrite_mnilong: 
                                 futures.append(executor.submit(
                                     transform_worker,
                                     mni_ref,
                                     mrsi_orig_corr_path,
                                     transform_list,
-                                    mrsi_img_corr_mnilong_origres_path
+                                    output_path
                                 ))
                             else:
                                 debug.info("\t","mrsi_img_corr_mnilong_origres_path already exists")
