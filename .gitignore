@@ -102,3 +102,7 @@ experiments/MetSiM_pipeline/MetSiM_pipeline/integrate_cerebellum_parc_batch.py
 experiments/MetSiM_pipeline/MetSiM_pipeline/integrate_cerebellum_parc.py
 experiments/MetSiM_pipeline/MetSiM_pipeline/run_pipeline.sh
 experiments/MetSiM_pipeline/MetSiM_pipeline/select_patients.py
+
+
+
+logs/
