@@ -262,7 +262,7 @@ To access the full dataset, contact the authors with a detailed research proposa
     --t1 acq-memprage_desc-brain_T1w \
     --transform mni-t1wres --overwrite_pve
   ```
-- Optional add-ons: `--corr_orient` to fix oblique FOV; `--no_pvc` to skip partial volume correction; `--overwrite_filt`/`--overwrite_transform`/`--overwrite_mni_reg` to recompute stages; `--proc_mnilong` (+ `--overwrite_mnilong`) for MNI152-long outputs; `--v 1` for verbose logs.
+- Optional add-ons: `--corr_orient` to fix oblique FOV; `--no_pvc` to skip partial volume correction; `--overwrite_filt`/`--overwrite_transform`/`--overwrite_mni_reg` to recompute stages; `--proc_mnilong` (+ `--overwrite_mnilong`) for MNI152-long outputs; `--checksum` to print a pre-run output validity summary; `--v 1` for verbose logs.
 
 **Key `preprocess.py` options**
 
@@ -279,18 +279,19 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--filtoption` | `filtbiharmonic` | Spike filtering strategy. |
 | `--spikepc` | `99` | Percentile for spike removal. |
 | `--transform` | `mni-origres` (`mni-t1wres`/`t1w-origres`/`t1w-t1wres`) | Export MRSI to MNI or T1w space at native MRSI vs T1w resolution. |
-| `--overwrite_transform` | `False` | Recompute transforms/exports for the selected space+resolution. |
-| `--no_pvc` | `False` | Skip PVC exports (transform filtered signals only). |
-| `--overwrite_pve` | `False` | Run/refresh partial volume correction before transforms. |
-| `--overwrite_filt` | `False` | Recompute spike filtering outputs. |
-| `--overwrite_t1_reg` | `False` | Force regeneration of MRSI→T1w transforms. |
-| `--overwrite_mni_reg` | `False` | Force regeneration of T1w→MNI transforms. |
-| `--proc_mnilong` | `False` | Generate MNI152-longitudinal outputs. |
-| `--overwrite_mnilong` | `False` | Rerun MNI152-longitudinal exports. |
-| `--corr_orient` | `False` | Correct oblique FOV orientation for MRSI and masks. |
+| `--overwrite_transform` | `off` | Recompute transforms/exports for the selected space+resolution (flag). |
+| `--no_pvc` | `off` | Skip PVC exports (transform filtered signals only; flag). |
+| `--overwrite_pve` | `off` | Run/refresh partial volume correction before transforms (flag). |
+| `--overwrite_filt` | `off` | Recompute spike filtering outputs (flag). |
+| `--overwrite_t1_reg` | `off` | Force regeneration of MRSI→T1w transforms (flag). |
+| `--overwrite_mni_reg` | `off` | Force regeneration of T1w→MNI transforms (flag). |
+| `--proc_mnilong` | `off` | Generate MNI152-longitudinal outputs (flag). |
+| `--overwrite_mnilong` | `off` | Rerun MNI152-longitudinal exports (flag). |
+| `--corr_orient` | `off` | Correct oblique FOV orientation for MRSI and masks (flag). |
+| `--checksum` | `off` | Display the output validity summary before processing (flag). |
 | `--v` | `0` | Verbose flag (`1` to print more detail). |
 
-Input notes: `--participants` can be TSV/CSV (subject column such as `participant_id`/`sub`/`id` and session column such as `ses`/`session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). `--t1` is required (defaults to the `desc-brain_T1w` pattern). PVC needs CAT12 p1/p2/p3 maps; if absent or `--no_pvc` is set, PVC is skipped and logged.
+Input notes: `--participants` can be TSV/CSV (subject column such as `participant_id`/`sub`/`id` and session column such as `ses`/`session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). `--t1` is required (defaults to the `desc-brain_T1w` pattern). Boolean options are flags (no `0/1` values); include them to enable. PVC needs CAT12 p1/p2/p3 maps; if absent or `--no_pvc` is set, PVC is skipped and logged.
 
 **Population quality mask**
 
@@ -319,7 +320,6 @@ All registration is triggered automatically by `preprocess.py`. Run these direct
 
 
 ![Figure 1](figures/preproc_vba.png)
-
 
 
 

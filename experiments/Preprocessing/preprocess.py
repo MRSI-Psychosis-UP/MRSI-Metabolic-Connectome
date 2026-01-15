@@ -165,7 +165,7 @@ def _build_signal_list(metabolites, filtoption):
     return signal_list
 
 
-def _is_valid_nifti(path, label=None):
+def _is_valid_nifti(path, label=None, warn=True):
     """Return True when a NIfTI exists and contains non-zero, finite data."""
     if not path:
         return False
@@ -179,21 +179,241 @@ def _is_valid_nifti(path, label=None):
         img = nib.load(path)
         data = np.asanyarray(img.dataobj)
     except Exception as exc:
-        debug.warning(f"{label or path}: unable to read NIfTI ({exc})")
+        if warn:
+            debug.warning(f"{label or path}: unable to read NIfTI ({exc})")
         return False
     if np.issubdtype(data.dtype, np.floating):
         if np.isnan(data).any():
-            debug.warning(f"{label or path}: contains NaN values")
+            if warn:
+                debug.warning(f"{label or path}: contains NaN values")
             return False
     try:
         data_max = np.max(data)
     except ValueError:
-        debug.warning(f"{label or path}: empty data")
+        if warn:
+            debug.warning(f"{label or path}: empty data")
         return False
     if data_max == 0:
-        debug.warning(f"{label or path}: max value is 0")
+        if warn:
+            debug.warning(f"{label or path}: max value is 0")
         return False
     return True
+
+
+def _safe_mean_resolution(path):
+    try:
+        img = nib.load(path)
+        return float(np.array(img.header.get_zooms()[:3]).mean())
+    except Exception:
+        return None
+
+
+def _compute_resolution_strings(mridata, t1_path, metabolite_list, filtoption):
+    t1w_res_str = None
+    orig_res_str = None
+    orig_res_int = None
+
+    if t1_path and exists(t1_path):
+        t1w_res = _safe_mean_resolution(t1_path)
+        if t1w_res is not None:
+            t1w_res_str = f"{int(t1w_res * 10):02d}" if t1w_res < 1 else str(round(t1w_res))
+
+    if metabolite_list:
+        met = metabolite_list[-1]
+        candidates = [
+            mridata.get_mri_filepath(
+                modality="mrsi",
+                space="orig",
+                desc="signal",
+                met=met,
+                option=f"{filtoption}_pvcorr",
+            ),
+            mridata.get_mri_filepath(
+                modality="mrsi",
+                space="orig",
+                desc="signal",
+                met=met,
+            ),
+        ]
+        for candidate in candidates:
+            if isinstance(candidate, (list, tuple)):
+                if len(candidate) == 1:
+                    candidate = candidate[0]
+                else:
+                    continue
+            if candidate and exists(candidate):
+                orig_res = _safe_mean_resolution(candidate)
+                if orig_res is not None:
+                    orig_res_int = int(round(orig_res))
+                    orig_res_str = str(orig_res_int)
+                    break
+
+    return t1w_res_str, orig_res_str, orig_res_int
+
+
+def _format_validity_cell(valid, total):
+    if total == 0:
+        return "[grey58]N/A[/grey58]"
+    if valid == total:
+        return f"[green]{valid}/{total}[/green]"
+    return f"[orange3]{valid}/{total}[/orange3]"
+
+
+def _count_valid_paths(paths):
+    flattened = []
+    for path in paths or []:
+        if isinstance(path, (list, tuple)):
+            flattened.extend(path)
+        else:
+            flattened.append(path)
+    unique_paths = [path for path in dict.fromkeys(flattened) if path]
+    total = len(unique_paths)
+    valid = sum(1 for path in unique_paths if _is_valid_nifti(path, warn=False))
+    return valid, total
+
+
+def _build_filtered_paths(mridata, signal_list, filtoption):
+    paths = []
+    for met, desc, _ in signal_list:
+        if desc != "signal" or not met:
+            continue
+        paths.append(
+            mridata.get_mri_filepath(
+                modality="mrsi",
+                space="orig",
+                desc=desc,
+                met=met,
+                option=filtoption,
+                construct_path=True,
+            )
+        )
+    return list(dict.fromkeys(paths))
+
+
+def _build_pvcorr_paths(mridata, signal_list, filtoption, tissue_list):
+    paths = []
+    for met, desc, option in signal_list:
+        if desc != "signal" or option is None:
+            continue
+        for tissue in tissue_list:
+            preproc_str = _get_preproc_string(desc, filtoption, tissue)
+            paths.append(
+                mridata.get_mri_filepath(
+                    modality="mrsi",
+                    space="orig",
+                    desc=desc,
+                    met=met,
+                    option=preproc_str,
+                    construct_path=True,
+                )
+            )
+    return list(dict.fromkeys(paths))
+
+
+def _build_mni_long_paths(mridata, signal_list, filtoption, res_int, tissue_list):
+    paths = []
+    for met, desc, _ in signal_list:
+        if desc not in ["signal", "crlb", "snr", "fwhm"] or met == "water":
+            continue
+        for tissue in tissue_list:
+            preproc_str = _get_preproc_string(desc, filtoption, tissue)
+            paths.append(
+                mridata.get_mri_filepath(
+                    modality="mrsi",
+                    space="mni152long",
+                    desc=desc,
+                    res=res_int,
+                    met=met,
+                    option=preproc_str,
+                    construct_path=True,
+                )
+            )
+    return list(dict.fromkeys(paths))
+
+
+def _summarize_output_validity(args, pair_list):
+    debug.separator()
+    debug.title("Output validity summary")
+
+    metabolites = _get_metabolite_list(args.b0)
+    signal_list = _build_signal_list(metabolites, args.filtoption)
+    tissue_list = [None, "GM", "WM", "CSF"]
+
+    columns = [("filtered", "Filtered orig")]
+    if not args.no_pvc:
+        columns.append(("pvcorr", "PVCorr orig"))
+    columns.append(("transform", args.transform))
+    if args.proc_mnilong:
+        columns.append(("mni_long", "MNI long"))
+
+    table = Table(box=box.SIMPLE_HEAVY, show_lines=False, title="Processed outputs")
+    table.add_column("Recording", style="cyan", no_wrap=True)
+    for _, label in columns:
+        table.add_column(label, justify="center")
+
+    with Progress(redirect_stdout=True, redirect_stderr=True, transient=True) as progress:
+        task = progress.add_task("Checking outputs...", total=len(pair_list))
+        for sub, ses in pair_list:
+            mridata = MRIData(sub, ses, args.group)
+            try:
+                t1_path = _resolve_t1_path(mridata, args.t1)
+            except Exception:
+                t1_path = None
+
+            t1w_res_str, orig_res_str, orig_res_int = _compute_resolution_strings(
+                mridata,
+                t1_path,
+                metabolites,
+                args.filtoption,
+            )
+
+            counts = {}
+            filtered_paths = _build_filtered_paths(mridata, signal_list, args.filtoption)
+            counts["filtered"] = _count_valid_paths(filtered_paths)
+
+            if not args.no_pvc:
+                pvcorr_paths = _build_pvcorr_paths(mridata, signal_list, args.filtoption, tissue_list)
+                counts["pvcorr"] = _count_valid_paths(pvcorr_paths)
+
+            final_space = "mni" if "mni-" in args.transform else "T1w"
+            final_res_str = t1w_res_str if "t1wres" in args.transform else orig_res_str
+            if final_res_str:
+                transform_tissue_list = [None] if args.no_pvc else tissue_list
+                transform_paths = _check_staged_files(
+                    mridata,
+                    signal_list,
+                    args.filtoption,
+                    final_res_str,
+                    transform_tissue_list,
+                    use_component_option=args.no_pvc,
+                    space=final_space,
+                )
+                transform_paths = list(dict.fromkeys(transform_paths))
+                counts["transform"] = _count_valid_paths(transform_paths)
+            else:
+                counts["transform"] = (0, 0)
+
+            if args.proc_mnilong:
+                if orig_res_int is None:
+                    counts["mni_long"] = (0, 0)
+                else:
+                    mni_long_paths = _build_mni_long_paths(
+                        mridata,
+                        signal_list,
+                        args.filtoption,
+                        orig_res_int,
+                        tissue_list,
+                    )
+                    counts["mni_long"] = _count_valid_paths(mni_long_paths)
+
+            row = [f"sub-{sub}_ses-{ses}"]
+            for key, _ in columns:
+                valid, total = counts.get(key, (0, 0))
+                row.append(_format_validity_cell(valid, total))
+            table.add_row(*row)
+            progress.advance(task)
+
+    debug.console.print(table)
 
 
 def _warn_missing_forward_transforms(args,mridata, recording_id):
@@ -278,8 +498,8 @@ def _resolve_t1_path(mridata, t1_argument):
 
 
 
-def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=None, use_component_option=False):
-    """Return expected MNI-stage file paths for the provided signal list."""
+def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=None, use_component_option=False, space="mni"):
+    """Return expected stage file paths for the provided signal list."""
     __stage_path_list = []
     for met, desc, option in signal_list:
         if desc not in ["signal", "crlb", "snr", "fwhm"] or met == "water":
@@ -289,7 +509,7 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
                 preproc_str = option if use_component_option else _get_preproc_string(desc, filtoption, tissue)
                 _path = mridata.get_mri_filepath(
                         modality="mrsi",
-                        space="mni",
+                        space=space,
                         desc=desc,
                         res=res_int,
                         met=met,
@@ -305,7 +525,7 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
             preproc_str = option if use_component_option else filtoption
             _path = mridata.get_mri_filepath(
                     modality="mrsi",
-                    space="mni",
+                    space=space,
                     desc=desc,
                     res=res_int,
                     met=met,
@@ -404,7 +624,7 @@ def _gather_input_requirements(args, sub, ses):
     }
 
 
-def _preflight_batch_inputs(args, pair_list):
+def _preflight_batch_inputs(args, pair_list, prompt=True):
     """Check availability of inputs for every batch item and prompt before running."""
     debug.separator()
     debug.title("Preanalysis: checking for required inputs")
@@ -542,6 +762,9 @@ def _preflight_batch_inputs(args, pair_list):
         debug.info(f"Preanalysis log saved to {log_path}")
     except Exception as exc:
         debug.warning(f"Unable to write preanalysis log to {log_path}: {exc}")
+
+    if not prompt:
+        return True
 
     if not sys.stdin.isatty():
         debug.warning("Non-interactive ses detected; continuing without confirmation prompt.")
@@ -1055,6 +1278,7 @@ def main():
     parser.add_argument('--batch', type=str, default='off', choices=['off', 'all', 'file'],
                         help="Batch mode: 'all' uses all available subject-ses pairs; 'file' uses --participants; 'off' processes a single couplet.")
     parser.add_argument('--corr_orient', action='store_true', help="Correct for oblique FOV orientation ")
+    parser.add_argument('--checksum', action='store_true', help="Display output validity summary before processing")
     args = parser.parse_args()
     if args.batch == 'off':
         pair_list = [(args.sub, args.ses)]
@@ -1078,8 +1302,25 @@ def main():
         return
 
     if args.batch != 'off':
-        if not _preflight_batch_inputs(args, pair_list):
+        if not _preflight_batch_inputs(args, pair_list, prompt=not args.checksum):
             return
+
+    if args.checksum:
+        try:
+            _summarize_output_validity(args, pair_list)
+        except Exception as exc:
+            debug.warning(f"Unable to summarize outputs: {exc}")
+        if args.batch != 'off':
+            if not sys.stdin.isatty():
+                debug.warning("Non-interactive ses detected; continuing without confirmation prompt.")
+            else:
+                try:
+                    response = input("Continue with preprocessing batch? [y/N]: ")
+                except EOFError:
+                    response = ""
+                if response.strip().lower() not in ("y", "yes"):
+                    debug.info("Stopping preprocessing per user request after checksum.")
+                    return
 
     total = len(pair_list)
     for index, (sub, ses) in enumerate(pair_list, start=1):
@@ -1114,6 +1355,11 @@ def main():
             debug.separator();debug.separator()
         except Exception as exc:
             debug.error("\t",f"Processing sub-{sub}_ses-{ses} failed: {exc}",traceback.format_exc())
+
+    try:
+        _summarize_output_validity(args, pair_list)
+    except Exception as exc:
+        debug.warning(f"Unable to summarize outputs: {exc}")
 
 if __name__=="__main__":
     debug.separator()
