@@ -227,12 +227,14 @@ def _compute_resolution_strings(mridata, t1_path, metabolite_list, filtoption):
                 desc="signal",
                 met=met,
                 option=f"{filtoption}_pvcorr",
+                construct_path=True,
             ),
             mridata.get_mri_filepath(
                 modality="mrsi",
                 space="orig",
                 desc="signal",
                 met=met,
+                construct_path=True,
             ),
         ]
         for candidate in candidates:
@@ -375,23 +377,26 @@ def _summarize_output_validity(args, pair_list):
                 pvcorr_paths = _build_pvcorr_paths(mridata, signal_list, args.filtoption, tissue_list)
                 counts["pvcorr"] = _count_valid_paths(pvcorr_paths)
 
-            final_space = "mni" if "mni-" in args.transform else "T1w"
-            final_res_str = t1w_res_str if "t1wres" in args.transform else orig_res_str
-            if final_res_str:
-                transform_tissue_list = [None] if args.no_pvc else tissue_list
-                transform_paths = _check_staged_files(
-                    mridata,
-                    signal_list,
-                    args.filtoption,
-                    final_res_str,
-                    transform_tissue_list,
-                    use_component_option=args.no_pvc,
-                    space=final_space,
-                )
-                transform_paths = list(dict.fromkeys(transform_paths))
-                counts["transform"] = _count_valid_paths(transform_paths)
-            else:
+            if args.transform == "skip":
                 counts["transform"] = (0, 0)
+            else:
+                final_space = "mni" if "mni-" in args.transform else "T1w"
+                final_res_str = t1w_res_str if "t1wres" in args.transform else orig_res_str
+                if final_res_str:
+                    transform_tissue_list = [None] if args.no_pvc else tissue_list
+                    transform_paths = _check_staged_files(
+                        mridata,
+                        signal_list,
+                        args.filtoption,
+                        final_res_str,
+                        transform_tissue_list,
+                        use_component_option=args.no_pvc,
+                        space=final_space,
+                    )
+                    transform_paths = list(dict.fromkeys(transform_paths))
+                    counts["transform"] = _count_valid_paths(transform_paths)
+                else:
+                    counts["transform"] = (0, 0)
 
             if args.proc_mnilong:
                 if orig_res_int is None:
@@ -418,6 +423,8 @@ def _summarize_output_validity(args, pair_list):
 
 def _warn_missing_forward_transforms(args,mridata, recording_id):
     """Log warnings for missing forward transforms that will be generated later."""
+    if args.transform == "skip":
+        return
     checks = [
         ("mrsi", "MRSI→T1w (mrsi forward)"),
         ("anat", "T1w→MNI (anat forward)"),
@@ -498,7 +505,8 @@ def _resolve_t1_path(mridata, t1_argument):
 
 
 
-def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=None, use_component_option=False, space="mni"):
+def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=None, 
+                        use_component_option=False, space="mni"):
     """Return expected stage file paths for the provided signal list."""
     __stage_path_list = []
     for met, desc, option in signal_list:
@@ -564,7 +572,8 @@ def _gather_input_requirements(args, sub, ses):
     for met, desc, _ in signal_list:
         label = f"MRSI {desc}" + (f" ({met})" if met else "")
         # debug.info("_gather_input_requirements",met, desc, _)
-        path = mridata.get_mri_filepath(modality="mrsi", space="orig", desc=desc, met=met)
+        path = mridata.get_mri_filepath(modality="mrsi", space="orig", 
+                                        desc=desc, met=met,construct_path=True)
         status = bool(path) and exists(path)
         is_brainmask = desc == "brainmask"
         entry = {
@@ -736,7 +745,9 @@ def _preflight_batch_inputs(args, pair_list, prompt=True):
 
         non_autogen_missing = [
             req for req in result["requirements"]
-            if (not req["status"]) and not req.get("autogen")
+            if (not req["status"])
+            and not req.get("autogen")
+            and not (args.no_pvc and req.get("tissue"))
         ]
         if non_autogen_missing:
             missing_count += 1
@@ -790,6 +801,34 @@ def _get_preproc_string(desc,filtoption,tissue):
     return preproc_str
 
 
+def _ensure_brainmask_from_water(mridata):
+    """Ensure orig-space brainmask exists, creating it from water signal if needed."""
+    mask_path = mridata.get_mri_filepath(modality="mrsi", space="orig", 
+                                         desc="brainmask",construct_path=True)
+    if exists(mask_path):
+        return mask_path
+
+    water_path = mridata.get_mri_filepath(
+        modality="mrsi",
+        space="orig",
+        met="water",
+        desc="signal",
+    )
+    if not water_path or not exists(water_path):
+        debug.error("\t", f"Missing water signal for brainmask: {water_path}")
+        return None
+    try:
+        water_img = nib.load(water_path)
+        water_data = water_img.get_fdata()
+        mask_data = (water_data > 0).astype(np.uint8)
+        os.makedirs(os.path.dirname(mask_path), exist_ok=True)
+        ftools.save_nii_file(mask_data, outpath=mask_path, header=water_img.header)
+    except Exception as exc:
+        debug.error("\t", "Failed to create brainmask from water signal", exc)
+        return None
+    return mask_path
+
+
         
 
 def filter_worker(input_path, output_path, mask_path,percentile):
@@ -834,6 +873,7 @@ def _run_single_preprocess(args, sub, ses):
     filtoption          = args.filtoption
     t1_path_arg         = args.t1
     B0_strength         = args.b0
+    ref_met             = args.ref_met
     nthreads            = args.nthreads
     spike_pc            = args.spikepc
     pv_corr_str         = "pvcorr"
@@ -893,7 +933,10 @@ def _run_single_preprocess(args, sub, ses):
 
     if need_filter:
         with Progress(redirect_stdout=True,redirect_stderr=True,transient=False) as progress:
-            mask_path = mridata.get_mri_filepath(modality="mrsi",space="orig",desc="brainmask")
+            mask_path = _ensure_brainmask_from_water(mridata)
+            if not mask_path:
+                return
+                
             if correct_orientation:
                 orientation_worker(mask_path,overwrite_og=True)
             task = progress.add_task("Filtering...", total=len(METABOLITE_LIST)+1)
@@ -904,18 +947,19 @@ def _run_single_preprocess(args, sub, ses):
                     if desc!="signal": continue
                     try:
                         # MRSI to T1W
-                        mrsi_img_orig_path = mridata.get_mri_filepath(
+                        input_path = mridata.get_mri_filepath(
                             modality="mrsi", space="orig", desc=desc, met=met,
                         )
-                        mrsi_img_orig_filt_path = mridata.get_mri_filepath(
-                            modality="mrsi", space="orig", desc=desc, met=met, option=filtoption
+                        output_path = mridata.get_mri_filepath(
+                            modality="mrsi", space="orig", desc=desc, met=met, 
+                            option=filtoption,construct_path=True,
                         )
                         if correct_orientation:
-                            orientation_worker(mrsi_img_orig_path,overwrite_og=True)
+                            orientation_worker(input_path,overwrite_og=True)
                         futures.append(executor.submit(
                             filter_worker,
-                            mrsi_img_orig_path,
-                            mrsi_img_orig_filt_path,
+                            input_path,
+                            output_path,
                             mask_path,
                             spike_pc,
                         ))
@@ -934,11 +978,57 @@ def _run_single_preprocess(args, sub, ses):
         debug.success("\t","Already processed: SKIP")
 
 
+    ############################################################
+    ############# REGISTRATION MRSI --> Anatomical T1w ####################
+    ############################################################
+    debug.proc("REGISTRATION: MRSI --> Anatomical T1w")
+    t1_res           = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
+    transform_list   = mridata.get_transform("forward", "mrsi")
+    if not all(exists(path) for path in transform_list) or args.overwrite_t1_reg:
+        if args.overwrite_t1_reg:
+            debug.warning("\t","Overwriting existing transforms")
+        debug.warning("\t","Missing MRSI->T1w transforms; launching registration_mrsi_to_t1.")
+        registration_script = os.path.abspath(
+            join(os.path.dirname(__file__), "registration_mrsi_to_t1.py")
+        )
+        cmd = [
+            sys.executable,
+            registration_script,
+            "--group", GROUP,
+            "--sub", sub,
+            "--ses", ses,
+            "--nthreads", str(nthreads),
+            "--b0",str(args.b0),
+            "--ref_met",ref_met,
+            "--corr_orient", "1" if correct_orientation else "0",
+            "--batch", "off",
+        ]
+        if t1_path:
+            cmd.extend(["--t1", str(t1_path)])
+        if args.overwrite_t1_reg:
+            cmd.extend(["--overwrite", "1"])
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as exc:
+            debug.error("\t","registration_mrsi_to_t1.py failed", exc)
+            return
+        except Exception as exc:
+            debug.error("\t","Unable to start registration_mrsi_to_t1.py", exc)
+            return
+        transform_list = mridata.get_transform("forward", "mrsi")
+        if not all(exists(path) for path in transform_list):
+            debug.error("\t","registration_mrsi_to_t1.py did not produce the expected transforms")
+            return
+    else:
+        debug.success("\t","Registration already computed: SKIP")
+
+
+
 
     ################################################################################
     #################### Partial Volume Correction ####################
     ################################################################################
-    if args.overwrite_pve:
+    if not args.no_pvc:
         debug.proc("Partial Volume Correction (MRSI space)")
         def _has_tissue_map(idx):
             try:
@@ -961,7 +1051,7 @@ def _run_single_preprocess(args, sub, ses):
                         space="orig",
                         desc=desc,
                         met=met,
-                        option=pvcorr_option,
+                        option=pvcorr_option,construct_path=True
                     )
                     if not _is_valid_nifti(candidate):
                         needs_pvcorr = True
@@ -1058,7 +1148,7 @@ def _run_single_preprocess(args, sub, ses):
     #########################################################################
     ################## MRSI-orig  --> MRSI-T1W or MRSI-MNI @ t1w/orig res ###############
     #########################################################################
-    if args.transform:
+    if args.transform and args.transform != "skip":
         # Load Final Image Resolutions and Affine/Warp transforms
         if "t1wres" in args.transform:
             final_res     = t1w_res
@@ -1256,14 +1346,16 @@ def main():
     parser.add_argument('--group', type=str, default="Mindfulness-Project")
     parser.add_argument('--sub', type=str, default="S002", help="Subject ID [sub-??]")
     parser.add_argument('--ses', type=str, default="V3", help="Session [ses-??]")
-    parser.add_argument('--nthreads', type=int, default=4, help="Number of CPU threads [default=4]")
+    parser.add_argument('--nthreads', type=int, default=16, help="Number of CPU threads [default=4]")
     parser.add_argument('--filtoption', type=str, default="filtbiharmonic", help="MRSI filter option  [default=filtbihamonic]")
     parser.add_argument('--spikepc', type=float, default=99, help="Percentile for MRSI signal spike detection  [default=98]")
     parser.add_argument('--t1', type=str, default="desc-brain_T1w", help="Anatomical T1w file path")
     parser.add_argument('--b0', type=float, default=3, choices=[3, 7], help="MRI B0 field strength in Tesla [default=3]")
+    parser.add_argument('--ref_met', type=str, default="CrPCr",
+                        help="Reference metabolite for MRSI registration [default=CrPCr]")
     parser.add_argument('--transform', type=str, default="mni-origres",
-                        choices=["mni-origres","mni-t1wres","t1w-origres","t1w-t1wres"],
-                        help="Transform MRSI to target space at specified resolution: (mni-origres,mni-t1wres=mni normalization in orig mrsi or t1w resolution, [t1w-origres], [t1w-t1wres] =  trasnform to t1w in orig mrsi or t1w resolution")   
+                        choices=["mni-origres","mni-t1wres","t1w-origres","t1w-t1wres","skip"],
+                        help="Transform MRSI to target space at specified resolution: (mni-origres,mni-t1wres=mni normalization in orig mrsi or t1w resolution, [t1w-origres], [t1w-t1wres] =  trasnform to t1w in orig mrsi or t1w resolution, skip=disable transform stage)")   
     parser.add_argument('--overwrite_transform', action='store_true', help="Overwrite transform to MNI or T1w space")
     parser.add_argument('--no_pvc', action='store_true', help="Skip partial volume correction")
     parser.add_argument('--overwrite_filt', action='store_true', help="Overwrite MRSI filtering output")

@@ -106,3 +106,4 @@ experiments/MetSiM_pipeline/MetSiM_pipeline/select_patients.py
 
 
 logs/
+*log01.txt
