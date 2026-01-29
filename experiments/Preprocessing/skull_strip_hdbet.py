@@ -96,6 +96,11 @@ def main():
     parser.add_argument("--device", default="cuda", help="hd-bet device argument (e.g., cuda or cpu). Default: cuda")
     parser.add_argument("--disable-tta", action="store_true", help="Pass --disable_tta to hd-bet.")
     parser.add_argument("--verbose", action="store_true", help="Print commands and progress.")
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing brain/brainmask outputs if present.",
+    )
     args = parser.parse_args()
 
     bids_dir = args.bids_dir
@@ -123,6 +128,11 @@ def main():
             progress.update(task, description=f"[green]{sub} {ses}".strip())
 
             out_brain, out_mask = build_outputs(bids_dir, t1_path, meta)
+            if out_brain.exists() and out_mask.exists() and not args.overwrite:
+                if args.verbose:
+                    print(f"[skip] outputs exist: {out_brain} | {out_mask}")
+                progress.update(task, advance=1)
+                continue
             if args.verbose:
                 print(f"[proc] {t1_path} -> {out_brain}")
             # hd-bet writes mask alongside output with _mask suffix

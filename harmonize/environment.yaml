@@ -1,0 +1,16 @@
+name: neurocombat_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - numpy
+  - matplotlib
+  - pip
+  - pip:
+      - neuroCombat
+      - rich
+      - nibabel
+      - tqdm
+      - nilearn
+      - bctpy

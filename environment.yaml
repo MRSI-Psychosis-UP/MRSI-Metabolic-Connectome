@@ -53,3 +53,4 @@ dependencies:
       - bokeh
       - holoviews
       - colorcet
+      - neuroCombat

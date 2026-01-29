@@ -1,0 +1,6 @@
+Metabolite      n_regions Intercept     Beta
+ 1 CrPCr                  24  279.      901.   
+ 2 NAANAAG                24 -315.     1374.   
+ 3 GluGln                 24 -990.     2572.   
+ 4 Ins                    24  110.      831.   
+ 5 GPCPCh                 24  -50.9     863.  

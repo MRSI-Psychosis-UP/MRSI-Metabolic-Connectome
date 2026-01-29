@@ -1,4 +1,4 @@
-import os, sys, argparse, csv, subprocess, time, tempfile, traceback
+import os, sys, argparse, csv, subprocess, time, tempfile, traceback, re
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from registration.registration import Registration
@@ -381,10 +381,16 @@ def _summarize_output_validity(args, pair_list):
                 counts["transform"] = (0, 0)
             else:
                 final_space = "mni" if "mni-" in args.transform else "T1w"
-                final_res_str = t1w_res_str if "t1wres" in args.transform else orig_res_str
-                if final_res_str:
-                    transform_tissue_list = [None] if args.no_pvc else tissue_list
-                    transform_paths = _check_staged_files(
+            if "t1wres" in args.transform:
+                final_res_str = t1w_res_str
+            elif "origres" in args.transform:
+                final_res_str = orig_res_str
+            else:
+                match = re.search(r"-(\d+)mm", args.transform)
+                final_res_str = match.group(1) if match else None
+            if final_res_str:
+                transform_tissue_list = [None] if args.no_pvc else tissue_list
+                transform_paths = _check_staged_files(
                         mridata,
                         signal_list,
                         args.filtoption,
@@ -393,10 +399,10 @@ def _summarize_output_validity(args, pair_list):
                         use_component_option=args.no_pvc,
                         space=final_space,
                     )
-                    transform_paths = list(dict.fromkeys(transform_paths))
-                    counts["transform"] = _count_valid_paths(transform_paths)
-                else:
-                    counts["transform"] = (0, 0)
+                transform_paths = list(dict.fromkeys(transform_paths))
+                counts["transform"] = _count_valid_paths(transform_paths)
+            else:
+                counts["transform"] = (0, 0)
 
             if args.proc_mnilong:
                 if orig_res_int is None:
@@ -1150,12 +1156,20 @@ def _run_single_preprocess(args, sub, ses):
     #########################################################################
     if args.transform and args.transform != "skip":
         # Load Final Image Resolutions and Affine/Warp transforms
-        if "t1wres" in args.transform:
+        if "-t1wres" in args.transform:
             final_res     = t1w_res
             final_res_str = t1w_res_str
-        elif "origres" in args.transform:
+        elif "-origres" in args.transform:
             final_res      = orig_res
             final_res_str  = orig_res_str
+        else:
+            match = re.search(r"-(\d+)mm", args.transform)
+            if match:
+                final_res = int(match.group(1))
+                final_res_str = str(final_res)
+            else:
+                debug.error("\t", f"Invalid transform resolution: {args.transform}")
+                return
         if "mni-" in args.transform:
             final_space     = "mni"
             transform_list  = mridata.get_transform("forward", "anat")
@@ -1354,8 +1368,7 @@ def main():
     parser.add_argument('--ref_met', type=str, default="CrPCr",
                         help="Reference metabolite for MRSI registration [default=CrPCr]")
     parser.add_argument('--transform', type=str, default="mni-origres",
-                        choices=["mni-origres","mni-t1wres","t1w-origres","t1w-t1wres","skip"],
-                        help="Transform MRSI to target space at specified resolution: (mni-origres,mni-t1wres=mni normalization in orig mrsi or t1w resolution, [t1w-origres], [t1w-t1wres] =  trasnform to t1w in orig mrsi or t1w resolution, skip=disable transform stage)")   
+                        help="Transform MRSI to target space at specified resolution: (mni-origres,mni-t1wres=mni normalization in orig mrsi or t1w resolution, [t1w-origres], [t1w-t1wres] =  trasnform to t1w in orig mrsi or t1w resolution, mni-<N>mm/t1w-<N>mm for custom resolution, skip=disable transform stage)")   
     parser.add_argument('--overwrite_transform', action='store_true', help="Overwrite transform to MNI or T1w space")
     parser.add_argument('--no_pvc', action='store_true', help="Skip partial volume correction")
     parser.add_argument('--overwrite_filt', action='store_true', help="Overwrite MRSI filtering output")

@@ -202,9 +202,10 @@ def _run_single_subject(args, subject_id, session):
             return
 
     mrsi_ref_img_path = mridata.get_mri_filepath(
-        modality="mrsi", space="orig", desc="signal", met="Ins", option=preproc_string
+        modality="mrsi", space="orig", desc="signal", met="Ins", 
+        option=preproc_string,construct_path=True
     )
-    debug.warning(mrsi_ref_img_path)
+    # debug.warning(mrsi_ref_img_path)
     if not exists(mrsi_ref_img_path):
         debug.error("No MRSI data found")
         return
@@ -230,13 +231,15 @@ def _run_single_subject(args, subject_id, session):
     metadata = mridata.extract_metadata(t1mask_path)
     growmm   = args.grow
     
-    
+    debug.warning("t1w",t1mask_path,exists(t1mask_path))
+    debug.warning("Looking for",parc_scheme,scale,metadata["acq"],metadata["run"],growmm)
     parcel_mrsi_path = mridata.get_parcel_path(space="mrsi",
-                                                            parc_scheme=parc_scheme,
-                                                            scale=scale,
-                                                            acq=metadata["acq"],
-                                                            run=metadata["run"],
-                                                            grow=growmm)
+                                                parc_scheme=parc_scheme,
+                                                scale=scale,
+                                                acq=metadata["acq"],
+                                                run=metadata["run"],
+                                                grow=growmm,
+                                                )
 
     if not exists(parcel_mrsi_path):
         debug.warning("Parcel image in",parc_scheme,scale,metadata["acq"],metadata["run"],
@@ -253,8 +256,12 @@ def _run_single_subject(args, subject_id, session):
         parcel_mrsi_np = reg.transform(mrsi_orig_mask_nifti,parcel_t1_ants,transform_list,
                                         interpolator_mode="genericLabel").numpy()
         parcel_mrsi_ni   = ftools.numpy_to_nifti(parcel_mrsi_np,header=mrsi_orig_mask_nifti.header)
-        parcel_mrsi_path = mridata.get_parcel_path("mrsi",parc_scheme,scale,acq=metadata["acq"],run=metadata["run"],mode="atlas")
+        parcel_mrsi_path = mridata.get_parcel_path("mrsi",parc_scheme,scale,
+                                                   acq=metadata["acq"],
+                                                   run=metadata["run"],
+                                                   mode="atlas")
         debug.info("Saving MRSI space parcellation to",parcel_mrsi_path)
+        os.makedirs(split(parcel_mrsi_path)[0],exist_ok=True)
         ftools.save_nii_file(parcel_mrsi_ni,parcel_mrsi_path)
         # TSV
         tsv_source = atlas_mni_path.replace(".nii.gz",".tsv")

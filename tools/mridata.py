@@ -297,7 +297,8 @@ class  MRIData:
         Returns:
             str : The matching file path.
         """""
-        dirpath      = self.get_mri_parcel_dir_path("anat")
+        dirpath      = join(self.PARCEL_PATH,f"sub-{self.subject_id}",f"ses-{self.session}","anat")
+        # dirpath      = self.get_mri_parcel_dir_path("anat")
         _space="orig" if space.lower()=="t1w" or space.lower()=="anat" else space
         # prefix_name  = f"{self.prefix}_run-{run}_acq-{acq}_space-{space}_atlas-{parc_scheme}_dseg.nii.gz"
         if "cubic" in parc_scheme:
@@ -314,7 +315,7 @@ class  MRIData:
                 elif acq is None     and run is     None:
                     prefix_name  = f"{self.prefix}_space-{_space}_atlas-chimera{parc_scheme}_desc-scale{scale}grow{grow}mm_dseg.nii.gz"    
                 if grow is None:
-                    prefix_name = prefix_name.replace("growNonemm","")        
+                    prefix_name = prefix_name.replace("growNonemm","")  
                 return join(dirpath,prefix_name) 
             elif mode=="atlas":
                 if   acq is not None and run is not None:
