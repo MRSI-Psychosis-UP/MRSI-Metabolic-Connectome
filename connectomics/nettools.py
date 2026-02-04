@@ -38,18 +38,33 @@ class NetTools:
         pass
 
 
-    def compute_centroids(self, label_image,labels=None):
+    def compute_centroids(self, label_image, labels=None, world=False):
         """
-        Computes the MNI space centroids for all regions in label_indices.
-        :param image_labels: Numpy array of the label image.
-        :return: Numpy array of MNI space centroids.
+        Computes centroids for all regions in a label image.
+
+        Parameters:
+        label_image: NIfTI image or numpy array of labels.
+        labels: iterable of label ids (defaults to unique labels in the image).
+        world: if True, return coordinates in world (affine) space for NIfTI inputs.
         """
+        img = None
+        if hasattr(label_image, "get_fdata"):
+            img = label_image
+            data = label_image.get_fdata()
+        else:
+            data = np.asarray(label_image)
+
         if labels is None:
-            labels = np.unique(label_image)
-        
+            labels = np.unique(data)
+
         # Use center_of_mass with `index` argument to calculate all centroids at once
-        centroids = np.array(center_of_mass(label_image, labels=label_image, index=labels))
-        
+        centroids = np.array(center_of_mass(data, labels=data, index=labels))
+
+        if world:
+            if img is None:
+                raise ValueError("world=True requires a NIfTI image with an affine.")
+            centroids = nib.affines.apply_affine(img.affine, centroids)
+
         return centroids
 
 
