@@ -11,7 +11,7 @@ def read_requirements():
 
 setup(
     name="mrsitoolbox",
-    version="1.0.0",
+    version="1.0.2",
     description="Analysis toolbox for MRSI data",
     long_description=(ROOT / "README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
