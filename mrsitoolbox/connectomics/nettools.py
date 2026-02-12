@@ -1,6 +1,6 @@
 
 import numpy as np
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 
 # Prefer CuPy, but fall back to NumPy if the CUDA toolchain is unavailable or misconfigured.
 try:

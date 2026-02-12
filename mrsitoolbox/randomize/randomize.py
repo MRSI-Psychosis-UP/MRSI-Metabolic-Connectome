@@ -1,6 +1,6 @@
 import numpy as np
 from copy import copy
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 debug = Debug()
 
 class Randomize:

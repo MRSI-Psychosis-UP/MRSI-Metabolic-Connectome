@@ -6,15 +6,15 @@ from nilearn import datasets
 import nibabel as nib
 import argparse
 from dipy.viz import window
-from graphplot.netplot import NetPlot
+from mrsitoolbox.graphplot.netplot import NetPlot
 
 
-from tools.datautils import DataUtils
-from tools.debug import Debug
-from connectomics.parcellate import Parcellate
-from connectomics.network import NetBasedAnalysis
-from connectomics.nettools import NetTools
-from connectomics.netfibre import NetFibre
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
+from mrsitoolbox.connectomics.parcellate import Parcellate
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
+from mrsitoolbox.connectomics.nettools import NetTools
+from mrsitoolbox.connectomics.netfibre import NetFibre
 
 
 

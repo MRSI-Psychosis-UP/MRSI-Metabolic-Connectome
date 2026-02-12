@@ -4,13 +4,13 @@ import os, csv, copy, sys, time
 from os.path import join, split
 import warnings
 import random
-from tools.debug import Debug
-from tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
+from mrsitoolbox.tools.datautils import DataUtils
 from nilearn import datasets,image
 import xml.etree.ElementTree as ET
 from scipy.stats import ConstantInputWarning
 from nilearn.image import resample_img
-from tools.filetools import FileTools
+from mrsitoolbox.tools.filetools import FileTools
 
 # Suppress only the ConstantInputWarning from scipy.stats
 warnings.filterwarnings("ignore", category=ConstantInputWarning)

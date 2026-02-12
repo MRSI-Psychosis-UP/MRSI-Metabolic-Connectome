@@ -5,7 +5,7 @@ import nibabel as nib
 from tqdm import tqdm
 from dotenv import load_dotenv
 from os.path import join, split
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 
 
 debug=Debug()

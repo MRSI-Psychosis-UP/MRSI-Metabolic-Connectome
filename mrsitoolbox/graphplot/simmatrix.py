@@ -4,7 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from os.path import join ,split
-from graphplot.colorbar import ColorBar
+from mrsitoolbox.graphplot.colorbar import ColorBar
 
 colorbar = ColorBar()
 

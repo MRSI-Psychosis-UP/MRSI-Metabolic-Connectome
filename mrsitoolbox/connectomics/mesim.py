@@ -3,7 +3,7 @@ from scipy.stats import linregress, spearmanr
 from concurrent.futures import ProcessPoolExecutor
 import warnings, copy, time
 from rich.progress import Progress,track
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 from sklearn.linear_model import LinearRegression
 
 debug  = Debug()

@@ -1,12 +1,12 @@
 import os, sys, argparse, csv, subprocess, time, tempfile, traceback, re
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
-from registration.registration import Registration
-from tools.datautils import DataUtils
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.datautils import DataUtils
 from os.path import split, join, exists, isdir
-from tools.filetools import FileTools
-from tools.debug import Debug
-from tools.mridata import MRIData
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug
+from mrsitoolbox.tools.mridata import MRIData
 from nilearn import datasets
 import nibabel as nib
 from rich.progress import Progress, TaskID
@@ -14,8 +14,8 @@ from rich.table import Table
 from rich import box
 import threading
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from filters.pve import PVECorrection
-from filters.biharmonic import BiHarmonic
+from mrsitoolbox.filters.pve import PVECorrection
+from mrsitoolbox.filters.biharmonic import BiHarmonic
 from nibabel.orientations import inv_ornt_aff 
 
 dutils   = DataUtils()

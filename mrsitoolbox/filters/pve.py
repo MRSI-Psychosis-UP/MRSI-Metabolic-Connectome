@@ -7,10 +7,10 @@ import warnings
 import tempfile, os
 
 from os.path import join, exists, split
-from registration.registration import Registration
-from tools.filetools import FileTools
-from tools.debug import Debug
-from tools.mridata import MRIData
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug
+from mrsitoolbox.tools.mridata import MRIData
 import subprocess
 
 warnings.filterwarnings(

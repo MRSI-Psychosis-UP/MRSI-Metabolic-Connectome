@@ -1,10 +1,10 @@
 import os, time, shutil
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 import nibabel as nib
 import ants
 import numpy as np
 
-from tools.datautils import DataUtils
+from mrsitoolbox.tools.datautils import DataUtils
 
 from os.path import join, split
 

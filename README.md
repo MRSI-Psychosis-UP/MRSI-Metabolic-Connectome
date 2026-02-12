@@ -64,6 +64,24 @@ To access the full dataset, contact the authors with a detailed research proposa
    ```
    Use the provided demo BIDS dataset (`data/BIDS`) if applicable.
 
+### Install From PyPI
+
+```bash
+pip install mrsitoolbox
+```
+
+### Python Imports
+
+Use package-prefixed imports:
+
+```python
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.mridata import MRIData
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
+from mrsitoolbox.graphplot.simmatrix import SimMatrixPlot
+```
+
 ---
 
 ## 🗂️ Inputs
@@ -320,6 +338,5 @@ All registration is triggered automatically by `preprocess.py`. Run these direct
 
 
 ![Figure 1](figures/preproc_vba.png)
-
 
 

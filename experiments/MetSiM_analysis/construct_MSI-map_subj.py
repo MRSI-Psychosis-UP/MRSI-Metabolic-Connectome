@@ -1,16 +1,16 @@
 import numpy as np
-from tools.datautils import DataUtils
-from tools.debug import Debug
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, split, exists
 import os , math, csv
-from tools.filetools import FileTools
+from mrsitoolbox.tools.filetools import FileTools
 import nibabel as nib
 import copy, sys
-from registration.registration import Registration
-from connectomics.network import NetBasedAnalysis
-from connectomics.parcellate import Parcellate
-from connectomics.nettools import NetTools
-from tools.mridata import MRIData
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
+from mrsitoolbox.connectomics.parcellate import Parcellate
+from mrsitoolbox.connectomics.nettools import NetTools
+from mrsitoolbox.tools.mridata import MRIData
 import argparse, json
 
 

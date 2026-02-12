@@ -1,5 +1,5 @@
 
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 import os , glob
 import shutil
 from os.path import split, join

@@ -1,12 +1,12 @@
 import numpy as np
-from tools.datautils import DataUtils
-from tools.debug import Debug
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, split 
 import matplotlib.pyplot as plt
 import nibabel as nib
 from nilearn import plotting, image, datasets
 import copy, sys, os, time, argparse, subprocess
-from graphplot.colorbar import ColorBar
+from mrsitoolbox.graphplot.colorbar import ColorBar
 import pandas as pd
 from rich.progress import Progress
 import seaborn as sns
@@ -14,14 +14,14 @@ import matplotlib as mpl
 import networkx as nx
 import argparse
 
-from connectomics.netfibre import NetFibre
-from connectomics.nettools import NetTools
-from connectomics.network import NetBasedAnalysis
+from mrsitoolbox.connectomics.netfibre import NetFibre
+from mrsitoolbox.connectomics.nettools import NetTools
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
 
 
-from graphplot.netplot import NetPlot
+from mrsitoolbox.graphplot.netplot import NetPlot
 from dipy.viz import window
-from graphplot.colorbar import ColorBar
+from mrsitoolbox.graphplot.colorbar import ColorBar
 
 
 MAIN_FIBRE_OPACITY     = 1 #1

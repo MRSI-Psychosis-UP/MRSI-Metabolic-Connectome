@@ -1,8 +1,8 @@
 
 import os,sys, glob,re, shutil,json
 
-from tools.datautils import DataUtils
-from tools.debug import Debug 
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug 
 import nibabel as nib
 import numpy as np
 from os.path import join, split

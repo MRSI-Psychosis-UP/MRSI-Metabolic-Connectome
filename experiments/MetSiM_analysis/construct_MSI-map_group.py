@@ -1,11 +1,11 @@
 import numpy as np
-from tools.datautils import DataUtils
-from tools.debug import Debug
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, split, exists
-from tools.filetools import FileTools
+from mrsitoolbox.tools.filetools import FileTools
 import nibabel as nib
-from connectomics.network import NetBasedAnalysis
-from connectomics.nettools import NetTools
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
+from mrsitoolbox.connectomics.nettools import NetTools
 import argparse
 
 

@@ -3,7 +3,7 @@
 import numpy as np
 import nibabel as nib
 from nilearn import datasets, image
-from tools.filetools import FileTools
+from mrsitoolbox.tools.filetools import FileTools
 
 
 ftools = FileTools()

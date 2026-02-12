@@ -1,5 +1,5 @@
 
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 import networkx as nx
 import itertools
 import numpy as np

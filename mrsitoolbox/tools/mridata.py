@@ -4,10 +4,10 @@ import nibabel as nib
 import re
 from pathlib import Path
 import numpy as np
-from tools.debug import Debug 
-from tools.datautils import DataUtils
-from registration.registration import Registration
-from tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug 
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.filetools import FileTools
 
 
 

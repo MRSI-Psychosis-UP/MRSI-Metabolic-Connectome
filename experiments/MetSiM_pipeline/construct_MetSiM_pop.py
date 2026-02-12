@@ -1,18 +1,18 @@
 import numpy as np
-from tools.datautils import DataUtils
-from tools.debug import Debug
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, split, exists
 import matplotlib.pyplot as plt
-from tools.filetools import FileTools
-from graphplot.simmatrix import SimMatrixPlot
-from tools.mridata import MRIData
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.graphplot.simmatrix import SimMatrixPlot
+from mrsitoolbox.tools.mridata import MRIData
 import nibabel as nib
 import copy, sys
 import pandas as pd
-from connectomics.network import NetBasedAnalysis
-from connectomics.nettools import NetTools
-from connectomics.parcellate import Parcellate
-from connectomics.mesim import MeSiM
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
+from mrsitoolbox.connectomics.nettools import NetTools
+from mrsitoolbox.connectomics.parcellate import Parcellate
+from mrsitoolbox.connectomics.mesim import MeSiM
 
 import argparse
 from rich.progress import track

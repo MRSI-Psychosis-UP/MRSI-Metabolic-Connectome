@@ -1,5 +1,5 @@
 import numpy as np
-from tools.debug import Debug
+from mrsitoolbox.tools.debug import Debug
 import networkx as nx
 from multiprocessing import Pool, cpu_count
 import bct

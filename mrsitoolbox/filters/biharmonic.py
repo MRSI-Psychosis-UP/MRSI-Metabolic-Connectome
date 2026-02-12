@@ -6,7 +6,7 @@ from skimage.restoration import inpaint_biharmonic
 from nilearn import image as nil_img
 from scipy.ndimage import generic_filter
 
-from tools.filetools import FileTools
+from mrsitoolbox.tools.filetools import FileTools
 
 
 ftools     = FileTools()

@@ -1,13 +1,13 @@
 import os, sys, json
 import numpy as np
-from registration.registration import Registration
-from tools.datautils import DataUtils
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.datautils import DataUtils
 from os.path import split, join, exists
-from tools.filetools import FileTools
-from tools.debug import Debug
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, split
-from tools.mridata import MRIData
-from connectomics.parcellate import Parcellate
+from mrsitoolbox.tools.mridata import MRIData
+from mrsitoolbox.connectomics.parcellate import Parcellate
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '32'
 import nibabel as nib
 from nilearn import datasets
