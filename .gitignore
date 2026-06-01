@@ -1,11 +1,13 @@
 build
 dist
 scripts/publish_pypi.sh
+
 doc.md
 *__pycache__*
 *.xml
 *egg-info*
 .env
+
 
 t1s.txt
 data/BIDS/Geneva-Study/derivatives/group/msi

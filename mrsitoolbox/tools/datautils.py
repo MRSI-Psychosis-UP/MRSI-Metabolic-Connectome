@@ -5,7 +5,8 @@ import nibabel as nib
 from tqdm import tqdm
 from dotenv import load_dotenv
 from os.path import join, split
-from mrsitoolbox.tools.debug import Debug
+from pathlib import Path
+from .debug import Debug
 
 
 debug=Debug()
@@ -24,8 +25,14 @@ class DataUtils:
 
         self.ROOTPATH = find_root_path()
 
-        # DEVANALYSEPATH is derived from the current script's location.
-        self.DEVANALYSEPATH = os.getenv("DEVANALYSEPATH")
+        package_root = Path(__file__).resolve().parents[3]
+        env_dev_path = os.getenv("DEVANALYSEPATH")
+        if env_dev_path is None or str(env_dev_path).strip() in {"", "."}:
+            self.DEVANALYSEPATH = str(package_root)
+            debug.warning("DEVANALYSEPATH env empty, set to", self.DEVANALYSEPATH)
+        else:
+            self.DEVANALYSEPATH = str(Path(env_dev_path).expanduser())
+
         self.ANARESULTSPATH = join(self.DEVANALYSEPATH, "results")
         self.DEVDATAPATH    = join(self.DEVANALYSEPATH, "data")
         self.ANALOGPATH     = join(self.DEVANALYSEPATH, "logs")
@@ -47,8 +54,6 @@ if __name__=='__main__':
     u = DataUtils()
     debug.info("DEVANALYSEPATH",u.DEVANALYSEPATH)
     debug.info("BIDSDATAPATH",u.BIDSDATAPATH)
-
-
 
 
 

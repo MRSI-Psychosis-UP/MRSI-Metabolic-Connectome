@@ -3,7 +3,7 @@
 import numpy as np
 import nibabel as nib
 from nilearn import datasets, image
-from mrsitoolbox.tools.filetools import FileTools
+from .filetools import FileTools
 
 
 ftools = FileTools()
@@ -18,7 +18,6 @@ class ImageTools(object):
 
     def get_mni(res=1):
         return datasets.load_mni152_template(resolution=res)
-
 
 
 

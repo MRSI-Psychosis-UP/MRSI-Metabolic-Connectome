@@ -1,5 +1,5 @@
 import numpy as np
-from mrsitoolbox.tools.debug import Debug
+from ..tools.debug import Debug
 import networkx as nx
 from multiprocessing import Pool, cpu_count
 import bct
@@ -201,7 +201,6 @@ class NetBasedAnalysis:
                           "upper":upper_bound,
                           "pvalue":p_values}
         return degrees, rc_coefficients, rand_rc_params
-
 
 
 

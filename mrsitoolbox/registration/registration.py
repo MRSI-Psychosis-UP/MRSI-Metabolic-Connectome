@@ -1,10 +1,10 @@
 import os, time, shutil
-from mrsitoolbox.tools.debug import Debug
+from ..tools.debug import Debug
 import nibabel as nib
 import ants
 import numpy as np
 
-from mrsitoolbox.tools.datautils import DataUtils
+from ..tools.datautils import DataUtils
 
 from os.path import join, split
 
@@ -169,5 +169,4 @@ class Registration():
         debug.success("Saved all transforms to ",split(dir_prefix_path)[1])
 
             
-
 

@@ -1,5 +1,5 @@
 
-from mrsitoolbox.tools.debug import Debug
+from ..tools.debug import Debug
 import os , glob
 import shutil
 from os.path import split, join
@@ -51,5 +51,4 @@ class RegTools:
             transform_list.append(join(self.ROOT_PATH,f"{transform_prefix}.affine_inv.mat"))
             transform_list.append(join(self.ROOT_PATH,f"{transform_prefix}.syn_inv.nii.gz"))
         return transform_list
-
 
