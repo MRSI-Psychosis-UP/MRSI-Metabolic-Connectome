@@ -4,10 +4,10 @@ import nibabel as nib
 import re
 from pathlib import Path
 import numpy as np
-from mrsitoolbox.tools.debug import Debug 
-from mrsitoolbox.tools.datautils import DataUtils
-from mrsitoolbox.registration.registration import Registration
-from mrsitoolbox.tools.filetools import FileTools
+from .debug import Debug 
+from .datautils import DataUtils
+from ..registration.registration import Registration
+from .filetools import FileTools
 
 
 
@@ -361,8 +361,13 @@ class  MRIData:
             os.makedirs(path,exist_ok=True)
             return path
 
-    def get_connectivity_path(self,mode,parc_scheme,scale,npert=50,filtoption="",metabolite_suffix=None):
+    def get_connectivity_path(self,mode,parc_scheme,scale,npert=50,
+                              filtoption="",metabolite_suffix=None,
+                              desc="connectivty"):
         dirpath     = self.get_connectivity_dir_path(mode)
+        is_cubic = "cubic" in str(parc_scheme).lower()
+        atlas_tag = "atlas-cubic" if is_cubic else f"atlas-chimera{parc_scheme}"
+        scale_tag = f"scale{scale}mm" if is_cubic else f"scale{scale}"
         if mode=="mrsi":
             met_tag = ""
             if metabolite_suffix:
@@ -377,9 +382,12 @@ class  MRIData:
                     suffix = re.sub(r"[^A-Za-z0-9_]+", "", str(metabolite_suffix)).strip("_")
                 if suffix:
                     met_tag = f"_met-{suffix}"
-            filename = f"{self.prefix}_atlas-chimera{parc_scheme}_scale{scale}_npert-{npert}_filt-{filtoption}{met_tag}_desc-connectivity_mrsi.npz"
+            filename = (
+                f"{self.prefix}_{atlas_tag}_{scale_tag}_npert-{npert}_"
+                f"filt-{filtoption}{met_tag}_desc-{desc}_mrsi.npz"
+            )
         elif mode == "dwi": 
-            filename = f"{self.prefix}_atlas-chimera{parc_scheme}_scale{scale}_desc-connectivity_dwi.npz"
+            filename = f"{self.prefix}_{atlas_tag}_{scale_tag}_desc-connectivity_dwi.npz"
         return join(dirpath,filename)
 
     def get_transform(self, direction, space):
@@ -461,57 +469,7 @@ class  MRIData:
             filename = "tracts.tck"
         return join(self.TCK_PATH,f"sub-{self.subject_id}",f"ses-{self.session}",filename)
 
-    @staticmethod
-    def extract_metadata(filename):
-        """
-        Extract metadata from a filename with (a subset of) the expected pattern:
 
-        sub-SUB_ses-SES_run-RUN_acq-ACQ_space-SPACE_atlas-chimeraPARCSCHEME_desc-scaleSCALEgrowGROWmm_dseg.nii.gz
-
-        Extracts the following fields:
-        - sub (str): Subject ID.
-        - ses (str): Session ID.
-        - run (str): Run number.
-        - acq (str, optional): Acquisition type (may be missing).
-        - space (str): Image space.
-        - parcscheme (str): Parcellation scheme.
-        - scale (int, optional): Scale value.
-        - grow (int, optional): Grow value.
-        - npert (int, optional): Number of perturbations.
-        - filt (str, optional): Filter type.
-        - met (str, optional): Metabolite tag.
-
-        If any of these fields are not present, they are returned as None.
-        """
-        base_filename = os.path.basename(filename)
-        results = {}
-
-        # Define regex patterns for each field.
-        patterns = {
-            'sub':        r"sub-([^_]+)",
-            'ses':        r"ses-([^_]+)",
-            'run':        r"run-([^_]+)",
-            'acq':        r"acq-([^_]+)",
-            'space':      r"space-([^_]+)",
-            'parcscheme': r"atlas-chimera([^_]+)",
-            'scale':      r"scale(\d+)",
-            'grow':       r"grow(\d+)mm",
-            'npert':      r"npert(\d+)_",
-            'filt':       r"filt([^_]+)",
-            'met':        r"met-([^_]+)",   
-            'res':        r"res-([^_]+)",   
-        }
-
-        for key, pat in patterns.items():
-            m = re.search(pat, base_filename)
-            results[key] = m.group(1) if m else None
-
-        # Convert numeric fields to integers
-        for numf in ('scale', 'grow', 'npert'):
-            if results[numf] is not None:
-                results[numf] = int(results[numf])
-
-        return results
 
     def find_nifti_paths(self, acq_patterns):
         """

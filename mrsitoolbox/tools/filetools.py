@@ -1,8 +1,8 @@
 
 import os,sys, glob,re, shutil,json
 
-from mrsitoolbox.tools.datautils import DataUtils
-from mrsitoolbox.tools.debug import Debug 
+from .datautils import DataUtils
+from .debug import Debug 
 import nibabel as nib
 import numpy as np
 from os.path import join, split
@@ -171,7 +171,57 @@ class FileTools:
                 colors.append(color)
         return np.array(numbers), labels, colors
 
+    @staticmethod
+    def extract_metadata(filename):
+        """
+        Extract metadata from a filename with (a subset of) the expected pattern:
 
+        sub-SUB_ses-SES_run-RUN_acq-ACQ_space-SPACE_atlas-chimeraPARCSCHEME_desc-scaleSCALEgrowGROWmm_dseg.nii.gz
+
+        Extracts the following fields:
+        - sub (str): Subject ID.
+        - ses (str): Session ID.
+        - run (str): Run number.
+        - acq (str, optional): Acquisition type (may be missing).
+        - space (str): Image space.
+        - parcscheme (str): Parcellation scheme.
+        - scale (int, optional): Scale value.
+        - grow (int, optional): Grow value.
+        - npert (int, optional): Number of perturbations.
+        - filt (str, optional): Filter type.
+        - met (str, optional): Metabolite tag.
+
+        If any of these fields are not present, they are returned as None.
+        """
+        base_filename = os.path.basename(filename)
+        results = {}
+
+        # Define regex patterns for each field.
+        patterns = {
+            'sub':        r"sub-([^_]+)",
+            'ses':        r"ses-([^_]+)",
+            'run':        r"run-([^_]+)",
+            'acq':        r"acq-([^_]+)",
+            'space':      r"space-([^_]+)",
+            'parcscheme': r"atlas-(?:chimera)?([^_]+)",
+            'scale':      r"scale(\d+)",
+            'grow':       r"grow(\d+)mm",
+            'npert':      r"npert[-_](\d+)",
+            'filt':       r"filt([^_]+)",
+            'met':        r"met-([^_]+)",   
+            'res':        r"res-([^_]+)",   
+        }
+
+        for key, pat in patterns.items():
+            m = re.search(pat, base_filename)
+            results[key] = m.group(1) if m else None
+
+        # Convert numeric fields to integers
+        for numf in ('scale', 'grow', 'npert'):
+            if results[numf] is not None:
+                results[numf] = int(results[numf])
+
+        return results
 
 
 
