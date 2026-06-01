@@ -1,5 +1,5 @@
 
-from mrsitoolbox.tools.debug import Debug
+from ..tools.debug import Debug
 import networkx as nx
 import itertools
 import numpy as np
@@ -158,6 +158,486 @@ class NetFibre:
             for neighbor in neighbors:
                 G.add_edge(node, neighbor)
         return G
+
+    @staticmethod
+    def graph_from_edge_pairs(edge_pairs, n_nodes=None):
+        """
+        Build an unweighted NetworkX graph from binary GM adjacency edge pairs.
+
+        Parameters
+        ----------
+        edge_pairs : array-like, shape (n_edges, 2)
+            Integer node-index pairs.
+        n_nodes : int | None
+            Optional node count. When provided, isolated nodes are preserved.
+        """
+        G = nx.Graph()
+        if n_nodes is not None:
+            G.add_nodes_from(range(int(n_nodes)))
+        pairs = np.asarray(edge_pairs, dtype=int)
+        if pairs.ndim != 2 or pairs.shape[0] == 0:
+            return G
+        if pairs.shape[1] != 2:
+            raise ValueError("edge_pairs must have shape (n_edges, 2).")
+        for u, v in pairs:
+            u = int(u)
+            v = int(v)
+            if u == v:
+                continue
+            if n_nodes is not None and (u < 0 or v < 0 or u >= int(n_nodes) or v >= int(n_nodes)):
+                continue
+            G.add_edge(u, v)
+        return G
+
+    @staticmethod
+    def diffusion_embedding_positions(
+        adjacency=None,
+        *,
+        edge_pairs=None,
+        n_nodes=None,
+        components=(2, 3),
+        scale_by_eigenvalue=True,
+    ):
+        """
+        Compute 2D node positions from diffusion components of a binary graph.
+
+        ``components`` uses 1-based indices in the sorted diffusion spectrum. Thus
+        ``(2, 3)`` uses the second and third diffusion components.
+        """
+        if edge_pairs is not None:
+            graph = NetFibre.graph_from_edge_pairs(edge_pairs, n_nodes=n_nodes)
+        elif isinstance(adjacency, nx.Graph):
+            graph = adjacency.copy()
+            if n_nodes is not None:
+                graph.add_nodes_from(range(int(n_nodes)))
+        elif isinstance(adjacency, dict):
+            graph = NetFibre.construct_gm_graph(adjacency)
+            if n_nodes is not None:
+                graph.add_nodes_from(range(int(n_nodes)))
+        elif adjacency is not None:
+            arr = np.asarray(adjacency)
+            if arr.ndim == 2 and arr.shape[0] == arr.shape[1]:
+                graph = nx.from_numpy_array((arr > 0).astype(int))
+                if n_nodes is not None:
+                    graph.add_nodes_from(range(int(n_nodes)))
+            elif arr.ndim == 2 and arr.shape[1] == 2:
+                graph = NetFibre.graph_from_edge_pairs(arr, n_nodes=n_nodes)
+            else:
+                raise ValueError("adjacency must be a graph, adjacency dict, square matrix, or edge-pair array.")
+        else:
+            raise ValueError("Provide adjacency or edge_pairs.")
+
+        node_order = sorted(int(node) for node in graph.nodes())
+        if n_nodes is not None:
+            for node in range(int(n_nodes)):
+                if node not in graph:
+                    graph.add_node(node)
+            node_order = list(range(int(n_nodes)))
+        if not node_order:
+            return {}, np.zeros((0, 2), dtype=float), np.asarray([], dtype=int)
+
+        matrix = nx.to_numpy_array(graph, nodelist=node_order, dtype=float)
+        matrix = np.maximum((matrix > 0).astype(float), (matrix.T > 0).astype(float))
+        n = int(matrix.shape[0])
+        if n == 1:
+            return {int(node_order[0]): (0.0, 0.0)}, np.zeros((1, 2), dtype=float), np.asarray(node_order, dtype=int)
+
+        degrees = np.asarray(matrix.sum(axis=1), dtype=float)
+        inv_sqrt_degree = np.zeros_like(degrees, dtype=float)
+        positive = degrees > 0.0
+        inv_sqrt_degree[positive] = 1.0 / np.sqrt(degrees[positive])
+        diffusion_operator = inv_sqrt_degree[:, None] * matrix * inv_sqrt_degree[None, :]
+
+        eigenvalues, eigenvectors = np.linalg.eigh(diffusion_operator)
+        order = np.argsort(eigenvalues)[::-1]
+        eigenvalues = np.asarray(eigenvalues[order], dtype=float)
+        eigenvectors = np.asarray(eigenvectors[:, order], dtype=float)
+
+        coords = np.zeros((n, 2), dtype=float)
+        requested = [max(1, int(component)) - 1 for component in tuple(components or (2, 3))]
+        for out_idx, eig_idx in enumerate(requested[:2]):
+            if eig_idx >= eigenvectors.shape[1]:
+                continue
+            vector = np.asarray(eigenvectors[:, eig_idx], dtype=float)
+            if scale_by_eigenvalue and eig_idx < eigenvalues.shape[0]:
+                vector = vector * float(eigenvalues[eig_idx])
+            finite = np.isfinite(vector)
+            if np.any(finite):
+                pivot = int(np.nanargmax(np.abs(vector)))
+                if vector[pivot] < 0:
+                    vector = -vector
+            coords[:, out_idx] = np.nan_to_num(vector, nan=0.0, posinf=0.0, neginf=0.0)
+
+        for dim in range(coords.shape[1]):
+            values = coords[:, dim]
+            span = float(np.nanmax(values) - np.nanmin(values)) if values.size else 0.0
+            if np.isfinite(span) and span > 1e-12:
+                coords[:, dim] = (values - float(np.nanmean(values))) / span
+
+        positions = {
+            int(node): (float(coords[idx, 0]), float(coords[idx, 1]))
+            for idx, node in enumerate(node_order)
+        }
+        return positions, coords, np.asarray(node_order, dtype=int)
+
+    @staticmethod
+    def spiral_path_positions(path_nodes, *, turns=None, start_radius=0.12, end_radius=1.0):
+        """
+        Compute sequence-preserving 2D positions along an Archimedean spiral.
+
+        The node order is taken directly from ``path_nodes``.
+        """
+        nodes = [] if path_nodes is None else [int(node) for node in list(path_nodes)]
+        if not nodes:
+            return {}, np.zeros((0, 2), dtype=float)
+        if len(nodes) == 1:
+            return {int(nodes[0]): (0.0, 0.0)}, np.zeros((1, 2), dtype=float)
+
+        if turns is None:
+            turns = max(1.0, min(4.5, float(len(nodes)) / 8.0))
+        try:
+            turns = max(0.25, float(turns))
+        except Exception:
+            turns = max(1.0, min(4.5, float(len(nodes)) / 8.0))
+        try:
+            start_radius = max(0.0, float(start_radius))
+        except Exception:
+            start_radius = 0.12
+        try:
+            end_radius = max(start_radius + 1e-6, float(end_radius))
+        except Exception:
+            end_radius = 1.0
+
+        theta = np.linspace(0.0, 2.0 * np.pi * turns, len(nodes), dtype=float)
+        radius = np.linspace(start_radius, end_radius, len(nodes), dtype=float)
+        coords = np.column_stack([radius * np.cos(theta), radius * np.sin(theta)])
+        positions = {
+            int(node): (float(coords[idx, 0]), float(coords[idx, 1]))
+            for idx, node in enumerate(nodes)
+        }
+        return positions, coords
+
+    @staticmethod
+    def _branch_spiral_positions(branch_nodes, main_positions, *, branch_scale=0.48, turns=None):
+        nodes = [] if branch_nodes is None else [int(node) for node in list(branch_nodes)]
+        if not nodes:
+            return {}, np.zeros((0, 2), dtype=float)
+        if turns is None:
+            turns = max(0.5, min(2.0, float(len(nodes)) / 8.0))
+        try:
+            turns = max(0.25, float(turns))
+        except Exception:
+            turns = max(0.5, min(2.0, float(len(nodes)) / 8.0))
+        try:
+            branch_scale = max(0.05, float(branch_scale))
+        except Exception:
+            branch_scale = 0.48
+
+        anchor_idx = 0
+        for idx, node in enumerate(nodes):
+            if int(node) in main_positions:
+                anchor_idx = idx
+                break
+        anchor_node = int(nodes[anchor_idx])
+        anchor_pos = np.asarray(main_positions.get(anchor_node, (0.0, 0.0)), dtype=float)
+        radial_angle = float(np.arctan2(anchor_pos[1], anchor_pos[0]))
+        if not np.isfinite(radial_angle):
+            radial_angle = 0.0
+
+        ordered_nodes = nodes[anchor_idx:]
+        if len(ordered_nodes) < 2:
+            return {anchor_node: (float(anchor_pos[0]), float(anchor_pos[1]))}, anchor_pos.reshape(1, 2)
+
+        theta = radial_angle + np.linspace(0.0, 2.0 * np.pi * turns, len(ordered_nodes), dtype=float)
+        radius = np.linspace(0.0, branch_scale, len(ordered_nodes), dtype=float)
+        rel = np.column_stack([radius * np.cos(theta), radius * np.sin(theta)])
+        coords = anchor_pos.reshape(1, 2) + rel
+        positions = {
+            int(node): (float(coords[idx, 0]), float(coords[idx, 1]))
+            for idx, node in enumerate(ordered_nodes)
+        }
+        return positions, coords
+
+    @staticmethod
+    def _draw_curved_edges(
+        ax,
+        positions,
+        edges,
+        *,
+        color="black",
+        width=2.2,
+        alpha=0.9,
+        curvature=0.18,
+        zorder=1,
+        direction=1.0,
+        linestyle="solid",
+    ):
+        from matplotlib.path import Path
+        from matplotlib.patches import PathPatch
+
+        try:
+            direction = 1.0 if float(direction) >= 0.0 else -1.0
+        except Exception:
+            direction = 1.0
+
+        for u, v in list(edges or []):
+            if int(u) not in positions or int(v) not in positions:
+                continue
+            p0 = np.asarray(positions[int(u)], dtype=float)
+            p1 = np.asarray(positions[int(v)], dtype=float)
+            delta = p1 - p0
+            length = float(np.linalg.norm(delta))
+            if not np.isfinite(length) or length <= 1e-12:
+                continue
+            normal = np.asarray([-delta[1], delta[0]], dtype=float) / length
+            control = 0.5 * (p0 + p1) + direction * float(curvature) * length * normal
+            path = Path([p0, control, p1], [Path.MOVETO, Path.CURVE3, Path.CURVE3])
+            patch = PathPatch(
+                path,
+                facecolor="none",
+                edgecolor=color,
+                linewidth=float(width),
+                alpha=float(alpha),
+                capstyle="round",
+                joinstyle="round",
+                linestyle=str(linestyle),
+                zorder=zorder,
+            )
+            ax.add_patch(patch)
+
+    @staticmethod
+    def plot_fibrenet_path(
+        path_nodes,
+        *,
+        adjacency=None,
+        edge_pairs=None,
+        n_nodes=None,
+        node_names=None,
+        node_colors=None,
+        ax=None,
+        title=None,
+        components=(2, 3),
+        layout="diffusion",
+        edge_color="black",
+        edge_width=2.2,
+        node_size=280,
+        font_size=8,
+        spiral_turns=None,
+        branch_paths=None,
+        branch_node_names=None,
+        branch_node_colors=None,
+        branch_edge_color="0.25",
+        branch_edge_width=None,
+        branch_node_size=None,
+        endpoint_node_size=None,
+        spiral_curved_edges=True,
+        spiral_edge_curvature=0.18,
+        branch_edge_linestyle="solid",
+    ):
+        """
+        Plot a path as a FibreNet graph.
+
+        Only consecutive nodes in ``path_nodes`` are connected. With
+        ``layout="diffusion"``, positions are computed from the full binary GM
+        adjacency. With ``layout="spiral"``, positions follow the path sequence.
+        """
+        import matplotlib.pyplot as plt
+
+        nodes = [] if path_nodes is None else [int(node) for node in list(path_nodes)]
+        if len(nodes) < 1:
+            raise ValueError("path_nodes must contain at least one node.")
+        inferred_n = max(nodes) + 1
+        if n_nodes is None:
+            if edge_pairs is not None:
+                pairs = np.asarray(edge_pairs, dtype=int)
+                if pairs.ndim == 2 and pairs.size:
+                    inferred_n = max(inferred_n, int(np.max(pairs)) + 1)
+            n_nodes = inferred_n
+
+        layout_name = str(layout or "diffusion").strip().lower()
+        if layout_name in {"spiral", "path_spiral", "sequence", "sequence_spiral"}:
+            layout_name = "spiral"
+            positions, _coords = NetFibre.spiral_path_positions(nodes, turns=spiral_turns)
+            branch_positions = {}
+            for branch_path in list(branch_paths or []):
+                branch_pos, _branch_coords = NetFibre._branch_spiral_positions(
+                    branch_path,
+                    positions,
+                    branch_scale=0.46,
+                )
+                branch_positions.update(branch_pos)
+            positions.update(branch_positions)
+        else:
+            layout_name = "diffusion"
+            positions, _coords, _node_order = NetFibre.diffusion_embedding_positions(
+                adjacency,
+                edge_pairs=edge_pairs,
+                n_nodes=n_nodes,
+                components=components,
+            )
+
+        graph = nx.Graph()
+        graph.add_nodes_from(nodes)
+        graph.add_edges_from((int(a), int(b)) for a, b in zip(nodes[:-1], nodes[1:]))
+        if ax is None:
+            _, ax = plt.subplots(figsize=(7.0, 6.0))
+        pos = {
+            int(node): positions.get(int(node), (float(idx), 0.0))
+            for idx, node in enumerate(nodes)
+        }
+        colors = [] if node_colors is None else list(node_colors)
+        if len(colors) != len(nodes):
+            colors = ["0.7"] * len(nodes)
+        labels_source = [] if node_names is None else list(node_names)
+        labels = {
+            int(node): str(labels_source[idx]) if idx < len(labels_source) else str(int(node))
+            for idx, node in enumerate(nodes)
+        }
+
+        main_edges = list(zip(nodes[:-1], nodes[1:]))
+        if layout_name == "spiral" and spiral_curved_edges:
+            NetFibre._draw_curved_edges(
+                ax,
+                positions,
+                main_edges,
+                color=edge_color,
+                width=float(edge_width),
+                alpha=0.9,
+                curvature=spiral_edge_curvature,
+                zorder=1,
+                direction=1.0,
+            )
+        else:
+            nx.draw_networkx_edges(
+                graph,
+                pos,
+                edgelist=main_edges,
+                ax=ax,
+                edge_color=edge_color,
+                width=float(edge_width),
+                alpha=0.9,
+            )
+        default_endpoint_size = float(node_size) * 1.65 if layout_name == "spiral" else float(node_size)
+        endpoint_size = float(endpoint_node_size if endpoint_node_size is not None else default_endpoint_size)
+        node_sizes = [float(node_size)] * len(nodes)
+        if len(node_sizes) == 1:
+            node_sizes[0] = endpoint_size
+        elif len(node_sizes) > 1:
+            node_sizes[0] = endpoint_size
+            node_sizes[-1] = endpoint_size
+        nx.draw_networkx_nodes(
+            graph,
+            pos,
+            nodelist=nodes,
+            node_color=colors,
+            node_size=node_sizes,
+            edgecolors="black",
+            linewidths=0.8,
+            ax=ax,
+        )
+        all_labels = dict(labels)
+
+        branch_paths = list(branch_paths or [])
+        branch_names = list(branch_node_names or [])
+        branch_colors = list(branch_node_colors or [])
+        for branch_idx, branch_path in enumerate(branch_paths):
+            branch_nodes = [int(node) for node in list(branch_path or [])]
+            if len(branch_nodes) < 2:
+                continue
+            branch_pos = {
+                int(node): positions[int(node)]
+                for node in branch_nodes
+                if int(node) in positions
+            }
+            branch_graph = nx.Graph()
+            branch_graph.add_nodes_from(branch_nodes)
+            branch_edges = list(zip(branch_nodes[:-1], branch_nodes[1:]))
+            branch_graph.add_edges_from(branch_edges)
+            if layout_name == "spiral" and spiral_curved_edges:
+                NetFibre._draw_curved_edges(
+                    ax,
+                    positions,
+                    branch_edges,
+                    color=branch_edge_color,
+                    width=float(branch_edge_width if branch_edge_width is not None else max(0.8, float(edge_width) * 0.72)),
+                    alpha=0.82,
+                    curvature=float(spiral_edge_curvature) * 1.35,
+                    zorder=2,
+                    direction=1.0,
+                    linestyle=branch_edge_linestyle,
+                )
+            else:
+                nx.draw_networkx_edges(
+                    branch_graph,
+                    branch_pos,
+                    edgelist=branch_edges,
+                    ax=ax,
+                    edge_color=branch_edge_color,
+                    width=float(branch_edge_width if branch_edge_width is not None else max(0.8, float(edge_width) * 0.72)),
+                    alpha=0.82,
+                    style=str(branch_edge_linestyle),
+                )
+            branch_draw_nodes = [
+                int(node)
+                for node in branch_nodes
+                if int(node) not in set(nodes) and int(node) in positions
+            ]
+            local_colors_all = branch_colors[branch_idx] if branch_idx < len(branch_colors) else []
+            local_colors_all = list(local_colors_all or [])
+            if len(local_colors_all) != len(branch_nodes):
+                local_colors_all = ["0.62"] * len(branch_nodes)
+            node_color_lookup = {
+                int(node): local_colors_all[idx]
+                for idx, node in enumerate(branch_nodes)
+            }
+            local_colors = [node_color_lookup[int(node)] for node in branch_draw_nodes]
+            local_size = float(branch_node_size if branch_node_size is not None else max(70.0, float(node_size) * 0.62))
+            local_sizes = [local_size] * len(branch_draw_nodes)
+            if local_sizes:
+                for idx, node in enumerate(branch_draw_nodes):
+                    if int(node) == int(branch_nodes[-1]):
+                        local_sizes[idx] = max(local_size * 1.55, endpoint_size * 0.7)
+            if branch_draw_nodes:
+                nx.draw_networkx_nodes(
+                    branch_graph,
+                    branch_pos,
+                    nodelist=branch_draw_nodes,
+                    node_color=local_colors,
+                    node_size=local_sizes,
+                    edgecolors="black",
+                    linewidths=0.7,
+                    ax=ax,
+                )
+            local_names = branch_names[branch_idx] if branch_idx < len(branch_names) else []
+            local_names = list(local_names or [])
+            for idx, node in enumerate(branch_nodes):
+                if node not in all_labels:
+                    all_labels[node] = str(local_names[idx]) if idx < len(local_names) else str(node)
+
+        label_pos = {
+            int(node): positions[int(node)]
+            for node in all_labels
+            if int(node) in positions
+        }
+        nx.draw_networkx_labels(
+            graph,
+            label_pos,
+            labels=all_labels,
+            font_size=int(font_size),
+            font_color="black",
+            ax=ax,
+        )
+        if title:
+            ax.set_title(str(title), fontsize=11)
+        if layout_name == "spiral":
+            ax.set_axis_off()
+        else:
+            ax.set_xlabel("GM diffusion component 2")
+            ax.set_ylabel("GM diffusion component 3")
+        ax.set_aspect("equal", adjustable="datalim")
+        if layout_name != "spiral":
+            ax.grid(True, alpha=0.18)
+        return ax, positions
 
     def interpolate_optimal_path(self, path_labels, adj_G, L=5, beta=0.5):
         """
