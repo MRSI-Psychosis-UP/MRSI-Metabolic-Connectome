@@ -60,9 +60,22 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 4. **Set Environment Paths**
    ```bash
-   python set_env_paths.py
+   python scripts/set_env_paths.py
    ```
    Use the provided demo BIDS dataset (`data/BIDS`) if applicable.
+
+5. **Optional: launch the BIDS input migration GUI**
+   ```bash
+   python scripts/create_BIDS_gui.py
+   ```
+   The GUI helps create a BIDS project folder and migrate raw MRSI quantified outputs,
+   CAT12 partial-volume files, and T1w acquisitions into the expected BIDS and
+   derivatives layout. It uses the `mrsiprep` environment dependencies
+   (`PyQt5`/`PyQt6`, `nibabel`, `rich`). Optional skull stripping is delegated
+   to the standalone HD-BET helper:
+   ```bash
+   python scripts/run_hd_bet_batch.py
+   ```
 
 ### Install From PyPI
 

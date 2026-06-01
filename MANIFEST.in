@@ -12,7 +12,7 @@ exclude environment.yaml
 exclude parcellate_chimera.sh
 exclude recon_sample.sh
 exclude set_cupy_path.sh
-exclude set_env_paths.py
+exclude scripts/set_env_paths.py
 exclude t1s.txt
 
 prune build

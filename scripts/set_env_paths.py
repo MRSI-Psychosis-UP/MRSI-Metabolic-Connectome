@@ -3,8 +3,10 @@ import tkinter as tk
 from tkinter import filedialog
 from dotenv import load_dotenv, set_key
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 # Load existing .env file
-env_path = '.env'
+env_path = os.path.join(REPO_ROOT, '.env')
 load_dotenv(dotenv_path=env_path)
 
 # Initialize Tkinter root and hide the main window
@@ -30,10 +32,9 @@ else:
 set_key(env_path, "BIDSDATAPATH", new_bidsdatapath)
 print(f"BIDSDATAPATH set to {new_bidsdatapath} in .env")
 
-# Set DEVANALYSEPATH to the directory where this script is located
-script_dir = os.path.dirname(os.path.abspath(__file__))
-set_key(env_path, "DEVANALYSEPATH", script_dir)
-print(f"DEVANALYSEPATH set to {script_dir} in .env")
+# Set DEVANALYSEPATH to the repository root
+set_key(env_path, "DEVANALYSEPATH", REPO_ROOT)
+print(f"DEVANALYSEPATH set to {REPO_ROOT} in .env")
 
 # Confirm by displaying the final .env content
 with open(env_path, 'r') as f:
