@@ -367,7 +367,3 @@ All registration is triggered automatically by `preprocess.py`. Run these direct
 
 ![Figure 1](figures/preproc_vba.png)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 0603d37526db4df5206d35bea47432162a22e2ea
