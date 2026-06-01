@@ -510,9 +510,179 @@ def _resolve_t1_path(mridata, t1_argument):
     )
 
 
+def _split_nifti_ext(path):
+    if path.endswith(".nii.gz"):
+        return path[:-7], ".nii.gz"
+    base, ext = os.path.splitext(path)
+    return base, ext
+
+
+def _derive_brain_csf_paths(t1_path):
+    """Return output paths for a CSF-extended skull-stripped T1 and mask."""
+    stem, ext = _split_nifti_ext(t1_path)
+    if "_desc-brain_" in stem:
+        image_stem = stem.replace("_desc-brain_", "_desc-brainCSF_")
+        mask_stem = stem.replace("_desc-brain_", "_desc-brainCSFmask_")
+    elif "_desc-brain" in stem:
+        image_stem = stem.replace("_desc-brain", "_desc-brainCSF", 1)
+        mask_stem = stem.replace("_desc-brain", "_desc-brainCSFmask", 1)
+    elif "_T1w" in stem:
+        image_stem = stem.replace("_T1w", "_desc-brainCSF_T1w", 1)
+        mask_stem = stem.replace("_T1w", "_desc-brainCSFmask_T1w", 1)
+    else:
+        image_stem = f"{stem}_desc-brainCSF"
+        mask_stem = f"{stem}_desc-brainCSFmask"
+    return f"{image_stem}{ext}", f"{mask_stem}{ext}"
+
+
+def _find_raw_t1_path(mridata, skullstrip_t1_path):
+    """Find the non-derivative T1w acquisition matching the current subject/session."""
+    anat_dir = join(
+        mridata.ROOT_PATH,
+        f"sub-{mridata.subject_id}",
+        f"ses-{mridata.session}",
+        "anat",
+    )
+    if not isdir(anat_dir):
+        raise FileNotFoundError(f"Raw anat directory not found: {anat_dir}")
+
+    skull_name = os.path.basename(skullstrip_t1_path)
+    acq_match = re.search(r"_acq-([^_]+)", skull_name)
+    run_match = re.search(r"_run-([^_]+)", skull_name)
+    acq_token = f"_acq-{acq_match.group(1)}" if acq_match else None
+    run_token = f"_run-{run_match.group(1)}" if run_match else None
+
+    prefix = f"sub-{mridata.subject_id}_ses-{mridata.session}"
+    candidates = []
+    for filename in sorted(os.listdir(anat_dir)):
+        if not (filename.endswith(".nii") or filename.endswith(".nii.gz")):
+            continue
+        if prefix not in filename or "_T1w" not in filename:
+            continue
+        if "_desc-" in filename:
+            continue
+        score = 0
+        if acq_token and acq_token in filename:
+            score += 2
+        if run_token and run_token in filename:
+            score += 1
+        candidates.append((score, filename))
+
+    if not candidates:
+        raise FileNotFoundError(f"No raw T1w acquisition found in {anat_dir}")
+
+    candidates.sort(key=lambda item: (-item[0], item[1]))
+    return join(anat_dir, candidates[0][1])
+
+
+def create_brain_csf_t1(mridata, t1_path, overwrite=False, csf_threshold=0.95):
+    """
+    Add the CAT12 CSF partial-volume layer from p3 to a skull-stripped T1.
+
+    The raw full-head T1 is loaded from the BIDS anat folder, masked by the
+    thresholded p3 CSF probability map, then added to the skull-stripped T1.
+    Outputs are written next to the input T1 as desc-brainCSF_T1w and
+    desc-brainCSFmask_T1w.
+    """
+    output_t1_path, output_mask_path = _derive_brain_csf_paths(t1_path)
+    if exists(output_t1_path) and exists(output_mask_path) and not overwrite:
+        return output_t1_path, output_mask_path
+
+    raw_t1_path = _find_raw_t1_path(mridata, t1_path)
+    p3_path = mridata.find_nifti_paths("_desc-p3_T1w")
+    if not p3_path or not exists(p3_path):
+        raise FileNotFoundError("CAT12 CSF partial-volume map p3 was not found.")
+
+    skull_img = nib.load(t1_path)
+    raw_img = nib.load(raw_t1_path)
+    p3_img = nib.load(p3_path)
+
+    if skull_img.shape[:3] != raw_img.shape[:3] or skull_img.shape[:3] != p3_img.shape[:3]:
+        raise ValueError(
+            "Cannot create brainCSF T1: skull-stripped T1, raw T1, and p3 map "
+            f"have different shapes ({skull_img.shape}, {raw_img.shape}, {p3_img.shape})."
+        )
+    if not (np.allclose(skull_img.affine, raw_img.affine, atol=1e-3) and
+            np.allclose(skull_img.affine, p3_img.affine, atol=1e-3)):
+        raise ValueError(
+            "Cannot create brainCSF T1: skull-stripped T1, raw T1, and p3 map "
+            "do not share the same affine."
+        )
+
+    skull_data = np.nan_to_num(skull_img.get_fdata(dtype=np.float32).squeeze(), copy=False)
+    raw_data = np.nan_to_num(raw_img.get_fdata(dtype=np.float32).squeeze(), copy=False)
+    p3_data = np.nan_to_num(p3_img.get_fdata(dtype=np.float32).squeeze(), copy=False)
+    if skull_data.ndim != 3 or raw_data.ndim != 3 or p3_data.ndim != 3:
+        raise ValueError(
+            "Cannot create brainCSF T1: expected 3D skull-stripped T1, raw T1, and p3 data."
+        )
+    brain_mask = skull_data > 0
+    csf_mask = (p3_data > csf_threshold) & ~brain_mask
+    extended_data = skull_data.copy()
+    extended_data[csf_mask] = skull_data[csf_mask] + raw_data[csf_mask]
+    extended_mask = (brain_mask | csf_mask).astype(np.uint8)
+
+    output_header = skull_img.header.copy()
+    output_header.set_data_dtype(np.float32)
+    output_header.set_slope_inter(1, 0)
+    mask_header = skull_img.header.copy()
+    mask_header.set_data_dtype(np.uint8)
+    mask_header.set_slope_inter(1, 0)
+
+    os.makedirs(os.path.dirname(output_t1_path), exist_ok=True)
+    out_img = nib.Nifti1Image(extended_data.astype(np.float32), skull_img.affine, output_header)
+    out_img.set_qform(skull_img.affine, code=int(skull_img.header["qform_code"]))
+    out_img.set_sform(skull_img.affine, code=int(skull_img.header["sform_code"]))
+    nib.save(out_img, output_t1_path)
+    nib.save(nib.Nifti1Image(extended_mask, skull_img.affine, mask_header), output_mask_path)
+
+    saved_data = nib.load(output_t1_path).get_fdata(dtype=np.float32).squeeze()
+    unchanged_mask = ~csf_mask
+    max_outside_delta = float(np.max(np.abs(saved_data[unchanged_mask] - skull_data[unchanged_mask])))
+    if max_outside_delta > 1e-3:
+        raise RuntimeError(
+            "Saved brainCSF T1 changed voxels outside the added CSF mask "
+            f"(max absolute delta={max_outside_delta})."
+        )
+    return output_t1_path, output_mask_path
+
+
+def _validate_custom_derivative_dir(dirname):
+    if dirname is None:
+        return None
+    dirname = str(dirname).strip().strip("/")
+    if not dirname:
+        return None
+    if os.path.isabs(dirname) or dirname in {".", ".."} or ".." in dirname.split(os.sep):
+        raise ValueError("--transform_derivatives_dir must be a relative directory name inside derivatives")
+    return dirname
+
+
+def _use_custom_derivative_dir(mridata, path, dirname):
+    """Move a derivative output path from derivatives/mrsi-* to derivatives/<dirname>."""
+    dirname = _validate_custom_derivative_dir(dirname)
+    if not dirname or not path:
+        return path
+
+    derivatives_dir = join(mridata.ROOT_PATH, "derivatives")
+    abs_path = os.path.abspath(path)
+    abs_derivatives = os.path.abspath(derivatives_dir)
+    try:
+        rel_path = os.path.relpath(abs_path, abs_derivatives)
+    except ValueError:
+        return path
+
+    rel_parts = rel_path.split(os.sep)
+    if rel_parts and rel_parts[0].startswith("mrsi-"):
+        rel_parts[0] = dirname
+        return join(derivatives_dir, *rel_parts)
+    return path
+
+
 
 def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=None, 
-                        use_component_option=False, space="mni"):
+                        use_component_option=False, space="mni",
+                        custom_derivatives_dir=None):
     """Return expected stage file paths for the provided signal list."""
     __stage_path_list = []
     for met, desc, option in signal_list:
@@ -533,6 +703,7 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
                 if isinstance(_path, (list, tuple)):
                     if len(_path)==1:
                         _path = _path[0] if _path else None
+                _path = _use_custom_derivative_dir(mridata, _path, custom_derivatives_dir)
                 __stage_path_list.append(_path)
                 # debug.error(_path)
         else:
@@ -545,6 +716,7 @@ def _check_staged_files(mridata, signal_list, filtoption, res_int, tissue_list=N
                     met=met,
                     option=preproc_str,
                 )
+            _path = _use_custom_derivative_dir(mridata, _path, custom_derivatives_dir)
             __stage_path_list.append(_path)
             # debug.warning(_path)
 
@@ -878,6 +1050,7 @@ def _run_single_preprocess(args, sub, ses):
     GROUP               = args.group
     filtoption          = args.filtoption
     t1_path_arg         = args.t1
+    transform_derivatives_dir = _validate_custom_derivative_dir(args.transform_derivatives_dir)
     B0_strength         = args.b0
     ref_met             = args.ref_met
     nthreads            = args.nthreads
@@ -988,10 +1161,26 @@ def _run_single_preprocess(args, sub, ses):
     ############# REGISTRATION MRSI --> Anatomical T1w ####################
     ############################################################
     debug.proc("REGISTRATION: MRSI --> Anatomical T1w")
+    registration_t1_path = t1_path
     t1_res           = np.array(nib.load(t1_path).header.get_zooms()[:3]).mean()
     transform_list   = mridata.get_transform("forward", "mrsi")
-    if not all(exists(path) for path in transform_list) or args.overwrite_t1_reg:
-        if args.overwrite_t1_reg:
+    transforms_exist = all(exists(path) for path in transform_list)
+    needs_t1_registration = (not transforms_exist) or args.overwrite_t1_reg
+    if needs_t1_registration:
+        if args.extend_t1_csf:
+            try:
+                registration_t1_path, registration_t1_mask_path = create_brain_csf_t1(
+                    mridata,
+                    t1_path,
+                    overwrite=args.overwrite_t1_reg,
+                    csf_threshold=args.csf_pv_threshold,
+                )
+                debug.info("\t", f"Using CSF-extended T1w fixed image: {registration_t1_path}")
+                debug.info("\t", f"CSF-extended T1w mask: {registration_t1_mask_path}")
+            except Exception as exc:
+                debug.error("\t", "Unable to create CSF-extended T1w fixed image", exc)
+                return
+        if args.overwrite_t1_reg and transforms_exist:
             debug.warning("\t","Overwriting existing transforms")
         debug.warning("\t","Missing MRSI->T1w transforms; launching registration_mrsi_to_t1.")
         registration_script = os.path.abspath(
@@ -1009,8 +1198,8 @@ def _run_single_preprocess(args, sub, ses):
             "--corr_orient", "1" if correct_orientation else "0",
             "--batch", "off",
         ]
-        if t1_path:
-            cmd.extend(["--t1", str(t1_path)])
+        if registration_t1_path:
+            cmd.extend(["--t1", str(registration_t1_path)])
         if args.overwrite_t1_reg:
             cmd.extend(["--overwrite", "1"])
         try:
@@ -1026,6 +1215,8 @@ def _run_single_preprocess(args, sub, ses):
             debug.error("\t","registration_mrsi_to_t1.py did not produce the expected transforms")
             return
     else:
+        if args.extend_t1_csf:
+            debug.warning("\t","MRSI->T1w transforms already exist; --extend_t1_csf will not recompute them without --overwrite_t1_reg")
         debug.success("\t","Registration already computed: SKIP")
 
 
@@ -1132,7 +1323,10 @@ def _run_single_preprocess(args, sub, ses):
             "--batch", "off",
         ]
         if t1_path:
-            cmd.extend(["--t1", str(t1_path)])
+            if args.extend_t1_csf:
+                cmd.extend(["--t1", str(registration_t1_path)])
+            else: 
+                cmd.extend(["--t1", str(t1_path)])
         if args.overwrite_mni_reg:
             cmd.extend(["--overwrite", "1"])
         try:
@@ -1178,7 +1372,10 @@ def _run_single_preprocess(args, sub, ses):
         elif "t1w-" in args.transform:
             final_space    = "T1w"
             transform_list = mridata.get_transform("forward", "anat")
-            fixed_image    = nib.load(t1_path)
+            if args.extend_t1_csf:
+                fixed_image    = nib.load(registration_t1_path)
+            else:
+                fixed_image    = nib.load(t1_path)
  
         if all(exists(path) for path in transform_list) :
             tissue_iter = None if args.no_pvc else TISSUE_LIST
@@ -1189,6 +1386,8 @@ def _run_single_preprocess(args, sub, ses):
                 final_res_str,
                 tissue_iter,
                 use_component_option=args.no_pvc,
+                space=final_space,
+                custom_derivatives_dir=transform_derivatives_dir,
             )
             __stage_path_list = list(dict.fromkeys(__stage_path_list))
 
@@ -1219,6 +1418,11 @@ def _run_single_preprocess(args, sub, ses):
                                     modality="mrsi", space=final_space, desc = desc, 
                                     met = met, option = preproc_str,
                                     res = final_res_str,construct_path=True,
+                                )
+                                output_img_path = _use_custom_derivative_dir(
+                                    mridata,
+                                    output_img_path,
+                                    transform_derivatives_dir,
                                 )
                                 # debug.info("Transforming",input_img_path)
                                 if not exists(input_img_path): 
@@ -1369,11 +1573,17 @@ def main():
                         help="Reference metabolite for MRSI registration [default=CrPCr]")
     parser.add_argument('--transform', type=str, default="mni-origres",
                         help="Transform MRSI to target space at specified resolution: (mni-origres,mni-t1wres=mni normalization in orig mrsi or t1w resolution, [t1w-origres], [t1w-t1wres] =  trasnform to t1w in orig mrsi or t1w resolution, mni-<N>mm/t1w-<N>mm for custom resolution, skip=disable transform stage)")   
+    parser.add_argument('--transform_derivatives_dir', type=str, default=None,
+                        help="Optional derivatives subdirectory for transformed MRSI maps. Defaults to the standard mrsi-mni/mrsi-T1w folder; when set, outputs go to derivatives/<name> with the same sub/ses filenames.")
     parser.add_argument('--overwrite_transform', action='store_true', help="Overwrite transform to MNI or T1w space")
     parser.add_argument('--no_pvc', action='store_true', help="Skip partial volume correction")
     parser.add_argument('--overwrite_filt', action='store_true', help="Overwrite MRSI filtering output")
     parser.add_argument('--overwrite_pve', action='store_true'   , help="Overwrite partial volume correction")
     parser.add_argument('--overwrite_t1_reg', action='store_true', help="Overwrite MRSI -> T1w registration")
+    parser.add_argument('--extend_t1_csf', action='store_true',
+                        help="Before MRSI -> T1w registration, add the p3 CSF partial-volume layer from the raw BIDS T1w acquisition to the skull-stripped --t1 image and use that extended image as the fixed registration target.")
+    parser.add_argument('--csf_pv_threshold', type=float, default=0.95,
+                        help="Threshold for binarizing the p3 CSF partial-volume map when --extend_t1_csf is used.")
     parser.add_argument('--overwrite_mni_reg', action='store_true', help="Overwrite T1w -> MNI registration")
     parser.add_argument('--overwrite_mnilong', action='store_true', help="Overwrite transform to MNI-Longitudinal orig res")
     parser.add_argument('--proc_mnilong', action='store_true', help="Process transform to MNI-Longitudinal orig res")

@@ -236,7 +236,8 @@ To access the full dataset, contact the authors with a detailed research proposa
 - Prints a preflight availability table per subject/session: existing files are marked with a green check, missing ones with a red X, and items marked **PROC** (orange) are auto-generated during preprocessing (e.g., transforms or masks).
 - Optional oblique FOV correction (`--corr_orient`).
 - Filters MRSI spikes (`--filtoption`, `--spikepc`) and builds brain masks if present.
-- Runs/refreshes T1w→MNI registration when needed (`--overwrite_mni_reg`) and exports MRSI to T1w or MNI space at native-MRSI or T1w resolution via `--transform`.
+- Runs/refreshes MRSI→T1w registration when needed, optionally using a CSF-extended skull-stripped T1w fixed image (`--extend_t1_csf` with `--overwrite_t1_reg` for existing transforms).
+- Runs/refreshes T1w→MNI registration when needed (`--overwrite_mni_reg`) and exports MRSI to T1w or MNI space at native-MRSI, T1w, or custom resolution via `--transform`.
 - Partial volume correction runs when `--overwrite_pve` is set and p1/p2/p3 maps are present; otherwise PVC is skipped (or explicitly bypassed with `--no_pvc`).
 
 > **Batch mode semantics**
@@ -262,6 +263,15 @@ To access the full dataset, contact the authors with a detailed research proposa
     --t1 acq-memprage_desc-brain_T1w \
     --transform mni-t1wres --overwrite_pve
   ```
+- Recompute MRSI→T1w registration with CSF added back to the skull-stripped T1w fixed image, and write transformed maps to a custom derivatives folder
+  ```bash
+  python experiments/Preprocessing/preprocess.py \
+    --group BioPsych-Project --sub CHUVLFT035 --ses V1 \
+    --t1 desc-brain_T1w \
+    --extend_t1_csf --csf_pv_threshold 0.95 --overwrite_t1_reg \
+    --transform t1w-t1wres \
+    --transform_derivatives_dir mrsi-T1w-brainCSF
+  ```
 - Optional add-ons: `--corr_orient` to fix oblique FOV; `--no_pvc` to skip partial volume correction; `--overwrite_filt`/`--overwrite_transform`/`--overwrite_mni_reg` to recompute stages; `--proc_mnilong` (+ `--overwrite_mnilong`) for MNI152-long outputs; `--checksum` to print a pre-run output validity summary; `--v 1` for verbose logs.
 
 **Key `preprocess.py` options**
@@ -278,12 +288,15 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--nthreads` | `4` | CPU threads for filtering, PVC, and transforms. |
 | `--filtoption` | `filtbiharmonic` | Spike filtering strategy. |
 | `--spikepc` | `99` | Percentile for spike removal. |
-| `--transform` | `mni-origres` (`mni-t1wres`/`t1w-origres`/`t1w-t1wres`) | Export MRSI to MNI or T1w space at native MRSI vs T1w resolution. |
+| `--transform` | `mni-origres` (`mni-t1wres`/`t1w-origres`/`t1w-t1wres`/`mni-<N>mm`/`t1w-<N>mm`/`skip`) | Export MRSI to MNI or T1w space at native MRSI, T1w, or custom isotropic resolution. |
+| `--transform_derivatives_dir` | `None` | Optional derivatives subdirectory for transformed MRSI maps. Defaults to `derivatives/mrsi-mni` or `derivatives/mrsi-T1w`; when set, outputs go to `derivatives/<name>` with the same sub/ses layout and filenames. |
 | `--overwrite_transform` | `off` | Recompute transforms/exports for the selected space+resolution (flag). |
 | `--no_pvc` | `off` | Skip PVC exports (transform filtered signals only; flag). |
 | `--overwrite_pve` | `off` | Run/refresh partial volume correction before transforms (flag). |
 | `--overwrite_filt` | `off` | Recompute spike filtering outputs (flag). |
 | `--overwrite_t1_reg` | `off` | Force regeneration of MRSI→T1w transforms (flag). |
+| `--extend_t1_csf` | `off` | Before MRSI→T1w registration, create a CSF-extended fixed T1w by adding raw-T1w CSF voxels from CAT12 p3 to the skull-stripped `--t1`. Existing MRSI→T1w transforms are reused unless `--overwrite_t1_reg` is also set. |
+| `--csf_pv_threshold` | `0.95` | Threshold used to binarize the p3 CSF partial-volume map for `--extend_t1_csf`. |
 | `--overwrite_mni_reg` | `off` | Force regeneration of T1w→MNI transforms (flag). |
 | `--proc_mnilong` | `off` | Generate MNI152-longitudinal outputs (flag). |
 | `--overwrite_mnilong` | `off` | Rerun MNI152-longitudinal exports (flag). |
@@ -291,7 +304,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 | `--checksum` | `off` | Display the output validity summary before processing (flag). |
 | `--v` | `0` | Verbose flag (`1` to print more detail). |
 
-Input notes: `--participants` can be TSV/CSV (subject column such as `participant_id`/`sub`/`id` and session column such as `ses`/`session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). `--t1` is required (defaults to the `desc-brain_T1w` pattern). Boolean options are flags (no `0/1` values); include them to enable. PVC needs CAT12 p1/p2/p3 maps; if absent or `--no_pvc` is set, PVC is skipped and logged.
+Input notes: `--participants` can be TSV/CSV (subject column such as `participant_id`/`sub`/`id` and session column such as `ses`/`session_id`); default is `$BIDSDATAPATH/<group>/participants_allsessions.tsv` (V2BIS rows are skipped). `--t1` is required (defaults to the `desc-brain_T1w` pattern). Boolean options are flags (no `0/1` values); include them to enable. PVC needs CAT12 p1/p2/p3 maps; if absent or `--no_pvc` is set, PVC is skipped and logged. `--extend_t1_csf` needs a raw T1w acquisition in `$BIDSDATAPATH/<group>/sub-<sub>/ses-<ses>/anat` and the CAT12 p3 map in T1w space; it saves `desc-brainCSF_T1w` and `desc-brainCSFmask_T1w` next to the skull-stripped `--t1`.
 
 **Population quality mask**
 
@@ -320,6 +333,5 @@ All registration is triggered automatically by `preprocess.py`. Run these direct
 
 
 ![Figure 1](figures/preproc_vba.png)
-
 
 
