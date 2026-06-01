@@ -1,1 +1,0 @@
-sub-P001_ses-V1_run-02_acq-mprage_T1w.nii

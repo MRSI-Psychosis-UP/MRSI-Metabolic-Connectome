@@ -1,0 +1,28 @@
+include LICENSE
+include README.md
+include pyproject.toml
+include requirements.txt
+include setup.py
+
+graft mrsitoolbox
+
+exclude .gitignore
+exclude build_env.sh
+exclude environment.yaml
+exclude parcellate_chimera.sh
+exclude recon_sample.sh
+exclude set_cupy_path.sh
+exclude set_env_paths.py
+exclude t1s.txt
+
+prune build
+prune dist
+prune data
+prune experiments
+prune figures
+prune harmonize
+prune logs
+prune results
+
+global-exclude __pycache__
+global-exclude *.py[cod]

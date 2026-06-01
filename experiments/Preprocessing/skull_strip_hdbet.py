@@ -19,14 +19,14 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, 
 
 
 def import_mridata():
-    """Import mridata.extract_metadata, adding repo root to sys.path if needed."""
+    """Import MRIData.extract_metadata, adding repo root to sys.path if needed."""
     try:
-        from tools.mridata import MRIData  # type: ignore
+        from mrsitoolbox.tools.mridata import MRIData  # type: ignore
     except ModuleNotFoundError:
-        # try relative to this script (MRSI-Metabolic-Connectome/tools)
+        # Try relative to this script (MRSI-Metabolic-Connectome/mrsitoolbox).
         repo_root = Path(__file__).resolve().parents[2] / "MRSI-Metabolic-Connectome"
         sys.path.append(str(repo_root))
-        from tools.mridata import MRIData  # type: ignore
+        from mrsitoolbox.tools.mridata import MRIData  # type: ignore
     return MRIData.extract_metadata
 
 

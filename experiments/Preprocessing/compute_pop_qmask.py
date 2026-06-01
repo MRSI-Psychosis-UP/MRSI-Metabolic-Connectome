@@ -4,16 +4,16 @@ import numpy as np
 import copy
 from rich.progress import Progress
 import pandas as pd
-from tools.datautils import DataUtils
-from tools.datautils import DataUtils
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.datautils import DataUtils
 from os.path import split, join, exists
-from tools.filetools import FileTools
-from tools.debug import Debug
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug
 import nibabel as nib
 import argparse
 from os.path import join, split
 from nilearn import datasets
-from tools.mridata import MRIData
+from mrsitoolbox.tools.mridata import MRIData
 import json
 
 dutils   = DataUtils()

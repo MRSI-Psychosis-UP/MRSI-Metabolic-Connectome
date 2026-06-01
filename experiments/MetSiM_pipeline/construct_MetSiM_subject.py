@@ -1,20 +1,20 @@
 import os, sys, copy, shutil, csv
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
-from graphplot.simmatrix import SimMatrixPlot
+from mrsitoolbox.graphplot.simmatrix import SimMatrixPlot
 import pandas as pd
 import nibabel as nib
-from tools.datautils import DataUtils
+from mrsitoolbox.tools.datautils import DataUtils
 from os.path import split, join, exists, isdir
-from tools.filetools import FileTools
-from tools.debug import Debug
-from connectomics.parcellate import Parcellate
-from randomize.randomize import Randomize
-from connectomics.network import NetBasedAnalysis
-from connectomics.nettools import NetTools
-from connectomics.mesim import MeSiM
-from registration.registration import Registration
-from tools.mridata import MRIData
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug
+from mrsitoolbox.connectomics.parcellate import Parcellate
+from mrsitoolbox.randomize.randomize import Randomize
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
+from mrsitoolbox.connectomics.nettools import NetTools
+from mrsitoolbox.connectomics.mesim import MeSiM
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.mridata import MRIData
 import matplotlib.pyplot as plt
 import argparse
 import seaborn as sns

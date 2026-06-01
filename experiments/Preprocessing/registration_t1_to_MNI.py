@@ -1,10 +1,10 @@
 import os, sys, csv
 import numpy as np
-from registration.registration import Registration
-from tools.datautils import DataUtils
-from tools.debug import Debug
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, exists, isdir
-from tools.mridata import MRIData
+from mrsitoolbox.tools.mridata import MRIData
 import argparse
 import nibabel as nib
 from nilearn import datasets  

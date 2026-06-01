@@ -1,15 +1,15 @@
 
 import numpy as np
 import os
-from graphplot.simmatrix import SimMatrixPlot
-from tools.datautils import DataUtils
-from connectomics.network import NetBasedAnalysis
+from mrsitoolbox.graphplot.simmatrix import SimMatrixPlot
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.connectomics.network import NetBasedAnalysis
 import matplotlib.pyplot as plt
 from os.path import split, join
 from nilearn import datasets, plotting, surface
 import nibabel as nib
 from matplotlib.colors import LinearSegmentedColormap
-from graphplot.colorbar import ColorBar
+from mrsitoolbox.graphplot.colorbar import ColorBar
 import argparse
 
 ###################

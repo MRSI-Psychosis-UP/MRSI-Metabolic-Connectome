@@ -1,6 +1,6 @@
 import numpy as np
-from tools.datautils import DataUtils
-from tools.debug import Debug
+from mrsitoolbox.tools.datautils import DataUtils
+from mrsitoolbox.tools.debug import Debug
 from os.path import join, split 
 import os , math
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ import copy, sys
 from rich.console import Console
 from rich.table import Table
 from tqdm import tqdm
-from graphplot.colorbar import ColorBar
+from mrsitoolbox.graphplot.colorbar import ColorBar
 from scipy import interpolate, ndimage
 
 

@@ -6,14 +6,14 @@ import numpy as np
 #     tf.config.set_visible_devices([], 'GPU')
 # except:
 #     pass
-from registration.registration import Registration
-from tools.datautils import DataUtils
+from mrsitoolbox.registration.registration import Registration
+from mrsitoolbox.tools.datautils import DataUtils
 from os.path import split, join, exists, isdir
-from tools.filetools import FileTools
-from tools.debug import Debug
+from mrsitoolbox.tools.filetools import FileTools
+from mrsitoolbox.tools.debug import Debug
 import argparse
-from tools.mridata import MRIData
-from filters.biharmonic import BiHarmonic
+from mrsitoolbox.tools.mridata import MRIData
+from mrsitoolbox.filters.biharmonic import BiHarmonic
 import nibabel as nib
 from nibabel.orientations import inv_ornt_aff 
 

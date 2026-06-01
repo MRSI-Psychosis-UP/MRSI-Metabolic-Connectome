@@ -1,13 +1,20 @@
 build
+dist
+scripts/publish_pypi.sh
+harmonize/
+
+doc.md
 *__pycache__*
 *.xml
 *egg-info*
 .env
 
+
 t1s.txt
 data/BIDS/Geneva-Study/derivatives/group/msi
 data/BIDS/Geneva-Study/derivatives/connectivity
 data/BIDS/Geneva-Study/derivatives/group/networkpaths
+set_cupy_path.sh
 
 recon_sample.sh
 parcellate_chimera.sh
