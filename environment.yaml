@@ -1,4 +1,4 @@
-name: mrsitooldemo_env
+name: mrsiprep
 channels:
   - conda-forge
   - defaults

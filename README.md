@@ -55,7 +55,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 
 3. **Activate the Environment**
    ```bash
-   conda activate mrsitooldemo_env
+   conda activate mrsiprep
    ```
 
 4. **Set Environment Paths**
@@ -333,5 +333,4 @@ All registration is triggered automatically by `preprocess.py`. Run these direct
 
 
 ![Figure 1](figures/preproc_vba.png)
-
 

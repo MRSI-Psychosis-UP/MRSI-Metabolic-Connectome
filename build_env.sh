@@ -8,14 +8,14 @@ read -p "Enter your choice (1/2/3): " choice
 
 case $choice in
     1)
-        echo "Checking if the environment 'mrsitooldemo_env' already exists..."
+        echo "Checking if the environment 'mrsiprep' already exists..."
         
         # Check if the environment exists by name
-        if conda env list | grep -q 'mrsitooldemo_env'; then
-            echo "Environment 'mrsitooldemo_env' already exists. Removing it..."
-            conda env remove -n mrsitooldemo_env
+        if conda env list | grep -q 'mrsiprep'; then
+            echo "Environment 'mrsiprep' already exists. Removing it..."
+            conda env remove -n mrsiprep
         else
-            echo "No environment with name 'mrsitooldemo_env' found."
+            echo "No environment with name 'mrsiprep' found."
         fi
 
         # Prompt for path if the environment doesn't have a name
@@ -35,9 +35,9 @@ case $choice in
                 conda env remove --prefix "$env_path"
                 
                 # Recreate the environment with the correct name
-                echo "Creating the environment 'mrsitooldemo_env'..."
-                conda env create --name mrsitooldemo_env --file temp_environment.yaml
-                echo "Environment created with the name 'mrsitooldemo_env'."
+                echo "Creating the environment 'mrsiprep'..."
+                conda env create --name mrsiprep --file temp_environment.yaml
+                echo "Environment created with the name 'mrsiprep'."
                 
                 # Clean up the temporary environment file
                 rm temp_environment.yaml
@@ -48,8 +48,8 @@ case $choice in
         else
             # Create a new environment from a YAML file
             echo "Creating a new environment..."
-            if conda env create -n mrsitooldemo_env -f environment.yaml; then
-                echo "Environment 'mrsitooldemo_env' created."
+            if conda env create -n mrsiprep -f environment.yaml; then
+                echo "Environment 'mrsiprep' created."
             else
                 echo "Failed to create the environment."
                 exit 1
@@ -57,10 +57,10 @@ case $choice in
         fi
         ;;
     2)
-        echo "Activating the 'mrsitooldemo_env' environment..."
-        conda activate mrsitooldemo_env
+        echo "Activating the 'mrsiprep' environment..."
+        conda activate mrsiprep
         if [ $? -eq 0 ]; then
-            echo "Environment 'mrsitooldemo_env' activated."
+            echo "Environment 'mrsiprep' activated."
         else
             echo "Failed to activate the environment. It may not exist."
             exit 1
