@@ -39,6 +39,7 @@ To access the full dataset, contact the authors with a detailed research proposa
 - **Python 3.x**
 - **Conda / Miniconda** (optional, but recommended)
 - **[CHIMERA](https://github.com/connectomicslab/chimera)** for anatomical parcellation
+- **[HD-BET](https://github.com/MIC-DKFZ/HD-BET)** is optional and only required for automated T1w skull stripping via the GUI or `scripts/run_hd_bet_batch.py`.
 
 ### Setup Instructions
 
@@ -72,7 +73,8 @@ To access the full dataset, contact the authors with a detailed research proposa
    CAT12 partial-volume files, and T1w acquisitions into the expected BIDS and
    derivatives layout. It uses the `mrsiprep` environment dependencies
    (`PyQt5`/`PyQt6`, `nibabel`, `rich`). Optional skull stripping is delegated
-   to the standalone HD-BET helper:
+   to the standalone HD-BET helper and requires installing HD-BET from
+   https://github.com/MIC-DKFZ/HD-BET:
    ```bash
    python scripts/run_hd_bet_batch.py
    ```
